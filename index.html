@@ -8,6 +8,9 @@
 <meta http-equiv="Expires" content="0" />
 <title>Mon Tableau de Vie</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
   :root {
     --bg-1: #fdf6f0;
@@ -988,6 +991,9 @@
       <button class="btn-icon" onclick="exportData()">↗ Exporter</button>
       <button class="btn-icon" onclick="importData()">↙ Importer</button>
       <button class="btn-icon" onclick="openSettings()">⚙ Personnaliser</button>
+      <button class="btn-icon" id="syncSignInBtn" onclick="signInWithGoogle()" style="background:linear-gradient(135deg,#e8f0fe,#d2e3fc);color:#1a73e8;font-weight:600;display:none;">☁️ Connexion</button>
+      <div id="syncUserAvatar" style="display:none;align-items:center;gap:6px;background:#faf8fd;border:1px solid var(--line);border-radius:20px;padding:4px 10px;cursor:pointer;" onclick="showSyncMenu()" title="Synchronisation cloud"></div>
+      <span id="syncStatusPill" style="font-size:12px;padding:4px 10px;border-radius:20px;background:#faf8fd;border:1px solid var(--line);display:none;"></span>
       <button class="btn-icon" onclick="confirmReseed()" title="Recharger les données depuis le CV" style="background:linear-gradient(135deg,var(--peach-soft),var(--butter-soft));font-weight:600;">🔄 Recharger</button>
     </div>
   </header>
@@ -1038,12 +1044,12 @@
             <label>Sommeil de la nuit</label>
             <div class="sleep-times">
               <div class="sleep-time-block">
-                <label>🌙 Couché</label>
-                <input type="time" id="bedtimeInput" />
-              </div>
-              <div class="sleep-time-block">
                 <label>☀️ Réveil</label>
                 <input type="time" id="wakeTimeInput" />
+              </div>
+              <div class="sleep-time-block">
+                <label>🌙 Couché</label>
+                <input type="time" id="bedtimeInput" />
               </div>
             </div>
             <div class="sleep-input">
@@ -2216,7 +2222,11 @@ function migrate(s) {
   }
   return s;
 }
-function saveState() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+function saveState() {
+  state.lastModified = Date.now();
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  _fbQueueSave();
+}
 let state = loadState();
 
 /* ========= UTILS ========= */
@@ -6281,6 +6291,181 @@ setupJournal();
 populateTxCategories();
 renderAll();
 checkSeedBanner();
+
+/* =====================================================
+   FIREBASE SYNC — synchronisation multi-appareils
+   =====================================================
+   ↓↓↓ COLLE TA CONFIG FIREBASE ICI ↓↓↓            */
+const FB_CONFIG = {
+  apiKey: "AIzaSyDPnPO3IQd3puR4qkx0nWFHLHSDAPuAGcM",
+  authDomain: "mon-tableau-de-vie.firebaseapp.com",
+  projectId: "mon-tableau-de-vie",
+  storageBucket: "mon-tableau-de-vie.firebasestorage.app",
+  messagingSenderId: "263100412161",
+  appId: "1:263100412161:web:638ce5c3ef91b8ffa4ab00"
+};
+/* ↑↑↑ FIN CONFIG ↑↑↑ */
+
+let _fbDb = null, _fbAuth = null, _fbUser = null;
+let _fbSaveTimer = null, _fbUnsub = null;
+
+function _fbDocRef() {
+  return _fbDb.collection("users").doc(_fbUser.uid).collection("dashboard").doc("state");
+}
+
+function _fbSetStatus(s) {
+  const pill = document.getElementById("syncStatusPill");
+  if (!pill) return;
+  const cfg = {
+    off:      { icon: "☁️", label: "Non connecté",  color: "var(--ink-softer)" },
+    syncing:  { icon: "🔄", label: "Synchro…",      color: "var(--orange)" },
+    ok:       { icon: "✅", label: "Synchronisé",   color: "var(--green)" },
+    error:    { icon: "⚠️", label: "Erreur sync",   color: "var(--red)" },
+  }[s] || { icon: "☁️", label: s, color: "var(--ink-softer)" };
+  pill.style.display = "";
+  pill.innerHTML = `<span style="color:${cfg.color}">${cfg.icon} ${cfg.label}</span>`;
+}
+
+function _fbUpdateUI(user) {
+  const btn = document.getElementById("syncSignInBtn");
+  const av  = document.getElementById("syncUserAvatar");
+  if (!btn || !av) return;
+  if (user) {
+    btn.style.display = "none";
+    av.style.display  = "flex";
+    av.title = user.email || "";
+    const imgHtml = user.photoURL
+      ? `<img src="${user.photoURL}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;">`
+      : `<div style="width:26px;height:26px;border-radius:50%;background:var(--lavender);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
+    const firstName = (user.displayName || "").split(" ")[0] || user.email.split("@")[0];
+    av.innerHTML = imgHtml + `<span style="font-size:11px;color:var(--ink-soft);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${firstName}</span>`;
+  } else {
+    btn.style.display = "";
+    av.style.display  = "none";
+    av.innerHTML = "";
+  }
+}
+
+async function _fbLoad() {
+  try {
+    _fbSetStatus("syncing");
+    const doc = await _fbDocRef().get();
+    if (doc.exists) {
+      const remote = doc.data().state;
+      const localTs  = state.lastModified || 0;
+      const remoteTs = remote.lastModified || 0;
+      if (remoteTs > localTs) {
+        state = migrate({ ...DEFAULT_STATE, ...remote });
+        localStorage.setItem(STORE_KEY, JSON.stringify(state));
+        renderAll();
+        showToast("✨ Données chargées depuis le cloud !");
+      } else if (localTs > remoteTs) {
+        // les données locales sont plus récentes → on pousse vers le cloud
+        await _fbSaveNow();
+      }
+    } else {
+      // Première connexion sur cet appareil → envoie les données locales
+      await _fbSaveNow();
+      showToast("☁️ Données envoyées vers le cloud ✅");
+    }
+    _fbSetStatus("ok");
+    _fbListen();
+  } catch(e) {
+    console.warn("[Firebase] load error", e);
+    _fbSetStatus("error");
+  }
+}
+
+function _fbListen() {
+  if (_fbUnsub) _fbUnsub();
+  _fbUnsub = _fbDocRef().onSnapshot(snap => {
+    if (!snap.exists) return;
+    const remote = snap.data().state;
+    const localTs  = state.lastModified || 0;
+    const remoteTs = remote.lastModified || 0;
+    // Ne met à jour que si les données distantes sont vraiment plus récentes
+    // (délai de 3s pour éviter les boucles écriture→lecture)
+    if (remoteTs > localTs + 3000) {
+      state = migrate({ ...DEFAULT_STATE, ...remote });
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      renderAll();
+      showToast("🔄 Données mises à jour depuis un autre appareil");
+    }
+    _fbSetStatus("ok");
+  }, err => {
+    console.warn("[Firebase] listen error", err);
+    _fbSetStatus("error");
+  });
+}
+
+async function _fbSaveNow() {
+  if (!_fbUser || !_fbDb) return;
+  try {
+    await _fbDocRef().set({ state: JSON.parse(JSON.stringify(state)) });
+    _fbSetStatus("ok");
+  } catch(e) {
+    console.warn("[Firebase] save error", e);
+    _fbSetStatus("error");
+  }
+}
+
+function _fbQueueSave() {
+  if (!_fbUser || !_fbDb) return;
+  _fbSetStatus("syncing");
+  clearTimeout(_fbSaveTimer);
+  _fbSaveTimer = setTimeout(_fbSaveNow, 2500);
+}
+
+function signInWithGoogle() {
+  if (!_fbAuth) return;
+  const provider = new firebase.auth.GoogleAuthProvider();
+  _fbAuth.signInWithPopup(provider).catch(e => {
+    showToast("❌ Connexion impossible : " + (e.message || e));
+  });
+}
+
+function showSyncMenu() {
+  if (!_fbUser) return;
+  if (confirm(`Compte connecté : ${_fbUser.email}\n\nSe déconnecter du cloud ?\n(Tes données locales restent intactes)`)) {
+    if (_fbUnsub) _fbUnsub();
+    _fbAuth.signOut().then(() => {
+      _fbUser = null;
+      _fbSetStatus("off");
+      _fbUpdateUI(null);
+      showToast("Déconnecté du cloud");
+    });
+  }
+}
+
+// ——— Init (lancé au démarrage si la config est remplie) ———
+(function initFirebase() {
+  if (!FB_CONFIG.apiKey) {
+    // Pas de config → affiche juste le bouton "Connexion" grisé
+    return;
+  }
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
+    _fbDb   = firebase.firestore();
+    _fbAuth = firebase.auth();
+
+    // Affiche le bouton connexion
+    const btn = document.getElementById("syncSignInBtn");
+    if (btn) btn.style.display = "";
+
+    _fbAuth.onAuthStateChanged(user => {
+      _fbUser = user;
+      _fbUpdateUI(user);
+      if (user) {
+        _fbLoad();
+      } else {
+        if (_fbUnsub) { _fbUnsub(); _fbUnsub = null; }
+        _fbSetStatus("off");
+      }
+    });
+  } catch(e) {
+    console.warn("[Firebase] init error", e);
+  }
+})();
 </script>
 </body>
 </html>
