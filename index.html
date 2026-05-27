@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -47,6 +48,7 @@
   }
 
   * { box-sizing: border-box; }
+  html { color-scheme: light; }
   html, body { margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
@@ -996,7 +998,23 @@
     .add-goal-form button { grid-column: span 2; }
     .add-task-form { grid-template-columns: 1fr 1fr; }
     .add-task-form input:first-child { grid-column: span 2; }
-.modal .grid-2 { grid-template-columns: 1fr; }
+    .modal .grid-2 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .container { padding: 16px 16px 80px; }
+    header.top { gap: 10px; }
+    header.top h1 { font-size: 20px; }
+    .header-actions { gap: 6px; }
+    .header-actions .btn-icon { padding: 8px 11px; font-size: 12px; }
+    /* Cacher les boutons secondaires sur mobile */
+    #exportBtn, #importBtn, #settingsBtn, #rechargerBtn { display: none; }
+    nav.tabs { gap: 6px; }
+    .tab { padding: 8px 13px; font-size: 13px; }
+    .rings { grid-template-columns: repeat(2, 1fr); }
+    .ring-card { padding: 14px 10px; }
+    .ring { width: 64px; height: 64px; }
+    .ring-val { font-size: 18px; }
+    .day-nav-label { font-size: 14px; min-width: 140px; }
   }
 </style>
 </head>
@@ -1009,13 +1027,13 @@
     </div>
     <div class="header-actions">
       <button class="btn-icon" onclick="openPatchModal()" style="background:linear-gradient(135deg,var(--lavender-soft),var(--pink-soft));font-weight:600;">📥 Mise à jour</button>
-      <button class="btn-icon" onclick="exportData()">↗ Exporter</button>
-      <button class="btn-icon" onclick="importData()">↙ Importer</button>
-      <button class="btn-icon" onclick="openSettings()">⚙ Personnaliser</button>
+      <button class="btn-icon" id="exportBtn" onclick="exportData()">↗ Exporter</button>
+      <button class="btn-icon" id="importBtn" onclick="importData()">↙ Importer</button>
+      <button class="btn-icon" id="settingsBtn" onclick="openSettings()">⚙ Personnaliser</button>
       <button class="btn-icon" id="syncSignInBtn" onclick="signInWithGoogle()" style="background:linear-gradient(135deg,#e8f0fe,#d2e3fc);color:#1a73e8;font-weight:600;display:none;">☁️ Connexion</button>
       <div id="syncUserAvatar" style="display:none;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;box-shadow:var(--shadow);font-size:13px;" onclick="showSyncMenu()" title="Synchronisation cloud"></div>
       <span id="syncStatusPill" style="font-size:13px;padding:8px 14px;border-radius:999px;background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);display:none;"></span>
-      <button class="btn-icon" onclick="confirmReseed()" title="Recharger les données depuis le CV" style="background:linear-gradient(135deg,var(--peach-soft),var(--butter-soft));font-weight:600;">🔄 Recharger</button>
+      <button class="btn-icon" id="rechargerBtn" onclick="confirmReseed()" title="Recharger les données depuis le CV" style="background:linear-gradient(135deg,var(--peach-soft),var(--butter-soft));font-weight:600;">🔄 Recharger</button>
     </div>
   </header>
 
