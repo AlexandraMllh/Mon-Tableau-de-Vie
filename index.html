@@ -6509,10 +6509,6 @@ function showSyncMenu() {
     _fbDb   = firebase.firestore();
     _fbAuth = firebase.auth();
 
-    // Affiche le bouton connexion
-    const btn = document.getElementById("syncSignInBtn");
-    if (btn) btn.style.display = "";
-
     _fbAuth.onAuthStateChanged(user => {
       _fbUser = user;
       _fbUpdateUI(user);
@@ -6520,6 +6516,9 @@ function showSyncMenu() {
         _fbLoad();
       } else {
         if (_fbUnsub) { _fbUnsub(); _fbUnsub = null; }
+        // Montre le bouton connexion seulement quand on sait que l'utilisateur n'est pas connecté
+        const btn = document.getElementById("syncSignInBtn");
+        if (btn) btn.style.display = "";
         _fbSetStatus("off");
       }
     });
