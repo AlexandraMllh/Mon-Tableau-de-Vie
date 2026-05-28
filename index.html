@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v65</title>
+<title>Mon Tableau de Vie · v66</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1291,47 +1291,37 @@
           <input type="date" id="timeWorkDate" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;background:white;color:var(--ink);" />
           <button class="btn-soft" onclick="resetTimeDateToToday()" style="font-size:12px;padding:7px 12px;">Aujourd'hui</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div style="background:linear-gradient(135deg,var(--sky-soft),white);padding:14px;border-radius:14px;">
-            <label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:6px;">📘 Postdoc</label>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <input type="number" id="timePostdoc" step="0.25" min="0" placeholder="0" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:18px;font-weight:600;color:#2c6391;background:white;" onchange="saveTimeWork()" />
-              <span style="font-size:14px;color:var(--ink-soft);">h</span>
-            </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:6px;background:var(--sky-soft);padding:7px 10px;border-radius:10px;">
+            <span style="font-size:12px;color:var(--ink-soft);white-space:nowrap;flex-shrink:0;">📘 Postdoc</span>
+            <input type="number" id="timePostdoc" step="0.25" min="0" placeholder="0" style="width:0;flex:1;padding:4px 6px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;color:#2c6391;background:white;text-align:center;" onchange="saveTimeWork()" />
+            <span style="font-size:12px;color:var(--ink-soft);">h</span>
           </div>
-          <div style="background:linear-gradient(135deg,var(--pink-soft),white);padding:14px;border-radius:14px;">
-            <label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:6px;">📝 Valorisation</label>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <input type="number" id="timeValorisation" step="0.25" min="0" placeholder="0" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:18px;font-weight:600;color:#9b4866;background:white;" onchange="saveTimeWork()" />
-              <span style="font-size:14px;color:var(--ink-soft);">h</span>
-            </div>
+          <div style="display:flex;align-items:center;gap:6px;background:var(--pink-soft);padding:7px 10px;border-radius:10px;">
+            <span style="font-size:12px;color:var(--ink-soft);white-space:nowrap;flex-shrink:0;">📝 Valo</span>
+            <input type="number" id="timeValorisation" step="0.25" min="0" placeholder="0" style="width:0;flex:1;padding:4px 6px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;color:#9b4866;background:white;text-align:center;" onchange="saveTimeWork()" />
+            <span style="font-size:12px;color:var(--ink-soft);">h</span>
           </div>
-          <div style="background:linear-gradient(135deg,var(--lavender-soft),white);padding:14px;border-radius:14px;">
-            <label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:6px;">📚 Enseignement</label>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <input type="number" id="timeEnseignement" step="0.25" min="0" placeholder="0" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:18px;font-weight:600;color:#6b4d99;background:white;" onchange="saveTimeWork()" />
-              <span style="font-size:14px;color:var(--ink-soft);">h</span>
-            </div>
+          <div style="display:flex;align-items:center;gap:6px;background:var(--lavender-soft);padding:7px 10px;border-radius:10px;">
+            <span style="font-size:12px;color:var(--ink-soft);white-space:nowrap;flex-shrink:0;">📚 Ens.</span>
+            <input type="number" id="timeEnseignement" step="0.25" min="0" placeholder="0" style="width:0;flex:1;padding:4px 6px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;color:#6b4d99;background:white;text-align:center;" onchange="saveTimeWork()" />
+            <span style="font-size:12px;color:var(--ink-soft);">h</span>
           </div>
-          <div style="background:linear-gradient(135deg,var(--peach-soft),white);padding:14px;border-radius:14px;">
-            <label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:6px;">📋 Candidatures</label>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <input type="number" id="timeCandidatures" step="0.25" min="0" placeholder="0" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:18px;font-weight:600;color:#8a5a2b;background:white;" onchange="saveTimeWork()" />
-              <span style="font-size:14px;color:var(--ink-soft);">h</span>
-            </div>
-          </div>
-          <div style="background:linear-gradient(135deg,var(--bg-2),white);padding:14px;border-radius:14px;grid-column:1/-1;">
-            <label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:6px;">🔧 Autre</label>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <input type="number" id="timeAutre" step="0.25" min="0" placeholder="0" style="width:120px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:18px;font-weight:600;color:#64748b;background:white;" onchange="saveTimeWork()" />
-              <span style="font-size:14px;color:var(--ink-soft);">h</span>
-              <input type="text" id="timeAutreNote" placeholder="Préciser (ex : soutenance blanche, jury, réunion syndicat…)" maxlength="120" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;color:var(--ink);background:white;" oninput="saveTimeNote()" />
-            </div>
+          <div style="display:flex;align-items:center;gap:6px;background:var(--peach-soft);padding:7px 10px;border-radius:10px;">
+            <span style="font-size:12px;color:var(--ink-soft);white-space:nowrap;flex-shrink:0;">📋 Cand.</span>
+            <input type="number" id="timeCandidatures" step="0.25" min="0" placeholder="0" style="width:0;flex:1;padding:4px 6px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;color:#8a5a2b;background:white;text-align:center;" onchange="saveTimeWork()" />
+            <span style="font-size:12px;color:var(--ink-soft);">h</span>
           </div>
         </div>
-        <div style="margin-top:14px;padding:12px 14px;background:linear-gradient(135deg,var(--butter-soft),white);border-radius:12px;display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:14px;color:var(--ink-soft);">Total du jour</span>
-          <strong id="timeDayTotal" style="font-size:20px;color:var(--ink);">0 h</strong>
+        <div style="display:flex;align-items:center;gap:8px;background:var(--bg-2);padding:7px 10px;border-radius:10px;margin-bottom:8px;">
+          <span style="font-size:12px;color:var(--ink-soft);white-space:nowrap;flex-shrink:0;">🔧 Autre</span>
+          <input type="number" id="timeAutre" step="0.25" min="0" placeholder="0" style="width:64px;flex-shrink:0;padding:4px 6px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;color:#64748b;background:white;text-align:center;" onchange="saveTimeWork()" />
+          <span style="font-size:12px;color:var(--ink-soft);">h</span>
+          <input type="text" id="timeAutreNote" placeholder="Préciser (ex : soutenance blanche, jury…)" maxlength="120" style="flex:1;padding:4px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;color:var(--ink);background:white;" oninput="saveTimeNote()" />
+        </div>
+        <div style="padding:8px 12px;background:linear-gradient(135deg,var(--butter-soft),white);border-radius:10px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:13px;color:var(--ink-soft);">Total du jour</span>
+          <strong id="timeDayTotal" style="font-size:16px;color:var(--ink);">0 h</strong>
         </div>
       </div>
       <div class="grid-two-eq" style="margin-bottom:18px;">
