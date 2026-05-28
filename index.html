@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<title>Mon Tableau de Vie</title>
+<title>Mon Tableau de Vie · v28</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1998,9 +1998,12 @@
     <label>Projet lié</label>
     <select id="taskEditProject"></select>
     <label style="margin-top:12px;">Avancement</label>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
-      <input type="range" id="taskEditProgress" min="0" max="100" step="5" value="0" style="flex:1;" oninput="document.getElementById('taskEditProgressVal').textContent=this.value+'%'" />
-      <span id="taskEditProgressVal" style="font-size:14px;font-weight:600;color:var(--lavender);min-width:40px;text-align:right;">0%</span>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <input type="range" id="taskEditProgress" min="0" max="100" step="5" value="0" style="flex:1;" oninput="updateModalPreview(+this.value)" />
+      <span id="taskEditProgressVal" style="font-size:14px;font-weight:600;min-width:40px;text-align:right;color:var(--lavender);">0%</span>
+    </div>
+    <div style="height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-bottom:4px;">
+      <div id="taskEditPreviewBar" style="height:100%;width:0%;border-radius:4px;transition:width 0.3s,background 0.3s;"></div>
     </div>
     <label style="margin-top:12px;">Jalons <span style="font-size:12px;color:var(--ink-softer);font-weight:400;">(cocher un jalon met à jour l'avancement)</span></label>
     <div class="milestone-list" id="taskEditMilestones"></div>
@@ -3079,14 +3082,20 @@ function _getCurrentEditTask() {
   const id = document.getElementById("taskEditId").value;
   return state.work.postdocTasks.find(x => x.id === id);
 }
+function updateModalPreview(pct) {
+  const col = pct >= 100 ? '#4ade80' : `hsl(${Math.round(pct * 1.2)}, 72%, 52%)`;
+  const bar = document.getElementById("taskEditPreviewBar");
+  const val = document.getElementById("taskEditProgressVal");
+  if (bar) { bar.style.width = pct + "%"; bar.style.background = pct > 0 ? col : "transparent"; }
+  if (val) { val.textContent = pct + "%"; val.style.color = pct > 0 ? col : "var(--lavender)"; }
+}
 function toggleMilestone(i) {
   const t = _getCurrentEditTask(); if (!t) return;
   if (!t.milestones) t.milestones = [];
   t.milestones[i].done = !t.milestones[i].done;
-  // Mise à jour auto du slider
   const pct = taskProgress(t);
   document.getElementById("taskEditProgress").value = pct;
-  document.getElementById("taskEditProgressVal").textContent = pct + "%";
+  updateModalPreview(pct);
   renderMilestones(t.milestones);
 }
 function deleteMilestone(i) {
@@ -3094,7 +3103,7 @@ function deleteMilestone(i) {
   t.milestones.splice(i, 1);
   const pct = taskProgress(t);
   document.getElementById("taskEditProgress").value = pct;
-  document.getElementById("taskEditProgressVal").textContent = pct + "%";
+  updateModalPreview(pct);
   renderMilestones(t.milestones);
 }
 function addMilestone() {
@@ -3107,7 +3116,7 @@ function addMilestone() {
   input.value = "";
   const pct = taskProgress(t);
   document.getElementById("taskEditProgress").value = pct;
-  document.getElementById("taskEditProgressVal").textContent = pct + "%";
+  updateModalPreview(pct);
   renderMilestones(t.milestones);
 }
 function openTaskEditModal(id) {
@@ -3127,7 +3136,7 @@ function openTaskEditModal(id) {
   pSel.value = t.projectId || "";
   const pct = taskProgress(t);
   document.getElementById("taskEditProgress").value = pct;
-  document.getElementById("taskEditProgressVal").textContent = pct + "%";
+  updateModalPreview(pct);
   renderMilestones(t.milestones || []);
   document.getElementById("newMilestoneInput").value = "";
   document.getElementById("taskEditModal").classList.add("open");
