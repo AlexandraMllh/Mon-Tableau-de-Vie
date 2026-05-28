@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v53</title>
+<title>Mon Tableau de Vie · v54</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -541,8 +541,11 @@
   .task-pct-badge { font-size: 11px; font-weight: 600; color: var(--lavender); background: var(--lavender-soft); padding: 1px 6px; border-radius: 6px; }
   /* Modal jalons */
   .milestone-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
-  .milestone-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: #faf8fd; border: 1px solid var(--line); }
+  .milestone-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: #faf8fd; border: 1px solid var(--line); transition: opacity 0.15s; }
   .milestone-row.done-m { background: var(--mint-soft); border-color: #6dc0a0; }
+  .milestone-row.drag-over { outline: 2px dashed var(--lavender); background: var(--lavender-soft) !important; }
+  .milestone-drag-handle { cursor: grab; color: var(--ink-softer); font-size: 15px; flex-shrink: 0; user-select: none; line-height: 1; padding: 0 1px; letter-spacing: -1px; }
+  .milestone-drag-handle:hover { color: var(--ink-soft); }
   .milestone-cb { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink-soft); cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
   .milestone-row.done-m .milestone-cb { background: var(--mint); border-color: var(--mint); }
   .milestone-row.done-m .milestone-cb::after { content: ""; width: 4px; height: 8px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px,-1px); display:block; }
@@ -4057,7 +4060,13 @@ function renderMilestones(milestones) {
   const totalW = milestones.reduce((s, m) => s + (m.weight != null ? Number(m.weight) : 0), 0);
   const hasAnyWeight = milestones.some(m => m.weight != null && m.weight > 0);
   const rows = milestones.map((m, i) => `
-    <div class="milestone-row ${m.done ? "done-m" : ""}" style="display:flex;align-items:center;gap:8px;">
+    <div class="milestone-row ${m.done ? "done-m" : ""}" style="display:flex;align-items:center;gap:8px;"
+         draggable="true"
+         ondragstart="milestoneDragStart(event,${i},this)"
+         ondragover="milestoneDragOver(event,${i},this)"
+         ondrop="milestoneDrop(event,${i})"
+         ondragend="milestoneDragEnd(this)">
+      <div class="milestone-drag-handle" title="Glisser pour réordonner">⠿</div>
       <div class="milestone-cb" style="flex-shrink:0;" onclick="toggleMilestone(${i})"></div>
       <span class="milestone-label" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${m.name ? escapeHtml(m.name) : '<em style="color:var(--ink-softer);font-size:12px;">sans nom</em>'}</span>
       <input type="number" class="milestone-weight" style="width:68px;flex-shrink:0;" min="0" max="100" step="1"
@@ -4073,6 +4082,37 @@ function renderMilestones(milestones) {
       </div>`
     : "";
   el.innerHTML = rows + totalHtml;
+}
+let _dragMilestoneIdx = null;
+function milestoneDragStart(e, i, el) {
+  _dragMilestoneIdx = i;
+  e.dataTransfer.effectAllowed = "move";
+  setTimeout(() => { el.style.opacity = "0.4"; }, 0);
+}
+function milestoneDragOver(e, i, el) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  document.querySelectorAll(".milestone-row").forEach(r => r.classList.remove("drag-over"));
+  if (_dragMilestoneIdx !== null && _dragMilestoneIdx !== i) el.classList.add("drag-over");
+}
+function milestoneDrop(e, i) {
+  e.preventDefault();
+  document.querySelectorAll(".milestone-row").forEach(r => r.classList.remove("drag-over"));
+  if (_dragMilestoneIdx === null || _dragMilestoneIdx === i) { _dragMilestoneIdx = null; return; }
+  const t = _getCurrentEditTask(); if (!t || !t.milestones) return;
+  const moved = t.milestones.splice(_dragMilestoneIdx, 1)[0];
+  t.milestones.splice(i, 0, moved);
+  _dragMilestoneIdx = null;
+  const pct = taskProgress(t);
+  document.getElementById("taskEditProgress").value = pct;
+  updateModalPreview(pct);
+  renderMilestones(t.milestones);
+  saveState();
+}
+function milestoneDragEnd(el) {
+  el.style.opacity = "1";
+  document.querySelectorAll(".milestone-row").forEach(r => r.classList.remove("drag-over"));
+  _dragMilestoneIdx = null;
 }
 function _getCurrentEditTask() {
   const id = document.getElementById("taskEditId").value;
