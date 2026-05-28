@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v45</title>
+<title>Mon Tableau de Vie · v46</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -756,6 +756,7 @@
   }
   .cal-event:hover { transform: translateX(2px); }
   .cal-event.task { background: var(--rose-soft); border-left-color: var(--red); }
+  .cal-event.work-event { background: #e0f2fe; border-left-color: #0369a1; color: #0369a1; font-weight: 500; }
   .cal-event.cand { background: var(--lavender-soft); border-left-color: var(--lavender); }
   .cal-event.article { background: var(--pink-soft); border-left-color: var(--pink); }
   .cal-event.comm { background: var(--peach-soft); border-left-color: var(--peach); }
@@ -5669,9 +5670,17 @@ function calNavToday() {
 }
 function getAllCalEvents() {
   const events = [];
-  // Tasks deadlines
+  // Tasks deadlines + événements prévus
   for (const t of state.work.postdocTasks) {
-    if (t.deadline && !t.done) events.push({ date: t.deadline, type: "task", title: t.name, source: "Tâche" });
+    if (t.deadline && !t.done) {
+      const isEv = t.kind === "event";
+      events.push({
+        date: t.deadline,
+        type: isEv ? "work-event" : "task",
+        title: isEv ? "📅 " + t.name : t.name,
+        source: isEv ? "Événement" : "Tâche"
+      });
+    }
   }
   // Candidatures
   for (const c of state.work.candidatures) {
@@ -5761,6 +5770,7 @@ function renderCalLegend() {
   const dot = (color) => `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:4px;vertical-align:middle;"></span>`;
   el.innerHTML = `
     <span>${dot("var(--red)")}Tâches</span>
+    <span>${dot("#0369a1")}📅 Événements</span>
     <span>${dot("var(--lavender)")}Candidatures</span>
     <span>${dot("var(--pink)")}Articles</span>
     <span>${dot("var(--peach)")}Communications</span>
