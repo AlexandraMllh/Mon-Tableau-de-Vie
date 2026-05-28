@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v42</title>
+<title>Mon Tableau de Vie · v43</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2530,11 +2530,15 @@ function migrate(s) {
   s.contacts = s.contacts || [];
   // Migration : aligner les noms de projets sur les sous-onglets Travail
   if (Array.isArray(s.work?.postdocProjects)) {
-    const renames = { "p-seed-postdoc": "Postdoc", "p-seed-valo": "Valorisation", "p-seed-enseignement": "Enseignement", "p-seed-candidatures": "Candidatures" };
+    const renames = { "p-seed-postdoc": "Postdoc", "p-seed-valo": "Valorisation", "p-seed-enseignement": "Enseignement", "p-seed-candidatures": "Candidatures", "p-seed-autre": "Autre" };
     s.work.postdocProjects.forEach(p => { if (renames[p.id]) p.name = renames[p.id]; });
     // S'assure que le projet Candidatures existe
     if (!s.work.postdocProjects.find(p => p.id === "p-seed-candidatures")) {
       s.work.postdocProjects.push({ id: "p-seed-candidatures", name: "Candidatures", progress: 0, notes: "Candidatures MCF, MSCA, CNRS, ERC en cours." });
+    }
+    // S'assure que le projet Autre existe
+    if (!s.work.postdocProjects.find(p => p.id === "p-seed-autre")) {
+      s.work.postdocProjects.push({ id: "p-seed-autre", name: "Autre", progress: 0, notes: "Travail non categorise : jurys, soutenances blanches, formations, syndicat…" });
     }
   }
   // Migration : lier automatiquement les tâches MSCA/candidature au projet "Candidatures"
@@ -2986,7 +2990,8 @@ function renderTodayView() { renderTodayNav(); renderRings(); renderHabits(); re
 function isPostdocProject(p) { return /^postdoc/i.test(p.name) || /\bélites mobiles\b/i.test(p.name); }
 function isValoProject(p) { return /valorisation/i.test(p.name); }
 function isTeachingProject(p) { return /enseignement/i.test(p.name); }
-function isMajorProject(p) { return isPostdocProject(p) || isValoProject(p) || isTeachingProject(p); }
+function isAutreProject(p) { return p.id === "p-seed-autre" || /^autre$/i.test(p.name); }
+function isMajorProject(p) { return isPostdocProject(p) || isValoProject(p) || isTeachingProject(p) || isAutreProject(p); }
 
 function renderProjects() {
   // Le grid "Autres projets" affiche les projets qui n'ont pas leur propre sous-onglet
@@ -3502,6 +3507,28 @@ function renderAutreView() {
   const logEl   = document.getElementById("autreLogContent");
   if (!logEl) return;
 
+  // --- taches du projet Autre ---
+  const autreProj = state.work.postdocProjects.find(isAutreProject);
+  const autreTasks = autreProj
+    ? state.work.postdocTasks.filter(t => t.projectId === autreProj.id)
+    : [];
+  const openTasks = autreTasks.filter(t => !t.done);
+  const doneTasks = autreTasks.filter(t => t.done);
+
+  const tasksHtml = openTasks.length
+    ? openTasks.map(t => {
+        const dlClass = deadlineClass(t.deadline);
+        const dlText  = t.deadline ? `📅 ${formatDeadline(t.deadline)}` : "";
+        return `<div class="task-row prio-${t.priority}">
+          <div class="task-checkbox" onclick="toggleTask('${t.id}')"></div>
+          <div class="task-name">${escapeHtml(t.name)}</div>
+          ${dlText ? `<span class="task-deadline ${dlClass}">${dlText}</span>` : ""}
+          <button class="task-edit-btn" onclick="openTaskEdit('${t.id}')">✏️</button>
+        </div>`;
+      }).join("")
+    : `<p style="color:var(--ink-soft);font-size:13px;text-align:center;padding:14px;">Aucune tache en cours 🎉</p>`;
+
+  // --- log des heures "Autre" ---
   const entries = [];
   const hist = state.history || {};
   for (const dateKey in hist) {
@@ -3512,36 +3539,63 @@ function renderAutreView() {
   }
   entries.sort(function(a, b) { return b.date.localeCompare(a.date); });
 
-  if (countEl) countEl.textContent = entries.length ? "(" + entries.length + " entr" + (entries.length > 1 ? "ees" : "ee") + ")" : "";
-
-  if (entries.length === 0) {
-    logEl.innerHTML = `<p style="color:var(--ink-soft);font-size:14px;text-align:center;padding:20px;">Aucune heure &laquo;&nbsp;Autre&nbsp;&raquo; saisie. Utilise l'onglet <strong>Temps</strong> pour en ajouter.</p>`;
-    return;
-  }
-
+  const totalTaches = autreTasks.length;
   const totalH = entries.reduce(function(s, e) { return s + e.heures; }, 0);
 
-  let html = `<div style="margin-bottom:14px;padding:12px 14px;background:var(--bg-2);border-radius:12px;display:flex;justify-content:space-between;align-items:center;">
-    <span style="font-size:13px;color:var(--ink-soft);">Total toutes periodes</span>
-    <strong style="font-size:18px;color:#64748b;">${totalH.toFixed(1).replace(".", ",")} h</strong>
-  </div>`;
+  if (countEl) countEl.textContent = totalTaches ? "(" + totalTaches + " tache" + (totalTaches > 1 ? "s" : "") + ")" : "";
 
-  html += `<div class="adm-table-wrap"><table class="adm-table"><thead><tr>
-    <th>Date</th><th style="text-align:right;">Heures</th><th>Description</th>
-  </tr></thead><tbody>`;
+  let html = `<div class="task-list" style="margin-bottom:18px;">${tasksHtml}</div>`;
 
-  for (const e of entries) {
-    const d = new Date(e.date + "T00:00:00");
-    const dateFr = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long", year: "numeric" });
-    html += `<tr>
-      <td style="white-space:nowrap;">${dateFr}</td>
-      <td style="text-align:right;font-weight:700;color:#64748b;">${e.heures.toFixed(1).replace(".", ",")} h</td>
-      <td style="color:var(--ink-soft);">${escapeHtml(e.note) || "&mdash;"}</td>
-    </tr>`;
+  if (autreProj) {
+    html += `<div class="add-task-form" style="margin-bottom:18px;">
+      <input type="text" id="newTaskNameAutre" placeholder="Nouvelle tache Autre…" onkeydown="if(event.key==='Enter')addTaskAutre()" />
+      <select id="newTaskPriorityAutre">
+        <option value="urgent">🚨 Urgent</option>
+        <option value="high">Priorite haute</option>
+        <option value="medium" selected>Priorite moyenne</option>
+        <option value="low">Priorite faible</option>
+      </select>
+      <input type="date" id="newTaskDeadlineAutre" />
+      <button class="btn-primary" onclick="addTaskAutre()">Ajouter</button>
+    </div>`;
   }
 
-  html += `</tbody></table></div>`;
+  if (entries.length > 0) {
+    html += `<div style="font-size:13px;font-weight:700;margin-bottom:8px;">Heures saisies dans l'onglet Temps</div>`;
+    html += `<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg-2);border-radius:12px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:13px;color:var(--ink-soft);">Total</span>
+      <strong style="font-size:16px;color:#64748b;">${totalH.toFixed(1).replace(".", ",")} h</strong>
+    </div>`;
+    html += `<div class="adm-table-wrap"><table class="adm-table"><thead><tr>
+      <th>Date</th><th style="text-align:right;">Heures</th><th>Description</th>
+    </tr></thead><tbody>`;
+    for (const e of entries) {
+      const d = new Date(e.date + "T00:00:00");
+      const dateFr = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long", year: "numeric" });
+      html += `<tr>
+        <td style="white-space:nowrap;">${dateFr}</td>
+        <td style="text-align:right;font-weight:700;color:#64748b;">${e.heures.toFixed(1).replace(".", ",")} h</td>
+        <td style="color:var(--ink-soft);">${escapeHtml(e.note) || "&mdash;"}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+  } else {
+    html += `<p style="color:var(--ink-soft);font-size:13px;text-align:center;padding:10px;">Aucune heure "Autre" saisie &mdash; utilise l'onglet <strong>Temps</strong>.</p>`;
+  }
+
   logEl.innerHTML = html;
+}
+function addTaskAutre() {
+  const nameEl = document.getElementById("newTaskNameAutre");
+  const name = nameEl ? nameEl.value.trim() : "";
+  if (!name) return;
+  const autreProj = state.work.postdocProjects.find(isAutreProject);
+  if (!autreProj) return;
+  const prio = (document.getElementById("newTaskPriorityAutre") || {}).value || "medium";
+  const dl   = (document.getElementById("newTaskDeadlineAutre") || {}).value || "";
+  state.work.postdocTasks.push({ id: "t-" + Date.now(), name: name, projectId: autreProj.id, priority: prio, deadline: dl, done: false, createdAt: Date.now() });
+  if (nameEl) nameEl.value = "";
+  saveState(); renderProjects(); renderTasks();
 }
 
 function renderTaskProgress() {
@@ -3559,6 +3613,7 @@ function renderTaskProgress() {
     if (isPostdocProject(p)) return { fg: "#7aa9d6", bg: "var(--sky-soft)" };
     if (isValoProject(p)) return { fg: "#d699ab", bg: "var(--pink-soft)" };
     if (isTeachingProject(p)) return { fg: "#a690d4", bg: "var(--lavender-soft)" };
+    if (isAutreProject(p)) return { fg: "#94a3b8", bg: "var(--bg-2)" };
     return { fg: "#d6a78a", bg: "var(--peach-soft)" };
   };
   let html = "";
@@ -3634,7 +3689,7 @@ function updateProjectSelect() {
   const sel = document.getElementById("newTaskProject");
   if (!sel) return;
   const cur = sel.value;
-  const sectionIds = ["p-seed-postdoc", "p-seed-candidatures", "p-seed-valo", "p-seed-enseignement"];
+  const sectionIds = ["p-seed-postdoc", "p-seed-candidatures", "p-seed-valo", "p-seed-enseignement", "p-seed-autre"];
   const sectionProjects = state.work.postdocProjects
     .filter(p => sectionIds.includes(p.id))
     .sort((a, b) => sectionIds.indexOf(a.id) - sectionIds.indexOf(b.id));
@@ -4011,7 +4066,7 @@ function openTaskEditModal(id) {
   document.getElementById("taskEditPriority").value = t.priority || "medium";
   document.getElementById("taskEditDeadline").value = t.deadline || "";
   const pSel = document.getElementById("taskEditProject");
-  const sectionIds = ["p-seed-postdoc", "p-seed-candidatures", "p-seed-valo", "p-seed-enseignement"];
+  const sectionIds = ["p-seed-postdoc", "p-seed-candidatures", "p-seed-valo", "p-seed-enseignement", "p-seed-autre"];
   const sectionProjects = state.work.postdocProjects.filter(p => sectionIds.includes(p.id));
   // Ordre fixe : Postdoc, Candidatures, Valorisation, Enseignement
   sectionProjects.sort((a, b) => sectionIds.indexOf(a.id) - sectionIds.indexOf(b.id));
@@ -7224,6 +7279,12 @@ function loadInitialData() {
       name: "Enseignement",
       progress: 95,
       notes: "294 h équivalent TD cumulé sur 5 ans (depuis 2021) — Université Paris 1 Panthéon-Sorbonne, EHESS, CNAM, Univ. Catholique de l'Ouest d'Angers, UPEC.\n\nEn cours (2025-2026) : TD « Cartographie et graphique » (L1, Paris 1, 24h, S2).\n\n✓ Copies corrigées — il reste juste à les rendre au secrétariat.\n\nThèmes : cartographie, analyse statistique, protocoles de recherche, diagnostic de terrain, géographie sociale, mémoire, matrimoine."
+    },
+    {
+      id: "p-seed-autre",
+      name: "Autre",
+      progress: 0,
+      notes: "Travail non categorise : jurys de these, soutenances blanches, formations, syndicat, colloques ponctuels, etc."
     },
     {
       id: "p-seed-affiliations",
