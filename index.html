@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v46</title>
+<title>Mon Tableau de Vie · v47</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2159,6 +2159,10 @@
     </div>
     <label style="margin-top:10px;">Description <span style="font-size:11px;color:var(--ink-softer);">(optionnel)</span></label>
     <textarea id="manualEventDesc" placeholder="Notes, lieu, infos utiles…" style="min-height:70px;resize:vertical;" class="journal-input"></textarea>
+    <label id="manualEventAddTaskRow" style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;font-size:13px;">
+      <input type="checkbox" id="manualEventAddTask" style="width:16px;height:16px;cursor:pointer;" />
+      📌 Créer aussi une tâche dans Travail
+    </label>
     <div class="actions" style="margin-top:16px;">
       <button class="danger" id="manualEventDeleteBtn" onclick="deleteManualEvent()" style="display:none;">Supprimer</button>
       <div class="spacer"></div>
@@ -3786,7 +3790,9 @@ function renderTasks() {
     const progressHtml = pct > 0 ? `<div class="task-progress-bar"><div class="task-progress-fill" style="width:${pct}%;background:${progressColor};"></div></div>` : "";
     const pctBadge = pct > 0 && !t.done ? `<span class="task-pct-badge" style="color:${progressColor};background:${progressColor}22;">${pct}%</span>` : "";
     const isEvent = t.kind === "event";
-    const kindBadge = isEvent ? `<span class="task-kind-badge is-event">📅 Événement</span>` : "";
+    const kindBadge = isEvent
+      ? `<span class="task-kind-badge is-event" title="${t.calEventId ? "Lié à un événement du calendrier" : "Événement prévu"}">📅 ${t.calEventId ? "Lié au cal." : "Événement"}</span>`
+      : "";
     return `
       <div class="task-row prio-${t.priority} ${t.done ? "done" : ""} ${isEvent ? "is-event" : ""}">
         <div class="task-checkbox" onclick="toggleTask('${t.id}')"></div>
@@ -5674,6 +5680,8 @@ function getAllCalEvents() {
   for (const t of state.work.postdocTasks) {
     if (t.deadline && !t.done) {
       const isEv = t.kind === "event";
+      // Si la tâche-événement est liée à un calEvent manuel, elle y est déjà → pas de doublon
+      if (isEv && t.calEventId) continue;
       events.push({
         date: t.deadline,
         type: isEv ? "work-event" : "task",
@@ -5982,6 +5990,11 @@ function openManualEventModal(dateKey, eventId) {
   document.getElementById("manualEventId").value = eventId || "";
   document.getElementById("manualEventModalTitle").textContent = eventId ? "✏️ Modifier l'événement" : "✚ Nouvel événement";
   delBtn.style.display = eventId ? "" : "none";
+  // Checkbox "créer aussi une tâche" : visible seulement pour les nouveaux events
+  const addTaskRow = document.getElementById("manualEventAddTaskRow");
+  const addTaskCb = document.getElementById("manualEventAddTask");
+  if (addTaskRow) addTaskRow.style.display = eventId ? "none" : "";
+  if (addTaskCb) addTaskCb.checked = false;
   if (eventId) {
     const ev = state.calEvents.find(e => e.id === eventId);
     if (!ev) return;
@@ -6035,10 +6048,26 @@ function saveManualEvent() {
     if (idx >= 0) state.calEvents[idx] = ev;
   } else {
     state.calEvents.push(ev);
+    // Créer aussi une tâche liée si la checkbox est cochée
+    const addTask = document.getElementById("manualEventAddTask");
+    if (addTask && addTask.checked) {
+      state.work.postdocTasks.unshift({
+        id: "t" + Date.now(),
+        name: title,
+        kind: "event",
+        calEventId: ev.id,   // lien → pas de doublon dans le calendrier
+        deadline: date,
+        priority: "medium",
+        projectId: "",
+        done: false,
+        createdAt: new Date().toISOString()
+      });
+    }
   }
   saveState();
   closeManualEventModal();
   renderCalendar();
+  renderTasks();
   showToast(id ? "✏️ Événement modifié" : "✚ Événement ajouté !");
 }
 function deleteManualEvent() {
