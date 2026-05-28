@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v54</title>
+<title>Mon Tableau de Vie · v55</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -3857,11 +3857,15 @@ function renderDeadlineCalendar() {
     const isPast = day < now;
     const isToday = key === todayStr;
     const tasks = byDate[key] || [];
-    const dots = tasks.slice(0, 4).map(t =>
-      `<span class="dcal-dot" style="background:${PRIO_DOT_COLORS[t.priority] || '#94a3b8'}"></span>`
-    ).join("");
-    const bg = tasks.length && !isToday ? "var(--lavender-soft)" : "";
-    const titleAttr = tasks.length ? `title="${tasks.map(t => t.name).join("\n")}"` : "";
+    const dots = tasks.slice(0, 4).map(t => {
+      const isEv = t.kind === "event";
+      const color = isEv ? "#0ea5e9" : (PRIO_DOT_COLORS[t.priority] || '#94a3b8');
+      const shape = isEv ? "border-radius:3px;" : "";
+      return `<span class="dcal-dot" style="background:${color};${shape}"></span>`;
+    }).join("");
+    const hasEvents = tasks.some(t => t.kind === "event");
+    const bg = tasks.length && !isToday ? (hasEvents && tasks.every(t => t.kind === "event") ? "#e0f2fe" : "var(--lavender-soft)") : "";
+    const titleAttr = tasks.length ? `title="${tasks.map(t => (t.kind === 'event' ? '📅 ' : '📌 ') + t.name).join("\n")}"` : "";
     return `<div class="dcal-day ${isToday ? 'is-today' : ''} ${isPast ? 'is-past' : ''} ${tasks.length ? 'has-tasks' : ''}"
       style="${bg ? `background:${bg};` : ''}"
       ${titleAttr}
@@ -3874,6 +3878,9 @@ function renderDeadlineCalendar() {
     <div style="font-size:11px;color:var(--ink-softer);margin-bottom:6px;text-transform:capitalize;">${monthLabel}</div>
     <div class="dcal-grid">${heads}${daysCells}</div>
     <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
+      <span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--ink-soft);">
+        <span class="dcal-dot" style="background:#0ea5e9;border-radius:3px;"></span>📅 Événement
+      </span>
       ${Object.entries(PRIO_DOT_COLORS).map(([p, c]) =>
         `<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--ink-soft);">
           <span class="dcal-dot" style="background:${c}"></span>${p === 'urgent' ? '🚨 Urgent' : p === 'high' ? '🔴 Haute' : p === 'medium' ? '🟠 Moyenne' : '⚪ Faible'}
