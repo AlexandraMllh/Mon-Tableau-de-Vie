@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v49</title>
+<title>Mon Tableau de Vie · v50</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -4093,6 +4093,7 @@ function toggleMilestone(i) {
   document.getElementById("taskEditProgress").value = pct;
   updateModalPreview(pct);
   renderMilestones(t.milestones);
+  saveState();
 }
 function deleteMilestone(i) {
   const t = _getCurrentEditTask(); if (!t) return;
@@ -4101,6 +4102,7 @@ function deleteMilestone(i) {
   document.getElementById("taskEditProgress").value = pct;
   updateModalPreview(pct);
   renderMilestones(t.milestones);
+  saveState();
 }
 function addMilestone() {
   const input = document.getElementById("newMilestoneInput");
@@ -4118,6 +4120,7 @@ function addMilestone() {
   document.getElementById("taskEditProgress").value = pct;
   updateModalPreview(pct);
   renderMilestones(t.milestones);
+  saveState();
   input.focus();
 }
 function updateMilestoneWeight(i, val) {
@@ -4128,6 +4131,7 @@ function updateMilestoneWeight(i, val) {
   document.getElementById("taskEditProgress").value = pct;
   updateModalPreview(pct);
   renderMilestones(t.milestones);
+  saveState();
 }
 function openTaskEditModal(id) {
   const t = state.work.postdocTasks.find(x => x.id === id);
