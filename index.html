@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v35</title>
+<title>Mon Tableau de Vie · v36</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -3126,7 +3126,7 @@ function renderAdminSection() {
 function missionTotal(m) {
   return (m.train||0) + (m.repas||0) + (m.taxi||0) + (m.essence||0);
 }
-function fmt€(v) {
+function fmtEur(v) { // fmt€ renommé car € invalide en JS
   if (!v && v !== 0) return "—";
   return Number(v).toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2}) + " €";
 }
@@ -3160,13 +3160,13 @@ function renderAdminBudget() {
     return `<tr>
       <td>${fmtDate(m.date)}</td>
       <td style="font-weight:500;">${escapeHtml(m.lieu||"")}</td>
-      <td class="td-num">${m.train ? fmt€(m.train) : "—"}</td>
-      <td class="td-num">${m.repas ? fmt€(m.repas) : "—"}</td>
-      <td class="td-num">${m.taxi  ? fmt€(m.taxi)  : "—"}</td>
+      <td class="td-num">${m.train ? fmtEur(m.train) : "—"}</td>
+      <td class="td-num">${m.repas ? fmtEur(m.repas) : "—"}</td>
+      <td class="td-num">${m.taxi  ? fmtEur(m.taxi)  : "—"}</td>
       <td class="td-num" style="color:var(--ink-soft);font-size:11px;">${m.km ? m.km+" km" : "—"}</td>
-      <td class="td-num">${m.essence ? fmt€(m.essence) : "—"}</td>
-      <td class="td-num" style="font-weight:700;">${tot > 0 ? fmt€(tot) : "—"}</td>
-      <td class="td-num" style="color:#16a34a;">${m.remboursement ? fmt€(m.remboursement) : "—"}</td>
+      <td class="td-num">${m.essence ? fmtEur(m.essence) : "—"}</td>
+      <td class="td-num" style="font-weight:700;">${tot > 0 ? fmtEur(tot) : "—"}</td>
+      <td class="td-num" style="color:#16a34a;">${m.remboursement ? fmtEur(m.remboursement) : "—"}</td>
       <td style="font-size:11px;color:var(--ink-soft);">${fmtDate(m.dateRemb)}</td>
       <td>${statusPill(m.statut)}</td>
       <td class="td-actions"><button style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 6px;" onclick="openMissionModal('${m.id}')">✏️</button></td>
@@ -3176,7 +3176,7 @@ function renderAdminBudget() {
   const aboRows = abonnement.map(a => `<tr>
     <td>${fmtDate(a.date)}</td>
     <td style="font-weight:500;" colspan="6">Abonnement Claude (IA)</td>
-    <td class="td-num" style="font-weight:700;">${fmt€(a.montant)}</td>
+    <td class="td-num" style="font-weight:700;">${fmtEur(a.montant)}</td>
     <td class="td-num" colspan="2"></td>
     <td>${statusPill(a.statut)}</td>
     <td class="td-actions"><button style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 6px;" onclick="openAboModal('${a.id}')">✏️</button></td>
@@ -3186,20 +3186,20 @@ function renderAdminBudget() {
     <div class="admin-summary-grid" style="margin-bottom:20px;">
       <div class="admin-kpi">
         <div class="label">Dépenses missions</div>
-        <div class="value" style="font-size:17px;">${fmt€(totalDepMissions)}</div>
+        <div class="value" style="font-size:17px;">${fmtEur(totalDepMissions)}</div>
       </div>
       <div class="admin-kpi">
         <div class="label">Abonnement Claude</div>
-        <div class="value" style="font-size:17px;">${fmt€(totalAbo)}</div>
+        <div class="value" style="font-size:17px;">${fmtEur(totalAbo)}</div>
       </div>
       <div class="admin-kpi">
         <div class="label">Total remboursé</div>
-        <div class="value" style="font-size:17px;color:#16a34a;">${fmt€(totalRemb)}</div>
+        <div class="value" style="font-size:17px;color:#16a34a;">${fmtEur(totalRemb)}</div>
       </div>
       <div class="admin-kpi" style="background:${reste > 0 ? "#fff7ed" : "#dcfce7"};">
         <div class="label">Reste à rembourser</div>
-        <div class="value" style="font-size:17px;color:${reste > 0 ? "#b45309" : "#16a34a"};">${fmt€(reste)}</div>
-        <div class="sub">sur ${fmt€(totalGen)} de dépenses</div>
+        <div class="value" style="font-size:17px;color:${reste > 0 ? "#b45309" : "#16a34a"};">${fmtEur(reste)}</div>
+        <div class="sub">sur ${fmtEur(totalGen)} de dépenses</div>
       </div>
     </div>
 
