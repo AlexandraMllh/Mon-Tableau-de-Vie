@@ -499,6 +499,26 @@
   .task-row:hover .task-edit-btn { opacity: 1; }
   .task-edit-btn:hover { background: var(--lavender-soft); }
   .task-del:hover { color: var(--red); }
+  .task-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .task-progress-bar { height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .task-progress-fill { height: 100%; background: linear-gradient(90deg, var(--lavender), #a78bfa); border-radius: 3px; transition: width 0.4s; }
+  .task-progress-fill.done { background: var(--mint); }
+  .task-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .task-pct-badge { font-size: 11px; font-weight: 600; color: var(--lavender); background: var(--lavender-soft); padding: 1px 6px; border-radius: 6px; }
+  /* Modal jalons */
+  .milestone-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+  .milestone-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: #faf8fd; border: 1px solid var(--line); }
+  .milestone-row.done-m { background: var(--mint-soft); border-color: #6dc0a0; }
+  .milestone-cb { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink-soft); cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .milestone-row.done-m .milestone-cb { background: var(--mint); border-color: var(--mint); }
+  .milestone-row.done-m .milestone-cb::after { content: ""; width: 4px; height: 8px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px,-1px); display:block; }
+  .milestone-label { flex: 1; font-size: 13px; }
+  .milestone-row.done-m .milestone-label { text-decoration: line-through; color: var(--ink-soft); }
+  .milestone-del { background: none; border: none; color: var(--ink-softer); cursor: pointer; font-size: 14px; padding: 2px 5px; border-radius: 5px; }
+  .milestone-del:hover { color: var(--red); background: var(--rose-soft); }
+  .add-milestone-row { display: flex; gap: 8px; margin-top: 4px; }
+  .add-milestone-row input { flex: 1; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; font-family: inherit; font-size: 13px; }
+  .add-milestone-row button { padding: 7px 12px; border-radius: 10px; background: var(--lavender-soft); border: 1px solid var(--lavender); color: var(--ink); cursor: pointer; font-size: 13px; font-family: inherit; white-space: nowrap; }
 
   .add-task-form {
     display: grid; grid-template-columns: 2fr auto auto auto auto; gap: 8px;
@@ -1007,7 +1027,7 @@
     .header-actions { gap: 6px; }
     .header-actions .btn-icon { padding: 8px 11px; font-size: 12px; }
     /* Cacher les boutons secondaires sur mobile */
-    #exportBtn, #importBtn, #settingsBtn, #rechargerBtn { display: none; }
+    #settingsBtn, #rechargerBtn { display: none; }
     nav.tabs { gap: 6px; }
     .tab { padding: 8px 13px; font-size: 13px; }
     .rings { grid-template-columns: repeat(2, 1fr); }
@@ -1033,7 +1053,6 @@
       <button class="btn-icon" id="syncSignInBtn" onclick="signInWithGoogle()" style="background:linear-gradient(135deg,#e8f0fe,#d2e3fc);color:#1a73e8;font-weight:600;display:none;">☁️ Connexion</button>
       <div id="syncUserAvatar" style="display:none;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;box-shadow:var(--shadow);font-size:13px;" onclick="showSyncMenu()" title="Synchronisation cloud"></div>
       <span id="syncStatusPill" style="font-size:13px;padding:8px 14px;border-radius:999px;background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);display:none;"></span>
-      <button class="btn-icon" id="rechargerBtn" onclick="confirmReseed()" title="Recharger les données depuis le CV" style="background:linear-gradient(135deg,var(--peach-soft),var(--butter-soft));font-weight:600;">🔄 Recharger</button>
     </div>
   </header>
 
@@ -1979,7 +1998,18 @@
     </div>
     <label>Projet lié</label>
     <select id="taskEditProject"></select>
-    <div class="actions">
+    <label style="margin-top:12px;">Avancement</label>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+      <input type="range" id="taskEditProgress" min="0" max="100" step="5" value="0" style="flex:1;" oninput="document.getElementById('taskEditProgressVal').textContent=this.value+'%'" />
+      <span id="taskEditProgressVal" style="font-size:14px;font-weight:600;color:var(--lavender);min-width:40px;text-align:right;">0%</span>
+    </div>
+    <label style="margin-top:12px;">Jalons <span style="font-size:12px;color:var(--ink-softer);font-weight:400;">(cocher un jalon met à jour l'avancement)</span></label>
+    <div class="milestone-list" id="taskEditMilestones"></div>
+    <div class="add-milestone-row">
+      <input type="text" id="newMilestoneInput" placeholder="Ajouter un jalon…" onkeydown="if(event.key==='Enter')addMilestone()" />
+      <button onclick="addMilestone()">+ Ajouter</button>
+    </div>
+    <div class="actions" style="margin-top:16px;">
       <button class="danger" onclick="deleteTaskFromModal()">Supprimer</button>
       <div class="spacer"></div>
       <button class="secondary" onclick="closeTaskEditModal()">Annuler</button>
@@ -2877,12 +2907,21 @@ function renderTasks() {
     const dlClass = deadlineClass(t.deadline);
     const dlText = t.deadline ? `📅 ${formatDeadline(t.deadline)}` : "";
     const tagHtml = project ? `<span class="task-project-tag">${escapeHtml(project.name)}</span>` : "";
+    const pct = taskProgress(t);
+    const progressHtml = pct > 0 ? `<div class="task-progress-bar"><div class="task-progress-fill ${pct>=100?'done':''}" style="width:${pct}%"></div></div>` : "";
+    const pctBadge = pct > 0 && !t.done ? `<span class="task-pct-badge">${pct}%</span>` : "";
     return `
       <div class="task-row prio-${t.priority} ${t.done ? "done" : ""}">
         <div class="task-checkbox" onclick="toggleTask('${t.id}')"></div>
-        <div class="task-name">${escapeHtml(t.name)}</div>
-        ${tagHtml}
-        ${dlText ? `<span class="task-deadline ${dlClass}">${dlText}</span>` : ""}
+        <div class="task-body">
+          <div class="task-meta">
+            <span class="task-name">${escapeHtml(t.name)}</span>
+            ${pctBadge}
+            ${tagHtml}
+            ${dlText ? `<span class="task-deadline ${dlClass}">${dlText}</span>` : ""}
+          </div>
+          ${progressHtml}
+        </div>
         <button class="task-edit-btn" onclick="openTaskEditModal('${t.id}')" title="Modifier">✏️</button>
         <button class="task-del" onclick="deleteTask('${t.id}')">✕</button>
       </div>`;
@@ -3016,6 +3055,60 @@ function deleteTask(id) {
 }
 
 /* ---- Édition de tâche ---- */
+/* ===== TASK PROGRESS & MILESTONES ===== */
+function taskProgress(t) {
+  if (t.done) return 100;
+  if (t.milestones && t.milestones.length) {
+    const done = t.milestones.filter(m => m.done).length;
+    return Math.round(done / t.milestones.length * 100);
+  }
+  return t.progress || 0;
+}
+function renderMilestones(milestones) {
+  const el = document.getElementById("taskEditMilestones");
+  if (!milestones || !milestones.length) { el.innerHTML = ""; return; }
+  el.innerHTML = milestones.map((m, i) => `
+    <div class="milestone-row ${m.done ? "done-m" : ""}">
+      <div class="milestone-cb" onclick="toggleMilestone(${i})"></div>
+      <span class="milestone-label">${escapeHtml(m.name)}</span>
+      <button class="milestone-del" onclick="deleteMilestone(${i})">✕</button>
+    </div>`).join("");
+}
+function _getCurrentEditTask() {
+  const id = document.getElementById("taskEditId").value;
+  return state.work.postdocTasks.find(x => x.id === id);
+}
+function toggleMilestone(i) {
+  const t = _getCurrentEditTask(); if (!t) return;
+  if (!t.milestones) t.milestones = [];
+  t.milestones[i].done = !t.milestones[i].done;
+  // Mise à jour auto du slider
+  const pct = taskProgress(t);
+  document.getElementById("taskEditProgress").value = pct;
+  document.getElementById("taskEditProgressVal").textContent = pct + "%";
+  renderMilestones(t.milestones);
+}
+function deleteMilestone(i) {
+  const t = _getCurrentEditTask(); if (!t) return;
+  t.milestones.splice(i, 1);
+  const pct = taskProgress(t);
+  document.getElementById("taskEditProgress").value = pct;
+  document.getElementById("taskEditProgressVal").textContent = pct + "%";
+  renderMilestones(t.milestones);
+}
+function addMilestone() {
+  const input = document.getElementById("newMilestoneInput");
+  const name = input.value.trim();
+  if (!name) return;
+  const t = _getCurrentEditTask(); if (!t) return;
+  if (!t.milestones) t.milestones = [];
+  t.milestones.push({ name, done: false });
+  input.value = "";
+  const pct = taskProgress(t);
+  document.getElementById("taskEditProgress").value = pct;
+  document.getElementById("taskEditProgressVal").textContent = pct + "%";
+  renderMilestones(t.milestones);
+}
 function openTaskEditModal(id) {
   const t = state.work.postdocTasks.find(x => x.id === id);
   if (!t) return;
@@ -3031,6 +3124,11 @@ function openTaskEditModal(id) {
   pSel.innerHTML = `<option value="">— Sans section —</option>` +
     sectionProjects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
   pSel.value = t.projectId || "";
+  const pct = taskProgress(t);
+  document.getElementById("taskEditProgress").value = pct;
+  document.getElementById("taskEditProgressVal").textContent = pct + "%";
+  renderMilestones(t.milestones || []);
+  document.getElementById("newMilestoneInput").value = "";
   document.getElementById("taskEditModal").classList.add("open");
 }
 function closeTaskEditModal() {
@@ -3044,7 +3142,11 @@ function saveTaskEdit() {
   t.priority  = document.getElementById("taskEditPriority").value;
   t.projectId = document.getElementById("taskEditProject").value;
   t.deadline  = document.getElementById("taskEditDeadline").value || "";
-  delete t.category; // plus de catégorie, seul le projet compte
+  // Sauvegarde progression manuelle (si pas de jalons)
+  if (!t.milestones || !t.milestones.length) {
+    t.progress = Number(document.getElementById("taskEditProgress").value) || 0;
+  }
+  delete t.category;
   saveState();
   closeTaskEditModal();
   renderTasks();
