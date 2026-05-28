@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v69</title>
+<title>Mon Tableau de Vie · v70</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -5290,7 +5290,8 @@ function renderMoneyFlowChart() {
 }
 function renderSavings() {
   const all = state.transactions.filter(t => t.type === "savings");
-  const total = all.reduce((s, t) => s + t.amount, 0);
+  // Total = solde réel du compte épargne (solde de départ + toutes les transactions)
+  const total = balanceEpargne();
   const [start, end] = currentMonthRange();
   const thisMonth = all.filter(t => { const d = new Date(t.date); return d >= start && d < end; }).reduce((s, t) => s + t.amount, 0);
   document.getElementById("savingsTotal").textContent = total.toFixed(2) + " €";
