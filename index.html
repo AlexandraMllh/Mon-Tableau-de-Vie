@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v75</title>
+<title>Mon Tableau de Vie · v77</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -509,8 +509,11 @@
   .task-row.prio-urgent .task-name { font-weight: 700; }
   .task-row.prio-urgent::before { content: "🚨"; margin-right: 4px; font-size: 14px; }
   .task-row.prio-high { border-left-color: var(--red); }
+  .task-row.prio-high::before { content: "🔴"; margin-right: 4px; font-size: 13px; }
   .task-row.prio-medium { border-left-color: var(--orange); }
+  .task-row.prio-medium::before { content: "🟠"; margin-right: 4px; font-size: 13px; }
   .task-row.prio-low { border-left-color: var(--ink-softer); }
+  .task-row.prio-low::before { content: "⚪"; margin-right: 4px; font-size: 13px; }
   .task-row.done { opacity: 0.55; }
   .task-row.done .task-name { text-decoration: line-through; }
   .task-checkbox {
@@ -3144,7 +3147,7 @@ function updateWorkTabBadges() {
     valorisation: alertFor(t => { const p = projMap[t.projectId]; return p && isValoProject(p); }),
     teaching:     alertFor(t => { const p = projMap[t.projectId]; return p && isTeachingProject(p); }),
   };
-  const workSection = document.querySelector('[data-view="work"]');
+  const workSection = document.querySelector('section.view[data-view="work"]');
   if (!workSection) return;
   for (const [sub, hasAlert] of Object.entries(checks)) {
     const btn = workSection.querySelector(`.sub-tab[data-sub="${sub}"]`);
