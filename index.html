@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v74</title>
+<title>Mon Tableau de Vie · v75</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2762,6 +2762,7 @@ function setupTabs() {
   });
 }
 function onViewChange(view) {
+  if (view === "work") updateWorkTabBadges();
   if (view === "activities") renderActivityChart();
   if (view === "health") { renderBodyChart(currentBodyMetric); renderWellbeingChart(); renderStepsChart(); }
   if (view === "money") { renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); }
@@ -3120,14 +3121,20 @@ function isCandProject(p) { return p.id === "p-seed-candidatures" || /^candidatu
 
 function updateWorkTabBadges() {
   const now = new Date(); now.setHours(0,0,0,0);
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const in7 = new Date(now); in7.setDate(in7.getDate() + 7);
+  const pad = n => String(n).padStart(2, "0");
+  const toStr = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const todayStr = toStr(now);
+  const in7Str   = toStr(in7);
   const projMap = {};
   for (const p of state.work.postdocProjects) projMap[p.id] = p;
   function alertFor(filterFn) {
     return state.work.postdocTasks.some(t => {
       if (t.done) return false;
       if (!filterFn(t)) return false;
-      return t.priority === "urgent" || (t.deadline && t.deadline <= todayStr);
+      // badge si : urgente, haute priorité, ou échéance dans les 7 prochains jours
+      return t.priority === "urgent" || t.priority === "high"
+          || (t.deadline && t.deadline <= in7Str);
     });
   }
   const checks = {
