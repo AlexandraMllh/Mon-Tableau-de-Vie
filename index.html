@@ -6254,9 +6254,13 @@ document.getElementById("newActivityName").addEventListener("keydown", e => {
 
 /* Modal backdrop close */
 ["projectModal", "candModal", "articleModal", "commModal", "subModal", "taskEditModal", "manualEventModal"].forEach(id => {
-  document.getElementById(id).addEventListener("click", e => {
-    if (e.target.id === id) document.getElementById(id).classList.remove("open");
+  const bg = document.getElementById(id);
+  bg.addEventListener("click", e => {
+    // Ferme uniquement si le clic est directement sur le fond (pas sur le contenu de la modal)
+    if (e.target === bg) bg.classList.remove("open");
   });
+  // Empêche les clics à l'intérieur de la modal de remonter vers le fond
+  bg.querySelector(".modal")?.addEventListener("click", e => e.stopPropagation());
 });
 
 /* ========= EXPORT / IMPORT ========= */
