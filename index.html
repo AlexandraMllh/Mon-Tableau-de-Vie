@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v70</title>
+<title>Mon Tableau de Vie · v71</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -916,6 +916,10 @@
   .dom-emoji { font-size: 22px; flex-shrink: 0; width: 32px; text-align: center; }
   .dom-name { flex: 1; font-size: 14px; }
   .dom-meta { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+  .plant-notes-input { display:block; width:100%; font-size:12px; color:var(--ink-soft); font-style:italic; font-family:inherit; background:transparent; border:none; border-bottom:1px solid transparent; outline:none; resize:none; padding:2px 0; margin-top:3px; cursor:text; min-height:16px; max-height:80px; overflow:hidden; transition:border-color 0.15s; line-height:1.4; }
+  .plant-notes-input:hover { border-bottom-color:var(--line); }
+  .plant-notes-input:focus { border-bottom-color:var(--lavender); background:#faf8fd; border-radius:4px 4px 0 0; padding:2px 4px; cursor:auto; }
+  .plant-notes-input::placeholder { color:var(--ink-softer); }
   .dom-status-badge {
     font-size: 11px; padding: 3px 9px; border-radius: 6px;
     font-weight: 600; white-space: nowrap;
@@ -6402,7 +6406,7 @@ function parseICS(text) {
         const tMatch = val.match(/T(\d{2})(\d{2})/);
         if (tMatch) cur.time = `${tMatch[1]}:${tMatch[2]}`;
       }
-      else if (key === "DESCRIPTION") cur.description = val.replace(/\\n/g, " ").replace(/\\,/g, ",");
+      else if (key === "DESCRIPTION") cur.description = val.replace(/\\n/g, "\n").replace(/\\,/g, ",").trim();
       else if (key === "LOCATION") cur.location = val;
       else if (key === "RRULE") cur.rrule = val;
       else if (key === "COLOR") cur.color = val.trim().toLowerCase();
@@ -6928,7 +6932,7 @@ function detectPlantsFromICS(event) {
         const key = name.toLowerCase();
         if (!seen.has(key)) {
           const days = rruleToDays(ev.rrule);
-          seen.set(key, { name, emoji, wateringDays: days, lastDate: ev.date, rrule: ev.rrule || null });
+          seen.set(key, { name, emoji, wateringDays: days, lastDate: ev.date, rrule: ev.rrule || null, description: ev.description || "" });
         } else if (!seen.get(key).wateringDays && ev.rrule) {
           // Si on avait pas de RRULE avant, met à jour
           seen.get(key).wateringDays = rruleToDays(ev.rrule);
@@ -6970,6 +6974,7 @@ function detectPlantsFromICS(event) {
         wateringDays: p.wateringDays || 7,
         lastDate: p.lastDate,
         alreadyExists: existing.has(p.name.toLowerCase()),
+        notes: p.description || "",
       }));
 
       // Construit la liste dans la modal
@@ -6988,12 +6993,13 @@ function detectPlantsFromICS(event) {
         const opts = FREQ_OPTS.map(o => `<option value="${o.v}"${Number(o.v) === p.wateringDays ? " selected" : ""}>${o.l}</option>`).join("");
         const alreadyNote = p.alreadyExists ? `<span style="font-size:11px;color:var(--orange);margin-left:6px;">(déjà présente)</span>` : "";
         return `
-          <div style="background:#faf8fd;border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:auto 28px 1fr auto auto;align-items:center;gap:8px;">
-            <input type="checkbox" id="pdCheck${i}" ${p.alreadyExists ? "" : "checked"} style="width:16px;height:16px;cursor:pointer;accent-color:var(--green);" />
+          <div style="background:#faf8fd;border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:auto 28px 1fr auto;align-items:start;gap:8px;">
+            <input type="checkbox" id="pdCheck${i}" ${p.alreadyExists ? "" : "checked"} style="width:16px;height:16px;cursor:pointer;accent-color:var(--green);margin-top:2px;" />
             <input type="text" id="pdEmoji${i}" value="${p.emoji}" style="width:28px;padding:4px;border:1px solid var(--line);border-radius:8px;font-size:16px;text-align:center;background:white;" />
             <div>
               <input type="text" id="pdName${i}" value="${escapeHtml(p.name)}" style="font-size:14px;font-weight:600;border:none;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);width:100%;font-family:inherit;padding:2px 0;" />
               ${alreadyNote}
+              <textarea id="pdNotes${i}" placeholder="Conseils d'arrosage…" rows="2" style="display:block;width:100%;margin-top:6px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:12px;color:var(--ink);background:white;resize:vertical;">${escapeHtml(p.notes || "")}</textarea>
             </div>
             <select id="pdFreq${i}" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:12px;color:var(--ink);background:white;">${opts}</select>
           </div>`;
@@ -7020,17 +7026,19 @@ function confirmImportPlants() {
     const name = document.getElementById(`pdName${i}`)?.value.trim() || p.name;
     const emoji = document.getElementById(`pdEmoji${i}`)?.value.trim() || p.emoji;
     const wateringDays = Number(document.getElementById(`pdFreq${i}`)?.value) || p.wateringDays;
+    const notes = document.getElementById(`pdNotes${i}`)?.value.trim() || "";
     if (!name) return;
     // Vérifie si déjà présente (au cas où elle a été dé-cochée par l'alreadyExists mais re-cochée)
     const exists = state.domestique.plants.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (exists) {
-      // Met à jour la fréquence
+      // Met à jour la fréquence et les notes
       exists.wateringDays = wateringDays;
       exists.emoji = emoji;
+      exists.notes = notes;
     } else {
       state.domestique.plants.push({
         id: "pl" + Date.now() + Math.random().toString(36).slice(2, 5),
-        name, emoji, wateringDays,
+        name, emoji, wateringDays, notes,
         lastWatered: null,
       });
     }
@@ -7112,7 +7120,14 @@ function renderPlants() {
   target.innerHTML = sorted.map(({ p, s }) => `
       <div class="dom-row">
         <div class="dom-emoji">${p.emoji || "🪴"}</div>
-        <div class="dom-name"><strong>${escapeHtml(p.name)}</strong><div class="dom-meta">${frequencyLabel(p.wateringDays)}</div></div>
+        <div class="dom-name">
+          <strong>${escapeHtml(p.name)}</strong>
+          <div class="dom-meta">${frequencyLabel(p.wateringDays)}</div>
+          <textarea class="plant-notes-input" placeholder="💡 Conseils d'arrosage…"
+            onchange="updatePlantNotes('${p.id}', this.value)"
+            onkeydown="if(event.key==='Escape')this.blur()"
+            rows="1">${escapeHtml(p.notes || "")}</textarea>
+        </div>
         <span class="dom-status-badge ${s.cls}">${s.label}</span>
         <button class="dom-btn" onclick="waterPlant('${p.id}')">💧 Arroser</button>
         <button class="dom-del" onclick="deletePlant('${p.id}')" title="Supprimer">✕</button>
@@ -7131,6 +7146,10 @@ function addPlant() {
 function waterPlant(id) {
   const p = state.domestique.plants.find(x => x.id === id);
   if (p) { p.lastWatered = todayKey(); saveState(); renderPlants(); renderCalendar(); }
+}
+function updatePlantNotes(id, value) {
+  const p = state.domestique.plants.find(x => x.id === id);
+  if (p) { p.notes = value.trim(); saveState(); }
 }
 function deletePlant(id) {
   if (!confirm("Supprimer cette plante ?")) return;
