@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v58</title>
+<title>Mon Tableau de Vie · v59</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1325,7 +1325,7 @@
             <div style="display:flex;align-items:center;gap:8px;">
               <input type="number" id="timeAutre" step="0.25" min="0" placeholder="0" style="width:120px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:18px;font-weight:600;color:#64748b;background:white;" onchange="saveTimeWork()" />
               <span style="font-size:14px;color:var(--ink-soft);">h</span>
-              <input type="text" id="timeAutreNote" placeholder="Préciser (ex : soutenance blanche, jury, réunion syndicat…)" maxlength="120" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;color:var(--ink);background:white;" oninput="saveTimeWork()" />
+              <input type="text" id="timeAutreNote" placeholder="Préciser (ex : soutenance blanche, jury, réunion syndicat…)" maxlength="120" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;color:var(--ink);background:white;" oninput="saveTimeNote()" />
             </div>
           </div>
         </div>
@@ -6450,12 +6450,25 @@ function saveTimeWork() {
   // Note de l'activité "Autre"
   const noteEl = document.getElementById("timeAutreNote");
   if (noteEl) {
-    const note = noteEl.value.trim();
-    if (note) day.workTime.autreNote = note;
+    const note = noteEl.value; // pas de trim() : préserve les espaces en cours de frappe
+    if (note.trim()) day.workTime.autreNote = note;
     else delete day.workTime.autreNote;
   }
   saveState();
   renderTimeView();
+}
+function saveTimeNote() {
+  // Sauvegarde uniquement la note "Autre" sans re-rendre le formulaire
+  // (évite la perte de l'espace en cours de frappe)
+  const dateKey = getTimeDateKey();
+  const day = ensureHistoryEntry(dateKey);
+  if (!day.workTime) day.workTime = {};
+  const noteEl = document.getElementById("timeAutreNote");
+  if (!noteEl) return;
+  const note = noteEl.value;
+  if (note.trim()) day.workTime.autreNote = note;
+  else delete day.workTime.autreNote;
+  saveState();
 }
 function fillTimeForm(dateKey) {
   const wt = getWorkTime(dateKey);
