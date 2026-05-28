@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v43</title>
+<title>Mon Tableau de Vie · v44</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1208,7 +1208,6 @@
       <button class="sub-tab" data-sub="candidatures">📋 Candidatures</button>
       <button class="sub-tab" data-sub="valorisation">📝 Valorisation</button>
       <button class="sub-tab" data-sub="teaching">📚 Enseignement</button>
-      <button class="sub-tab" data-sub="autre">🔧 Autre</button>
     </div>
 
     <!-- Sub: Tâches -->
@@ -1481,17 +1480,6 @@
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
-
-    <!-- Sub: Autre -->
-    <div class="sub-view" data-sub="autre">
-      <div class="card">
-        <div class="card-row">
-          <h2>🔧 Autre <span class="count" id="autreCount"></span></h2>
-        </div>
-        <p style="color:var(--ink-soft);font-size:13px;margin:0 0 14px;">Heures saisies sous la categorie &laquo;&nbsp;Autre&nbsp;&raquo; dans le suivi du temps &mdash; soutenances blanches, jurys, reunions syndicales&hellip;</p>
-        <div id="autreLogContent"></div>
       </div>
     </div>
 
@@ -3026,7 +3014,6 @@ function renderProjects() {
   renderPostdocView();
   renderValorisationView();
   renderTeachingView();
-  renderAutreView();
   renderTaskProgress();
 }
 
