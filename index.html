@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v98</title>
+<title>Mon Tableau de Vie · v99</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -914,6 +914,67 @@
     .grocery-layout { grid-template-columns: 1fr; }
   }
 
+  /* ========= PLANNING DE REPAS ========= */
+  .meal-week-nav { display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:18px; }
+  .meal-week-label { font-size:15px; font-weight:600; color:var(--ink); min-width:220px; text-align:center; }
+
+  .meal-day-row {
+    display:grid; grid-template-columns:72px 1fr 1fr;
+    gap:8px; align-items:start; padding:8px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .meal-day-row:last-child { border-bottom:none; }
+  .meal-day-row.meal-today { background:var(--lavender-soft); border-radius:12px; padding:8px 10px; margin:0 -10px; }
+
+  .meal-day-label { font-weight:700; font-size:13px; color:var(--ink); padding-top:6px; }
+  .meal-day-num { display:block; font-size:11px; font-weight:400; color:var(--ink-soft); margin-top:1px; }
+
+  .meal-slot {
+    background:var(--bg-1); border-radius:10px; padding:7px 10px;
+    cursor:pointer; min-height:38px; transition:background 0.15s;
+    border:1px solid transparent;
+  }
+  .meal-slot:hover { background:var(--bg-2); border-color:var(--line); }
+  .meal-slot-label { display:block; font-size:9px; color:var(--ink-softer); font-weight:700; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:3px; }
+  .meal-slot-value { font-size:13px; color:var(--ink); line-height:1.3; }
+  .meal-slot-value.empty { color:var(--ink-softer); }
+  .meal-slot input {
+    width:100%; border:none; background:transparent;
+    font-family:inherit; font-size:13px; color:var(--ink); outline:none;
+  }
+
+  .meal-event-card {
+    background:var(--bg-1); border-radius:14px;
+    padding:14px 16px; margin-bottom:12px;
+    border-left:3px solid var(--lavender);
+  }
+  .meal-event-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .meal-event-name { font-weight:700; font-size:15px; flex:1; }
+  .meal-event-date {
+    font-size:11px; color:var(--ink-soft); background:white;
+    padding:3px 9px; border-radius:20px; border:1px solid var(--line);
+  }
+  .meal-event-del { background:none; border:none; color:var(--ink-softer); cursor:pointer; font-size:14px; padding:2px 6px; border-radius:6px; }
+  .meal-event-del:hover { background:var(--rose-soft); color:var(--red); }
+
+  .meal-dish-tag {
+    display:inline-flex; align-items:center; gap:4px;
+    background:white; border:1px solid var(--line);
+    border-radius:20px; padding:3px 10px; font-size:12px; color:var(--ink);
+  }
+  .meal-dish-del { background:none; border:none; color:var(--ink-softer); cursor:pointer; font-size:10px; padding:0 2px; line-height:1; }
+  .meal-dish-del:hover { color:var(--red); }
+
+  .meal-courses-btn {
+    display:inline-flex; align-items:center; gap:5px; font-size:12px;
+    color:var(--lavender); cursor:pointer; background:var(--lavender-soft);
+    border:1px solid var(--lavender); border-radius:8px; padding:5px 12px;
+    font-family:inherit; font-weight:600; transition:all .15s;
+  }
+  .meal-courses-btn:hover { background:var(--lavender); color:white; }
+  .meal-courses-btn.linked { color:#16a34a; background:#dcfce7; border-color:#86efac; }
+  .meal-courses-btn.linked:hover { background:#bbf7d0; }
+
   /* ========= DOMESTIQUE ========= */
   .dom-row {
     display: flex; align-items: center; gap: 12px;
@@ -1137,6 +1198,9 @@
     .add-task-form { grid-template-columns: 1fr 1fr; }
     .add-task-form input:first-child { grid-column: span 2; }
     .modal .grid-2 { grid-template-columns: 1fr; }
+    /* Comptes : label + valeur ne wrappent jamais */
+    .money-stat .label { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .money-stat .value { font-size: 21px; white-space: nowrap; }
   }
   @media (max-width: 600px) {
     /* === Conteneur === */
@@ -1911,6 +1975,7 @@
   <section class="view" data-view="domestic">
     <div class="sub-tabs">
       <button class="sub-tab active" data-sub="todo">📋 To-do du jour</button>
+      <button class="sub-tab" data-sub="meals">🍽️ Repas</button>
       <button class="sub-tab" data-sub="groceries">🛒 Courses</button>
       <button class="sub-tab" data-sub="chores">🧹 Ménage</button>
       <button class="sub-tab" data-sub="plants">🌱 Plantes</button>
@@ -1929,6 +1994,44 @@
           <button class="btn-primary" onclick="addTodoItem('newTodoInput')">+</button>
         </div>
         <div class="todo-list" id="todoList"></div>
+      </div>
+    </div>
+
+    <!-- Sub: Planning de repas -->
+    <div class="sub-view" data-sub="meals">
+      <!-- Navigation semaine -->
+      <div class="meal-week-nav">
+        <button class="day-nav-btn" onclick="mealNavWeek(-1)" title="Semaine précédente">◀</button>
+        <div id="mealWeekLabel" class="meal-week-label">Semaine du …</div>
+        <button class="day-nav-btn" onclick="mealNavWeek(1)" title="Semaine suivante">▶</button>
+      </div>
+
+      <!-- Grille hebdomadaire -->
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-row" style="margin-bottom:14px;">
+          <h2 style="margin:0;">🗓️ Repas de la semaine</h2>
+          <span style="font-size:12px;color:var(--ink-soft);">Clique sur un créneau pour éditer</span>
+        </div>
+        <div id="mealWeekGrid"></div>
+      </div>
+
+      <!-- Repas avec amis -->
+      <div class="card">
+        <div class="card-row" style="margin-bottom:14px;">
+          <h2 style="margin:0;">👥 Repas avec amis</h2>
+          <button class="btn-primary" onclick="showAddMealEventForm()">+ Ajouter</button>
+        </div>
+        <div id="addMealEventForm" style="display:none;background:#faf8fd;padding:12px;border-radius:14px;margin-bottom:14px;border:1px solid var(--line);">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+            <input type="text" id="newMealEventName" placeholder="Nom (ex: Dîner copines)" style="padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;color:var(--ink);" />
+            <input type="date" id="newMealEventDate" style="padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;color:var(--ink);" />
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-primary" onclick="addMealEvent()">Créer</button>
+            <button class="btn-soft" onclick="hideMealEventForm()">Annuler</button>
+          </div>
+        </div>
+        <div id="mealEventsList"></div>
       </div>
     </div>
 
@@ -2796,6 +2899,8 @@ function migrate(s) {
   s.domestique.groceryEvents = s.domestique.groceryEvents || [];
   s.domestique.chores = s.domestique.chores || [];
   s.domestique.plants = s.domestique.plants || [];
+  s.domestique.mealPlan = s.domestique.mealPlan || {};
+  s.domestique.mealEvents = s.domestique.mealEvents || [];
   // Migration : si des groceries existent sans eventId, créer un événement par défaut
   if (s.domestique.groceries.length > 0 && !s.domestique.groceries[0].eventId) {
     let defaultEvent = s.domestique.groceryEvents.find(e => e.id === "ev-default");
@@ -7237,7 +7342,190 @@ function deleteTodoItem(id) {
   _renderAllTodo();
 }
 
-function renderDomestique() { renderTodo(); renderGroceries(); renderChores(); renderPlants(); }
+function renderDomestique() { renderTodo(); renderMealPlan(); renderGroceries(); renderChores(); renderPlants(); }
+
+/* ========= PLANNING DE REPAS ========= */
+let _mealWeekOffset = 0; // 0 = semaine courante, +1 = semaine suivante, etc.
+
+function getMealWeekStart(offset) {
+  const off = (offset !== undefined) ? offset : _mealWeekOffset;
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  const dow = d.getDay(); // 0=dim, 1=lun…
+  const diffToMon = (dow === 0) ? -6 : 1 - dow;
+  d.setDate(d.getDate() + diffToMon + off * 7);
+  return d;
+}
+
+function mealNavWeek(delta) {
+  _mealWeekOffset += delta;
+  renderMealPlan();
+}
+
+function renderMealPlan() {
+  const weekStart = getMealWeekStart();
+  const weekEnd   = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6);
+  const fmt = d => d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  const labelEl = document.getElementById("mealWeekLabel");
+  if (labelEl) labelEl.textContent = `Semaine du ${fmt(weekStart)} au ${fmt(weekEnd)}`;
+  renderMealWeekGrid();
+  renderMealEvents();
+}
+
+function renderMealWeekGrid() {
+  const grid = document.getElementById("mealWeekGrid");
+  if (!grid) return;
+  const weekStart = getMealWeekStart();
+  const dayShort  = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+  const today = todayKey();
+  let html = "";
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    const key = todayKey(d);
+    const plan = state.domestique.mealPlan?.[key] || {};
+    const isToday = key === today;
+    const dayNum  = `${d.getDate()} ${d.toLocaleDateString("fr-FR", { month: "short" })}`;
+    html += `
+    <div class="meal-day-row${isToday ? " meal-today" : ""}">
+      <div class="meal-day-label">${dayShort[i]}<span class="meal-day-num">${dayNum}</span></div>
+      <div class="meal-slot" onclick="editMealSlot('${key}','midi',this)">
+        <span class="meal-slot-label">Midi</span>
+        <span class="meal-slot-value${plan.midi ? "" : " empty"}">${plan.midi ? escapeHtml(plan.midi) : "—"}</span>
+      </div>
+      <div class="meal-slot" onclick="editMealSlot('${key}','soir',this)">
+        <span class="meal-slot-label">Soir</span>
+        <span class="meal-slot-value${plan.soir ? "" : " empty"}">${plan.soir ? escapeHtml(plan.soir) : "—"}</span>
+      </div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function editMealSlot(dateKey, slot, slotEl) {
+  const valueSpan = slotEl.querySelector(".meal-slot-value");
+  if (!valueSpan || slotEl.querySelector("input")) return; // déjà en édition
+  const current = state.domestique.mealPlan?.[dateKey]?.[slot] || "";
+  const input = document.createElement("input");
+  input.value = current;
+  input.placeholder = slot === "midi" ? "Déjeuner…" : "Dîner…";
+  valueSpan.replaceWith(input);
+  input.focus(); input.select();
+  const save = () => {
+    const val = input.value.trim();
+    if (!state.domestique.mealPlan) state.domestique.mealPlan = {};
+    if (!state.domestique.mealPlan[dateKey]) state.domestique.mealPlan[dateKey] = {};
+    if (val) state.domestique.mealPlan[dateKey][slot] = val;
+    else delete state.domestique.mealPlan[dateKey][slot];
+    saveState();
+    renderMealWeekGrid();
+  };
+  input.addEventListener("blur", save);
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+    if (e.key === "Escape") { input.value = current; input.blur(); }
+  });
+}
+
+function renderMealEvents() {
+  const target = document.getElementById("mealEventsList");
+  if (!target) return;
+  const events = state.domestique.mealEvents || [];
+  if (!events.length) {
+    target.innerHTML = `<p style="color:var(--ink-soft);font-size:14px;text-align:center;padding:20px 0;">Aucun repas planifié encore — crée ton premier dîner, brunch ou repas entre amis ✨</p>`;
+    return;
+  }
+  const sorted = [...events].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  target.innerHTML = sorted.map(ev => {
+    const linked = ev.groceryEventId
+      ? state.domestique.groceryEvents.find(g => g.id === ev.groceryEventId)
+      : null;
+    const dishesHtml = (ev.dishes || []).map(d =>
+      `<span class="meal-dish-tag">${escapeHtml(d)}<button class="meal-dish-del" onclick="deleteMealDish('${ev.id}',${JSON.stringify(escapeHtml(d))})">✕</button></span>`
+    ).join("");
+    const groceryBtn = linked
+      ? `<button class="meal-courses-btn linked" onclick="switchToGroceriesFor('${ev.groceryEventId}')">🛒 Voir les courses</button>`
+      : `<button class="meal-courses-btn" onclick="createGroceryFromMeal('${ev.id}')">🛒 Créer liste de courses</button>`;
+    return `
+    <div class="meal-event-card" data-meal-id="${ev.id}">
+      <div class="meal-event-header">
+        <div class="meal-event-name">${escapeHtml(ev.name)}</div>
+        <span class="meal-event-date">${formatDeadline(ev.date) || ev.date || ""}</span>
+        <button class="meal-event-del" onclick="deleteMealEvent('${ev.id}')">✕</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:10px;">${dishesHtml}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input type="text" placeholder="Ajouter un plat ou ingrédient clé…" id="dish-input-${ev.id}"
+          onkeydown="if(event.key==='Enter'){addMealDish('${ev.id}',this.value);this.value='';}"
+          style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+        <button class="btn-soft" style="padding:7px 10px;font-size:12px;flex-shrink:0;"
+          onclick="(function(){const i=document.getElementById('dish-input-${ev.id}');addMealDish('${ev.id}',i.value);i.value='';})()">+</button>
+        ${groceryBtn}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function showAddMealEventForm() {
+  const form = document.getElementById("addMealEventForm");
+  if (!form) return;
+  form.style.display = "";
+  const d = document.getElementById("newMealEventDate");
+  if (d && !d.value) d.value = todayKey();
+  document.getElementById("newMealEventName")?.focus();
+}
+function hideMealEventForm() {
+  const form = document.getElementById("addMealEventForm");
+  if (form) form.style.display = "none";
+}
+function addMealEvent() {
+  const name = document.getElementById("newMealEventName")?.value.trim();
+  const date = document.getElementById("newMealEventDate")?.value || todayKey();
+  if (!name) return;
+  if (!state.domestique.mealEvents) state.domestique.mealEvents = [];
+  state.domestique.mealEvents.unshift({ id: "me" + Date.now(), name, date, dishes: [], groceryEventId: null });
+  document.getElementById("newMealEventName").value = "";
+  hideMealEventForm();
+  saveState(); renderMealEvents();
+}
+function deleteMealEvent(id) {
+  const ev = (state.domestique.mealEvents || []).find(e => e.id === id);
+  if (!ev || !confirm(`Supprimer « ${ev.name} » ?`)) return;
+  state.domestique.mealEvents = state.domestique.mealEvents.filter(e => e.id !== id);
+  saveState(); renderMealEvents();
+}
+function addMealDish(eventId, raw) {
+  const dish = raw.trim(); if (!dish) return;
+  const ev = (state.domestique.mealEvents || []).find(e => e.id === eventId);
+  if (!ev) return;
+  if (!ev.dishes) ev.dishes = [];
+  ev.dishes.push(dish);
+  saveState(); renderMealEvents();
+}
+function deleteMealDish(eventId, dishEscaped) {
+  const ev = (state.domestique.mealEvents || []).find(e => e.id === eventId);
+  if (!ev) return;
+  // dishEscaped is already HTML-escaped; compare against escaped versions
+  ev.dishes = (ev.dishes || []).filter(d => escapeHtml(d) !== dishEscaped);
+  saveState(); renderMealEvents();
+}
+function createGroceryFromMeal(mealEventId) {
+  const ev = (state.domestique.mealEvents || []).find(e => e.id === mealEventId);
+  if (!ev) return;
+  const gev = { id: "ev" + Date.now(), name: ev.name, date: ev.date };
+  state.domestique.groceryEvents.unshift(gev);
+  ev.groceryEventId = gev.id;
+  saveState(); renderMealEvents(); renderGroceries();
+}
+function switchToGroceriesFor(groceryEventId) {
+  // Bascule sur l'onglet Courses et met en évidence l'événement
+  const btn = document.querySelector('.sub-tab[data-sub="groceries"]');
+  if (btn) btn.click();
+  setTimeout(() => {
+    const el = document.querySelector(`[data-gev-id="${groceryEventId}"]`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 150);
+}
 
 
 // --- Courses (événements + récurrents) ---
@@ -7271,7 +7559,7 @@ function renderGroceryEvents() {
         </div>`).join("")
       : `<p style="color:var(--ink-softer);font-size:12px;text-align:center;padding:6px;">Aucun article — ajoute-en ci-dessus.</p>`;
     return `
-      <div class="grocery-event">
+      <div class="grocery-event" data-gev-id="${ev.id}">
         <div class="grocery-event-header">
           <div class="grocery-event-name">${escapeHtml(ev.name)}</div>
           <span class="grocery-event-date">${formatDeadline(ev.date) || ""}</span>
