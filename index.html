@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v102</title>
+<title>Mon Tableau de Vie · v103</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -393,6 +393,10 @@
   }
   .sub-actions button:hover { background: white; color: var(--ink); }
   .sub-actions button.del:hover { color: var(--red); background: var(--rose-soft); }
+  /* Listes scrollantes dans Financier */
+  #txList  { max-height: 420px; overflow-y: auto; padding-right: 2px; }
+  #subList { max-height: 320px; overflow-y: auto; padding-right: 2px; }
+
   .sub-total-banner {
     background: linear-gradient(135deg, var(--butter-soft), var(--peach-soft));
     border-radius: 12px; padding: 10px 14px; margin-bottom: 14px;
@@ -841,6 +845,8 @@
     background: #faf8fd; border-radius: 14px; padding: 14px;
     margin-bottom: 10px; border-left: 4px solid var(--lavender);
   }
+  /* Liste d'articles scrollante par événement */
+  .grocery-items-scroll { max-height: 220px; overflow-y: auto; padding-right: 2px; }
   .grocery-event-header {
     display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
   }
@@ -1388,12 +1394,7 @@
     .view { overflow-x: hidden; }
     .card { overflow-x: hidden; }
 
-    /* Financier : Abonnements compact + déplacé après Transactions récentes */
-    /* IMPORTANT: utilise .active pour ne pas override display:none sur les sections inactives */
-    section[data-view="money"].active { display: flex !important; flex-direction: column; }
-    #subsCard { order: 20; margin-top: 14px; margin-bottom: 0; }
-    #txCard   { order: 19; }
-    /* Compacter la liste d'abonnements sur mobile */
+    /* Financier mobile : abonnements compacts */
     #subsCard h2 { font-size: 14px; }
     #subsCard .sub-total-banner { padding: 7px 12px; }
     #subList { max-height: 180px; overflow-y: auto; }
@@ -1957,17 +1958,6 @@
         <button class="add-btn" onclick="addTransaction()">Ajouter</button>
       </div>
     </div>
-    <div class="card" id="subsCard" style="margin-bottom:18px;">
-      <div class="card-row">
-        <h2>🔁 Abonnements & paiements récurrents <span class="count" id="subCount"></span></h2>
-        <button class="btn-primary" onclick="openSubModal()">+ Ajouter</button>
-      </div>
-      <div class="sub-total-banner">
-        <span>Total équivalent mensuel</span>
-        <strong id="subTotal">0,00 €</strong>
-      </div>
-      <div id="subList"></div>
-    </div>
     <div class="card" style="margin-bottom:18px;">
       <h2 style="margin:0 0 12px;">💰 Épargne</h2>
       <div style="display:flex;gap:24px;margin-bottom:14px;flex-wrap:wrap;">
@@ -2013,6 +2003,17 @@
         <span style="color:var(--ink-soft);font-size:13px;" id="txCount"></span>
       </div>
       <div class="tx-list" id="txList"></div>
+    </div>
+    <div class="card" id="subsCard" style="margin-top:18px;">
+      <div class="card-row">
+        <h2>🔁 Abonnements & paiements récurrents <span class="count" id="subCount"></span></h2>
+        <button class="btn-primary" onclick="openSubModal()">+ Ajouter</button>
+      </div>
+      <div class="sub-total-banner">
+        <span>Total équivalent mensuel</span>
+        <strong id="subTotal">0,00 €</strong>
+      </div>
+      <div id="subList"></div>
     </div>
   </section>
 
@@ -7755,7 +7756,7 @@ function renderGroceryEvents() {
           <input type="text" placeholder="Ajouter un article…" onkeydown="if(event.key==='Enter'){addGroceryItem('${ev.id}', this.value); this.value='';}" />
           <button onclick="(function(btn){const inp=btn.previousElementSibling;addGroceryItem('${ev.id}', inp.value);inp.value='';})(this)">+ Ajouter</button>
         </div>
-        ${itemsHtml}
+        <div class="grocery-items-scroll">${itemsHtml}</div>
       </div>`;
   }).join("");
 }
