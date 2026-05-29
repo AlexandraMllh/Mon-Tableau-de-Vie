@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v86</title>
+<title>Mon Tableau de Vie · v87</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1121,20 +1121,87 @@
     .modal .grid-2 { grid-template-columns: 1fr; }
   }
   @media (max-width: 600px) {
-    .container { padding: 16px 16px 80px; }
-    header.top { gap: 10px; }
-    header.top h1 { font-size: 20px; }
-    .header-actions { gap: 6px; }
-    .header-actions .btn-icon { padding: 8px 11px; font-size: 12px; }
-    /* Cacher les boutons secondaires sur mobile */
+    /* === Conteneur === */
+    .container { padding: 14px 12px 80px; }
+
+    /* === Header === */
+    header.top { gap: 8px; }
+    header.top h1 { font-size: 19px; }
+    .header-actions { gap: 5px; }
+    .header-actions .btn-icon { padding: 7px 10px; font-size: 11px; }
     #settingsBtn, #rechargerBtn { display: none; }
-    nav.tabs { gap: 6px; }
-    .tab { padding: 8px 13px; font-size: 13px; }
-    .rings { grid-template-columns: repeat(2, 1fr); }
-    .ring-card { padding: 14px 10px; }
-    .ring { width: 64px; height: 64px; }
-    .ring-val { font-size: 18px; }
-    .day-nav-label { font-size: 14px; min-width: 140px; }
+
+    /* === NAV PRINCIPALE : grille 3×3 au lieu de scroll horizontal === */
+    nav.tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      overflow-x: unset;
+      gap: 6px;
+      margin-bottom: 18px;
+    }
+    .tab {
+      text-align: center;
+      padding: 9px 4px;
+      font-size: 12px;
+      white-space: normal;
+    }
+
+    /* === Anneau Aujourd'hui === */
+    .rings { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .ring-card { padding: 12px 8px; }
+    .ring { width: 60px; height: 60px; }
+    .ring-val { font-size: 17px; }
+    .ring-label { font-size: 11px; }
+    .ring-sub { font-size: 10px; }
+    .day-nav-label { font-size: 13px; min-width: 120px; }
+
+    /* === Cartes === */
+    .card { padding: 16px 14px; border-radius: 16px; }
+
+    /* === Travail : grille Progression+Bilan → 1 colonne === */
+    .work-stats-duo { grid-template-columns: 1fr !important; }
+    #bilanStats { grid-template-columns: repeat(2, 1fr) !important; }
+
+    /* === Formulaire ajout tâche === */
+    .add-task-form {
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .add-task-form input[type="text"] { grid-column: span 2; }
+    .add-task-form select { font-size: 12px; padding: 8px 6px; }
+    .add-task-form input[type="date"] { font-size: 12px; padding: 8px 6px; }
+
+    /* === Activités : dots sur 2e ligne === */
+    .activity-row { flex-wrap: wrap; gap: 8px; }
+    .activity-info { min-width: 0; }
+    .activity-day-dots {
+      flex-basis: 100%;
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      margin-top: 2px;
+    }
+    .activity-day-dot { flex: 1; min-width: 0; }
+    .activity-day-dot .dot-day-label { font-size: 8px; }
+
+    /* === Kanban (Postdoc/Valo/etc.) → colonnes full width === */
+    .kanban { flex-direction: column; overflow-x: unset; }
+    .kanban-col { min-width: unset; width: 100%; }
+
+    /* === Financier : formulaire === */
+    .tx-form { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .tx-form .type-toggle { grid-column: span 2; }
+    .tx-form .add-btn { grid-column: span 2; }
+
+    /* === Modal : quasi plein écran === */
+    .modal-bg { padding: 8px; align-items: flex-end; }
+    .modal {
+      border-radius: 20px 20px 14px 14px;
+      max-height: 95vh;
+      padding: 20px 16px;
+    }
+
+    /* === Stat grids === */
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
   }
 
   /* === Gestion administrative === */
@@ -1315,7 +1382,7 @@
 
     <!-- Sub: Tâches -->
     <div class="sub-view active" data-sub="tasks">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;align-items:start;">
+      <div class="work-stats-duo" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;align-items:start;">
         <div class="card" style="padding:14px 16px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
             <h2 style="margin:0;font-size:14px;">📊 Progression</h2>
