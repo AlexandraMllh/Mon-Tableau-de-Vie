@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v110</title>
+<title>Mon Tableau de Vie · v111</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1660,6 +1660,7 @@
             <div class="add-task-form">
               <input type="text" id="newTaskName" placeholder="Nouvelle tâche…" onkeydown="if(event.key==='Enter')addTask()" />
               <select id="newTaskProject"></select>
+              <button type="button" title="Créer une nouvelle section" onclick="openProjectModal()" style="background:var(--lavender-soft);border:1px solid var(--lavender);color:var(--lavender);border-radius:8px;padding:4px 9px;font-size:14px;cursor:pointer;font-weight:700;line-height:1;flex-shrink:0;">＋</button>
               <select id="newTaskPriority">
                 <option value="urgent">🚨 Urgent</option>
                 <option value="high">Priorité haute</option>
@@ -4325,6 +4326,16 @@ function renderTaskProgress() {
     tasksByProject[key].total++;
     if (t.done) tasksByProject[key].done++;
   }
+  const CUSTOM_COLORS = [
+    { fg: "#f5a880", bg: "#fff3ef" },
+    { fg: "#80c4e8", bg: "#e8f5fb" },
+    { fg: "#d890c8", bg: "#faeef7" },
+    { fg: "#98d890", bg: "#edfaeb" },
+    { fg: "#c8a870", bg: "#faf3e8" },
+    { fg: "#a890d8", bg: "#f0edfb" },
+  ];
+  const sectionIds_prog = ["p-seed-postdoc", "p-seed-candidatures", "p-seed-prixthese", "p-seed-valo", "p-seed-enseignement", "p-seed-autre"];
+  const customList = state.work.postdocProjects.filter(pr => !sectionIds_prog.includes(pr.id));
   const colorFor = (p) => {
     if (isPostdocProject(p)) return { fg: "#6aaed6", bg: "var(--sky-soft)" };
     if (isValoProject(p)) return { fg: "#e890a4", bg: "var(--pink-soft)" };
@@ -4332,7 +4343,8 @@ function renderTaskProgress() {
     if (isAutreProject(p)) return { fg: "#f5c842", bg: "#fdf6d8" };
     if (isCandProject(p)) return { fg: "#72c4a2", bg: "#e6f7f1" };
     if (isPrixTheseProject(p)) return { fg: "#d4b84a", bg: "#fdf5d8" };
-    return { fg: "#72c4a2", bg: "#e6f7f1" };
+    const ci = customList.findIndex(cp => cp.id === p.id);
+    return CUSTOM_COLORS[Math.max(ci, 0) % CUSTOM_COLORS.length];
   };
   let html = "";
   for (const p of projects) {
@@ -4372,11 +4384,17 @@ function updateProjectSelect() {
   if (!sel) return;
   const cur = sel.value;
   const sectionIds = ["p-seed-postdoc", "p-seed-candidatures", "p-seed-prixthese", "p-seed-valo", "p-seed-enseignement", "p-seed-autre"];
-  const sectionProjects = state.work.postdocProjects
+  const fixedProjects = state.work.postdocProjects
     .filter(p => sectionIds.includes(p.id))
     .sort((a, b) => sectionIds.indexOf(a.id) - sectionIds.indexOf(b.id));
-  sel.innerHTML = `<option value="">— Sans section —</option>` +
-    sectionProjects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+  const customProjects = state.work.postdocProjects.filter(p => !sectionIds.includes(p.id));
+  let html = `<option value="">— Sans section —</option>` +
+    fixedProjects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+  if (customProjects.length) {
+    html += `<option disabled>──────────</option>` +
+      customProjects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+  }
+  sel.innerHTML = html;
   sel.value = cur;
 }
 function openProjectModal(id) {
@@ -4413,6 +4431,7 @@ function saveProject() {
   closeProjectModal();
   renderProjects();
   renderTasks();
+  updateProjectSelect();
 }
 function deleteProject() {
   const id = document.getElementById("projectModalId").value;
@@ -4885,11 +4904,16 @@ function openTaskEditModal(id) {
   document.getElementById("taskEditDeadline").value = t.deadline || "";
   const pSel = document.getElementById("taskEditProject");
   const sectionIds = ["p-seed-postdoc", "p-seed-candidatures", "p-seed-prixthese", "p-seed-valo", "p-seed-enseignement", "p-seed-autre"];
-  const sectionProjects = state.work.postdocProjects.filter(p => sectionIds.includes(p.id));
-  // Ordre fixe : Postdoc, Candidatures, Valorisation, Enseignement
-  sectionProjects.sort((a, b) => sectionIds.indexOf(a.id) - sectionIds.indexOf(b.id));
-  pSel.innerHTML = `<option value="">— Sans section —</option>` +
-    sectionProjects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+  const fixedProjects2 = state.work.postdocProjects.filter(p => sectionIds.includes(p.id));
+  fixedProjects2.sort((a, b) => sectionIds.indexOf(a.id) - sectionIds.indexOf(b.id));
+  const customProjects2 = state.work.postdocProjects.filter(p => !sectionIds.includes(p.id));
+  let pHtml = `<option value="">— Sans section —</option>` +
+    fixedProjects2.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+  if (customProjects2.length) {
+    pHtml += `<option disabled>──────────</option>` +
+      customProjects2.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+  }
+  pSel.innerHTML = pHtml;
   pSel.value = t.projectId || "";
   const pct = taskProgress(t);
   document.getElementById("taskEditProgress").value = pct;
