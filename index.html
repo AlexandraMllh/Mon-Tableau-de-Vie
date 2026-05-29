@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v83</title>
+<title>Mon Tableau de Vie · v84</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1010,6 +1010,37 @@
   .dot-soon .dot-circle { background: #c08a4d; }
   .dot-late .dot-circle { background: var(--red); }
 
+  /* ========= TO-DO DU JOUR ========= */
+  .todo-input-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .todo-input-row input { flex: 1; padding: 11px 14px; border: 1px solid var(--line); border-radius: 12px; font-family: inherit; font-size: 14px; color: var(--ink); background: white; }
+  .todo-input-row input:focus { outline: none; border-color: var(--lavender); box-shadow: 0 0 0 3px rgba(179,163,220,0.15); }
+  .todo-list { display: flex; flex-direction: column; gap: 8px; }
+  .todo-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: 12px;
+    background: #faf8fd; transition: background 0.2s;
+  }
+  .todo-item:hover { background: var(--lavender-soft); }
+  .todo-item.done-item { opacity: 0.55; }
+  .todo-cb {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid var(--ink-soft); cursor: pointer;
+    flex-shrink: 0; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+    background: white;
+  }
+  .todo-item.done-item .todo-cb { background: var(--lavender); border-color: var(--lavender); }
+  .todo-item.done-item .todo-cb::after {
+    content: ""; width: 5px; height: 9px;
+    border: solid white; border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-1px, -1px);
+  }
+  .todo-text { flex: 1; font-size: 14px; cursor: pointer; }
+  .todo-item.done-item .todo-text { text-decoration: line-through; color: var(--ink-soft); }
+  .todo-del { background: none; border: none; color: var(--ink-softer); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 6px; transition: all 0.15s; flex-shrink: 0; }
+  .todo-del:hover { background: var(--rose-soft); color: var(--red); }
+  .todo-empty { text-align: center; color: var(--ink-softer); font-size: 14px; padding: 24px 0; }
+
   /* ========= MODAL ========= */
   .modal-bg {
     position: fixed; inset: 0;
@@ -1695,13 +1726,30 @@
   <!-- VIEW: DOMESTIC -->
   <section class="view" data-view="domestic">
     <div class="sub-tabs">
-      <button class="sub-tab active" data-sub="groceries">🛒 Courses</button>
+      <button class="sub-tab active" data-sub="todo">📋 To-do du jour</button>
+      <button class="sub-tab" data-sub="groceries">🛒 Courses</button>
       <button class="sub-tab" data-sub="chores">🧹 Ménage</button>
       <button class="sub-tab" data-sub="plants">🌱 Plantes</button>
     </div>
 
+    <!-- Sub: To-do du jour -->
+    <div class="sub-view active" data-sub="todo">
+      <div class="card">
+        <div class="work-header" style="margin-bottom:16px;">
+          <h2 style="margin:0;">📋 To-do du jour <span class="count" id="todoCount"></span></h2>
+          <span id="todoDoneLabel" style="font-size:13px;color:var(--ink-soft);"></span>
+        </div>
+        <div class="todo-input-row">
+          <input type="text" id="newTodoInput" placeholder="Ajouter une tâche… (Entrée pour valider)" maxlength="200"
+            onkeydown="if(event.key==='Enter') addTodoItem()" />
+          <button class="btn-primary" onclick="addTodoItem()">+</button>
+        </div>
+        <div class="todo-list" id="todoList"></div>
+      </div>
+    </div>
+
     <!-- Sub: Courses -->
-    <div class="sub-view active" data-sub="groceries">
+    <div class="sub-view" data-sub="groceries">
       <div class="grocery-layout">
         <!-- LEFT — listes d'événements + global -->
         <div>
@@ -2737,7 +2785,7 @@ let _selectedDayKey = null; // null = aujourd'hui
 function getSelectedDayKey() { return _selectedDayKey || todayKey(); }
 function getToday() {
   const k = getSelectedDayKey();
-  if (!state.history[k]) state.history[k] = { habits: {}, activities: {}, mood: null, sleep: null, sleepQuality: null, energy: null, weight: null, water: 0, journal: "", bedtime: null, wakeTime: null };
+  if (!state.history[k]) state.history[k] = { habits: {}, activities: {}, mood: null, sleep: null, sleepQuality: null, energy: null, weight: null, water: 0, journal: "", bedtime: null, wakeTime: null, todo: [] };
   else {
     const d = state.history[k];
     if (!d.habits) d.habits = {}; if (!d.activities) d.activities = {};
@@ -2745,6 +2793,7 @@ function getToday() {
     if (d.bedtime === undefined) d.bedtime = null;
     if (d.wakeTime === undefined) d.wakeTime = null;
     if (d.sleepQuality === undefined) d.sleepQuality = null;
+    if (!Array.isArray(d.todo)) d.todo = [];
   }
   return state.history[k];
 }
@@ -6912,7 +6961,53 @@ function renderTimeDonutChart() {
 }
 
 /* ========= DOMESTIQUE ========= */
-function renderDomestique() { renderGroceries(); renderChores(); renderPlants(); }
+/* ========= TO-DO DU JOUR ========= */
+function renderTodo() {
+  const today = getToday();
+  const items = today.todo || [];
+  const done = items.filter(t => t.done).length;
+  const total = items.length;
+  const countEl = document.getElementById("todoCount");
+  const doneEl  = document.getElementById("todoDoneLabel");
+  const listEl  = document.getElementById("todoList");
+  if (!listEl) return;
+  if (countEl) countEl.textContent = total ? `(${total})` : "";
+  if (doneEl)  doneEl.textContent  = total ? `${done}/${total} faite${done > 1 ? "s" : ""}` : "";
+  if (!total) {
+    listEl.innerHTML = `<div class="todo-empty">Rien pour l'instant — ajoute ta première tâche ✨</div>`;
+    return;
+  }
+  listEl.innerHTML = items.map(t => `
+    <div class="todo-item${t.done ? " done-item" : ""}" data-id="${t.id}">
+      <div class="todo-cb" onclick="toggleTodoItem('${t.id}')"></div>
+      <span class="todo-text" onclick="toggleTodoItem('${t.id}')">${escapeHtml(t.text)}</span>
+      <button class="todo-del" onclick="deleteTodoItem('${t.id}')" title="Supprimer">✕</button>
+    </div>`).join("");
+}
+function addTodoItem() {
+  const input = document.getElementById("newTodoInput");
+  const text = (input.value || "").trim();
+  if (!text) return;
+  const today = getToday();
+  today.todo.push({ id: "td" + Date.now(), text, done: false });
+  input.value = "";
+  saveState();
+  renderTodo();
+  input.focus();
+}
+function toggleTodoItem(id) {
+  const today = getToday();
+  const item = today.todo.find(t => t.id === id);
+  if (item) { item.done = !item.done; saveState(); renderTodo(); }
+}
+function deleteTodoItem(id) {
+  const today = getToday();
+  today.todo = today.todo.filter(t => t.id !== id);
+  saveState();
+  renderTodo();
+}
+
+function renderDomestique() { renderTodo(); renderGroceries(); renderChores(); renderPlants(); }
 
 // --- Courses (événements + récurrents) ---
 function renderGroceries() {
