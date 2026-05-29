@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v108</title>
+<title>Mon Tableau de Vie · v109</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2902,11 +2902,11 @@ const DEFAULT_STATE = {
     { id: "h-skincare-soir", name: "Skincare soir 🌙", type: "boolean" },
   ],
   activities: [
-    { id: "a1", name: "Salle de sport", emoji: "🏋️" },
+    { id: "a1", name: "Sport", emoji: "🏋️" },
     { id: "a2", name: "Méditation", emoji: "🧘" },
     { id: "a3", name: "Danse", emoji: "💃" },
   ],
-  categories: ["Alimentation", "Logement", "Transport", "Loisirs", "Cadeau", "Salle de sport", "Esthétique", "Santé", "Travail", "Abonnements audiovisuels", "Abonnement IA", "Autre"],
+  categories: ["Alimentation", "Logement", "Transport", "Loisirs", "Cadeau", "Sport", "Esthétique", "Santé", "Travail", "Abonnements audiovisuels", "Abonnement IA", "Autre"],
   incomeCategories: ["Salaire (postdoc)", "Salaire (vacations)", "Prime", "Remboursement", "Autre revenu"],
   savingsCategories: ["Livret A", "LEP", "PEA", "Compte épargne", "Assurance vie", "Autre épargne"],
   candidatureTypes: ["MCF", "MSCA", "CNRS", "ERC ACCESS"],
@@ -9020,7 +9020,7 @@ function loadInitialData() {
       state.activities.push({ id: fallbackId, name, emoji });
     }
   };
-  ensureAct("sport|salle", "Salle de sport", "🏋️", "a-sport");
+  ensureAct("sport|salle", "Sport", "🏋️", "a-sport");
   ensureAct("médit", "Méditation", "🧘", "a-medit");
   ensureAct("danse", "Danse", "💃", "a-danse");
   // Retirer marche / course si encore présent
