@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v88</title>
+<title>Mon Tableau de Vie · v89</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1205,6 +1205,36 @@
 
     /* === Stat grids === */
     .stat-grid { grid-template-columns: repeat(2, 1fr); }
+
+    /* === Greeting plus grand === */
+    header.top h1 { font-size: 24px; }
+    header.top .date { font-size: 13px; }
+
+    /* === Tâches : layout compact === */
+    .task-row {
+      padding: 7px 9px;
+      gap: 7px;
+      align-items: flex-start;
+    }
+    .task-checkbox { margin-top: 3px; width: 18px; height: 18px; }
+    /* Nom sur ligne entière, badges en dessous */
+    .task-meta { gap: 3px; }
+    .task-name {
+      order: -1;
+      flex-basis: 100%;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .task-kind-badge { font-size: 9px; padding: 1px 5px; }
+    .task-pct-badge  { font-size: 9px; padding: 1px 5px; }
+    .task-project-tag { font-size: 10px; padding: 2px 5px; }
+    .task-deadline { font-size: 10px; }
+    .task-progress-bar { height: 4px; margin-top: 4px; }
+    /* Boutons tjrs visibles sur mobile (pas de hover) */
+    .task-edit-btn { opacity: 1 !important; font-size: 12px; padding: 3px 5px; margin-top: 1px; }
+    .task-del { opacity: 0; width: 0; padding: 0; overflow: hidden; }
+    /* Priorité emoji */
+    .task-row::before { font-size: 11px !important; margin-right: 2px; }
   }
 
   /* === Gestion administrative === */
