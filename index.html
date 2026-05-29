@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v84</title>
+<title>Mon Tableau de Vie · v85</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1279,6 +1279,20 @@
         </div>
       </div>
     </div>
+
+    <!-- To-do du jour (widget partagé avec Domestique) -->
+    <div class="card" style="margin-top:14px;">
+      <div class="work-header" style="margin-bottom:14px;">
+        <h2 style="margin:0;">📋 To-do du jour <span class="count" id="todoCountToday"></span></h2>
+        <span id="todoDoneLabelToday" style="font-size:13px;color:var(--ink-soft);"></span>
+      </div>
+      <div class="todo-input-row">
+        <input type="text" id="newTodoInputToday" placeholder="Ajouter une tâche… (Entrée pour valider)" maxlength="200"
+          onkeydown="if(event.key==='Enter') addTodoItem('newTodoInputToday')" />
+        <button class="btn-primary" onclick="addTodoItem('newTodoInputToday')">+</button>
+      </div>
+      <div class="todo-list" id="todoListToday"></div>
+    </div>
   </section>
 
   <!-- VIEW: WORK -->
@@ -1741,8 +1755,8 @@
         </div>
         <div class="todo-input-row">
           <input type="text" id="newTodoInput" placeholder="Ajouter une tâche… (Entrée pour valider)" maxlength="200"
-            onkeydown="if(event.key==='Enter') addTodoItem()" />
-          <button class="btn-primary" onclick="addTodoItem()">+</button>
+            onkeydown="if(event.key==='Enter') addTodoItem('newTodoInput')" />
+          <button class="btn-primary" onclick="addTodoItem('newTodoInput')">+</button>
         </div>
         <div class="todo-list" id="todoList"></div>
       </div>
@@ -3156,7 +3170,7 @@ function navToToday() {
   renderTodayNav();
   renderTodayView();
 }
-function renderTodayView() { renderTodayNav(); renderRings(); renderHabits(); renderWellbeing(); renderSkincare(); renderJournal(); }
+function renderTodayView() { renderTodayNav(); renderRings(); renderHabits(); renderWellbeing(); renderTodoToday(); renderSkincare(); renderJournal(); }
 
 /* ========= WORK :: POSTDOC PROJECTS ========= */
 // Filtres pour identifier les projets "majeurs" qui ont leur propre sous-onglet
@@ -6961,53 +6975,53 @@ function renderTimeDonutChart() {
 }
 
 /* ========= DOMESTIQUE ========= */
-/* ========= TO-DO DU JOUR ========= */
-function renderTodo() {
+/* ========= TO-DO DU JOUR (partagé Aujourd'hui ↔ Domestique) ========= */
+function _renderTodoWidget(listId, countId, doneLabelId) {
   const today = getToday();
   const items = today.todo || [];
-  const done = items.filter(t => t.done).length;
+  const done  = items.filter(t => t.done).length;
   const total = items.length;
-  const countEl = document.getElementById("todoCount");
-  const doneEl  = document.getElementById("todoDoneLabel");
-  const listEl  = document.getElementById("todoList");
+  const listEl = document.getElementById(listId);
   if (!listEl) return;
+  const countEl = countId ? document.getElementById(countId) : null;
+  const doneEl  = doneLabelId ? document.getElementById(doneLabelId) : null;
   if (countEl) countEl.textContent = total ? `(${total})` : "";
   if (doneEl)  doneEl.textContent  = total ? `${done}/${total} faite${done > 1 ? "s" : ""}` : "";
-  if (!total) {
-    listEl.innerHTML = `<div class="todo-empty">Rien pour l'instant — ajoute ta première tâche ✨</div>`;
-    return;
-  }
-  listEl.innerHTML = items.map(t => `
-    <div class="todo-item${t.done ? " done-item" : ""}" data-id="${t.id}">
-      <div class="todo-cb" onclick="toggleTodoItem('${t.id}')"></div>
-      <span class="todo-text" onclick="toggleTodoItem('${t.id}')">${escapeHtml(t.text)}</span>
-      <button class="todo-del" onclick="deleteTodoItem('${t.id}')" title="Supprimer">✕</button>
-    </div>`).join("");
+  listEl.innerHTML = total
+    ? items.map(t => `
+        <div class="todo-item${t.done ? " done-item" : ""}">
+          <div class="todo-cb" onclick="toggleTodoItem('${t.id}')"></div>
+          <span class="todo-text" onclick="toggleTodoItem('${t.id}')">${escapeHtml(t.text)}</span>
+          <button class="todo-del" onclick="deleteTodoItem('${t.id}')" title="Supprimer">✕</button>
+        </div>`).join("")
+    : `<div class="todo-empty">Rien pour l'instant — ajoute ta première tâche ✨</div>`;
 }
-function addTodoItem() {
-  const input = document.getElementById("newTodoInput");
-  const text = (input.value || "").trim();
+function renderTodo()      { _renderTodoWidget("todoList",      "todoCount",      "todoDoneLabel"); }
+function renderTodoToday() { _renderTodoWidget("todoListToday", "todoCountToday", "todoDoneLabelToday"); }
+function _renderAllTodo()  { renderTodo(); renderTodoToday(); }
+
+function addTodoItem(inputId) {
+  const input = document.getElementById(inputId || "newTodoInput");
+  const text = (input?.value || "").trim();
   if (!text) return;
-  const today = getToday();
-  today.todo.push({ id: "td" + Date.now(), text, done: false });
-  input.value = "";
+  getToday().todo.push({ id: "td" + Date.now(), text, done: false });
+  if (input) { input.value = ""; input.focus(); }
   saveState();
-  renderTodo();
-  input.focus();
+  _renderAllTodo();
 }
 function toggleTodoItem(id) {
-  const today = getToday();
-  const item = today.todo.find(t => t.id === id);
-  if (item) { item.done = !item.done; saveState(); renderTodo(); }
+  const item = getToday().todo.find(t => t.id === id);
+  if (item) { item.done = !item.done; saveState(); _renderAllTodo(); }
 }
 function deleteTodoItem(id) {
   const today = getToday();
   today.todo = today.todo.filter(t => t.id !== id);
   saveState();
-  renderTodo();
+  _renderAllTodo();
 }
 
 function renderDomestique() { renderTodo(); renderGroceries(); renderChores(); renderPlants(); }
+
 
 // --- Courses (événements + récurrents) ---
 function renderGroceries() {
