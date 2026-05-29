@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockups Piliers</title>
+<style>
+  :root {
+    --lavender: #b3a3dc;
+    --lavender-soft: #f0ebff;
+    --mint: #7ecba8;
+    --mint-soft: #e8f7f0;
+    --peach: #f5956e;
+    --peach-soft: #fff0eb;
+    --rose: #e86880;
+    --rose-soft: #fff0f3;
+    --sky-soft: #e8f3ff;
+    --line: #ede8f5;
+    --ink: #2d2540;
+    --ink-soft: #7a7090;
+    --ink-softer: #b0a8c8;
+    --card: #fff;
+    --bg: #f5f0ff;
+    --shadow: 0 2px 12px rgba(100,80,160,.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--ink);
+    padding: 28px 20px; display: flex; flex-direction: column; gap: 48px;
+  }
+  .section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--lavender);
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--lavender-soft);
+  }
+  .card {
+    background: var(--card); border-radius: 18px;
+    padding: 18px; box-shadow: var(--shadow);
+    margin-bottom: 10px;
+  }
+  /* ===== BASE PILLAR CARD ===== */
+  .pillar-card {
+    background: var(--card); border-radius: 18px; padding: 18px;
+    margin-bottom: 10px; box-shadow: var(--shadow);
+    display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center;
+  }
+  .pillar-emoji {
+    font-size: 28px; width: 52px; height: 52px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 14px; flex-shrink: 0;
+  }
+  .pillar-name { font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+  .pillar-bar-wrap { background: var(--line); height: 10px; border-radius: 999px; overflow: hidden; margin-bottom: 8px; }
+  .pillar-bar { height: 100%; border-radius: 999px; }
+  .pillar-metrics { display: flex; flex-wrap: wrap; gap: 5px; font-size: 11px; }
+  .pillar-metric {
+    padding: 3px 9px; border-radius: 999px;
+    background: #faf8fd; border: 1px solid var(--line);
+  }
+  .pillar-metric.good { background: var(--mint-soft); border-color: var(--mint); }
+  .pillar-metric.warn { background: var(--peach-soft); border-color: var(--peach); }
+  .pillar-metric.low  { background: var(--rose-soft);  border-color: var(--rose); }
+  .pillar-score { font-size: 22px; font-weight: 700; min-width: 56px; text-align: right; }
+
+  /* ===== PROPOSAL 1 — tendance ===== */
+  .trend-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 11px; font-weight: 700; padding: 2px 7px;
+    border-radius: 999px; margin-left: 8px;
+  }
+  .trend-up   { background: var(--mint-soft);  color: #2d8a60; }
+  .trend-down { background: var(--rose-soft);  color: #c0304a; }
+  .trend-flat { background: var(--lavender-soft); color: var(--ink-soft); }
+
+  /* ===== PROPOSAL 2 — phrase bilan ===== */
+  .bilan-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--lavender-soft); border-radius: 12px;
+    padding: 10px 14px; margin-bottom: 14px;
+    font-size: 13px; color: var(--ink-soft);
+    border-left: 3px solid var(--lavender);
+  }
+  .score-big { font-size: 28px; font-weight: 800; color: var(--ink); }
+
+  /* ===== PROPOSAL 3 — sparkline ===== */
+  .sparkline {
+    display: flex; align-items: flex-end; gap: 3px;
+    height: 22px; margin-top: 8px;
+  }
+  .spark-bar {
+    width: 10px; border-radius: 3px 3px 0 0;
+    transition: height .3s;
+  }
+  .spark-label {
+    font-size: 9px; color: var(--ink-softer);
+    display: flex; gap: 3px; margin-top: 3px;
+  }
+  .spark-label span { width: 10px; text-align: center; }
+
+  /* ===== PROPOSAL 4 — tinted cards ===== */
+  .tinted { border-left: 3px solid; }
+
+  /* ===== PROPOSAL 5 — intention ===== */
+  .intention-wrap {
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px dashed var(--line);
+  }
+  .intention-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--ink-softer); margin-bottom: 5px;
+  }
+  .intention-text {
+    font-size: 12px; color: var(--ink-soft); font-style: italic;
+    background: #faf8fd; border-radius: 8px; padding: 6px 10px;
+    border: 1px solid var(--line); width: 100%;
+    font-family: inherit; resize: none; min-height: 32px;
+    cursor: text;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== PROPOSAL 1 ===================== -->
+<div>
+  <div class="section-title">Proposition 1 — Tendance ↑↓ vs semaine précédente</div>
+
+  <div class="pillar-card">
+    <div class="pillar-emoji" style="background:var(--mint-soft);">💪</div>
+    <div class="pillar-info" style="min-width:0;">
+      <div class="pillar-name">
+        Santé physique
+        <span class="trend-badge trend-up">↑ +12</span>
+      </div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:78%;background:#aee0c8;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric good">Pas/j : 8 450</span>
+        <span class="pillar-metric good">Sommeil : 7,5h</span>
+        <span class="pillar-metric warn">Sport/sem : 2/3</span>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#aee0c8;">78%</div>
+  </div>
+
+  <div class="pillar-card">
+    <div class="pillar-emoji" style="background:var(--lavender-soft);">🧘</div>
+    <div class="pillar-info" style="min-width:0;">
+      <div class="pillar-name">
+        Bien-être mental
+        <span class="trend-badge trend-flat">→ 0</span>
+      </div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:62%;background:#c9b6f0;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric warn">Humeur : 3,4/5</span>
+        <span class="pillar-metric good">Journal : 5/7j</span>
+        <span class="pillar-metric low">Méditation : 0/2</span>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#c9b6f0;">62%</div>
+  </div>
+
+  <div class="pillar-card">
+    <div class="pillar-emoji" style="background:var(--rose-soft);">🏠</div>
+    <div class="pillar-info" style="min-width:0;">
+      <div class="pillar-name">
+        Vie pratique
+        <span class="trend-badge trend-down">↓ −9</span>
+      </div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:41%;background:#efb8c8;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric warn">Liste courses : active</span>
+        <span class="pillar-metric low">Ménage : en retard</span>
+        <span class="pillar-metric low">Plantes : arrosées</span>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#efb8c8;">41%</div>
+  </div>
+</div>
+
+<!-- ===================== PROPOSAL 2 ===================== -->
+<div>
+  <div class="section-title">Proposition 2 — Phrase bilan automatique</div>
+
+  <div class="card">
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px;">
+      <div class="score-big">71</div>
+      <div style="font-size:13px;color:var(--ink-soft);">/ 100 cette semaine</div>
+    </div>
+    <div class="bilan-bar">
+      ✨ Tes points forts : <strong style="color:var(--ink);">Travail & Santé physique</strong> · Point d'attention : <strong style="color:var(--rose);">Vie pratique</strong>
+    </div>
+    <div style="font-size:12px;color:var(--ink-softer);">Calculé automatiquement sur les 7 derniers jours.</div>
+  </div>
+
+  <div class="card" style="margin-top:4px;">
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px;">
+      <div class="score-big">58</div>
+      <div style="font-size:13px;color:var(--ink-soft);">/ 100 cette semaine</div>
+    </div>
+    <div class="bilan-bar" style="border-left-color:var(--peach);">
+      🌱 Semaine en demi-teinte — tu t'en sors bien sur <strong style="color:var(--ink);">Finances</strong>, mais <strong style="color:var(--rose);">Bien-être & Sport</strong> méritent un peu d'attention.
+    </div>
+    <div style="font-size:12px;color:var(--ink-softer);">Calculé automatiquement sur les 7 derniers jours.</div>
+  </div>
+</div>
+
+<!-- ===================== PROPOSAL 3 ===================== -->
+<div>
+  <div class="section-title">Proposition 3 — Sparkline 4 semaines</div>
+
+  <div class="pillar-card">
+    <div class="pillar-emoji" style="background:var(--mint-soft);">💪</div>
+    <div class="pillar-info" style="min-width:0;">
+      <div class="pillar-name">Santé physique</div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:78%;background:#aee0c8;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric good">Pas/j : 8 450</span>
+        <span class="pillar-metric warn">Sport/sem : 2/3</span>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:12px;margin-top:10px;">
+        <div>
+          <div class="sparkline">
+            <div class="spark-bar" style="height:13px;background:#d4eee4;"></div>
+            <div class="spark-bar" style="height:8px; background:#d4eee4;"></div>
+            <div class="spark-bar" style="height:16px;background:#d4eee4;"></div>
+            <div class="spark-bar" style="height:22px;background:#aee0c8;"></div>
+          </div>
+          <div class="spark-label"><span>S-3</span><span>S-2</span><span>S-1</span><span style="color:#2d8a60;font-weight:700;">Cette</span></div>
+        </div>
+        <div style="font-size:11px;color:var(--ink-softer);">Tendance sur 4 semaines</div>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#aee0c8;">78%</div>
+  </div>
+
+  <div class="pillar-card">
+    <div class="pillar-emoji" style="background:var(--lavender-soft);">🧘</div>
+    <div class="pillar-info" style="min-width:0;">
+      <div class="pillar-name">Bien-être mental</div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:62%;background:#c9b6f0;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric warn">Humeur : 3,4/5</span>
+        <span class="pillar-metric low">Méditation : 0/2</span>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:12px;margin-top:10px;">
+        <div>
+          <div class="sparkline">
+            <div class="spark-bar" style="height:18px;background:#e0d4f7;"></div>
+            <div class="spark-bar" style="height:20px;background:#e0d4f7;"></div>
+            <div class="spark-bar" style="height:14px;background:#e0d4f7;"></div>
+            <div class="spark-bar" style="height:14px;background:#c9b6f0;"></div>
+          </div>
+          <div class="spark-label"><span>S-3</span><span>S-2</span><span>S-1</span><span style="color:#7b5ea7;font-weight:700;">Cette</span></div>
+        </div>
+        <div style="font-size:11px;color:var(--ink-softer);">Légère baisse sur 2 semaines</div>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#c9b6f0;">62%</div>
+  </div>
+</div>
+
+<!-- ===================== PROPOSAL 4 ===================== -->
+<div>
+  <div class="section-title">Proposition 4 — Fond teinté par pilier</div>
+
+  <div class="pillar-card tinted" style="background:rgba(174,224,200,.08);border-left-color:#aee0c8;">
+    <div class="pillar-emoji" style="background:rgba(174,224,200,.25);">💪</div>
+    <div class="pillar-info" style="min-width:0;">
+      <div class="pillar-name">Santé physique</div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:78%;background:#aee0c8;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric good">Pas/j : 8 450</span>
+        <span class="pillar-metric good">Sommeil : 7,5h</span>
+        <span class="pillar-metric warn">Sport/sem : 2/3</span>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#aee0c8;">78%</div>
+  </div>
+
+  <div class="pillar-card tinted" style="background:rgba(201,182,240,.07);border-left-color:#c9b6f0;">
+    <div class="pillar-emoji" style="background:rgba(201,182,240,.22);">🧘</div>
+    <div class="pillar-info" style="min-width:0;">
+      <div class="pillar-name">Bien-être mental</div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:62%;background:#c9b6f0;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric warn">Humeur : 3,4/5</span>
+        <span class="pillar-metric good">Journal : 5/7j</span>
+        <span class="pillar-metric low">Méditation : 0/2</span>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#c9b6f0;">62%</div>
+  </div>
+
+  <div class="pillar-card tinted" style="background:rgba(180,212,241,.07);border-left-color:#b4d4f1;">
+    <div class="pillar-emoji" style="background:rgba(180,212,241,.22);">💼</div>
+    <div class="pillar-info" style="min-width:0;">
+      <div class="pillar-name">Travail & recherche</div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:85%;background:#b4d4f1;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric good">Tâches : 7/5</span>
+        <span class="pillar-metric good">Heures : 38h</span>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#b4d4f1;">85%</div>
+  </div>
+
+  <div class="pillar-card tinted" style="background:rgba(247,201,163,.07);border-left-color:#f7c9a3;">
+    <div class="pillar-emoji" style="background:rgba(247,201,163,.22);">💰</div>
+    <div class="pillar-info" style="min-width:0;">
+      <div class="pillar-name">Finances</div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:70%;background:#f7c9a3;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric good">Dépenses tracées : 8/sem</span>
+        <span class="pillar-metric warn">Épargne : 650 € / 1 000 €</span>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#f7c9a3;">70%</div>
+  </div>
+
+  <div class="pillar-card tinted" style="background:rgba(239,184,200,.07);border-left-color:#efb8c8;">
+    <div class="pillar-emoji" style="background:rgba(239,184,200,.22);">🏠</div>
+    <div class="pillar-info" style="min-width:0;">
+      <div class="pillar-name">Vie pratique</div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:41%;background:#efb8c8;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric warn">Courses : active</span>
+        <span class="pillar-metric low">Ménage : en retard</span>
+        <span class="pillar-metric low">Plantes : ok</span>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#efb8c8;">41%</div>
+  </div>
+</div>
+
+<!-- ===================== PROPOSAL 5 ===================== -->
+<div>
+  <div class="section-title">Proposition 5 — Intention hebdomadaire par pilier</div>
+
+  <div class="pillar-card">
+    <div class="pillar-emoji" style="background:var(--mint-soft);">💪</div>
+    <div class="pillar-info" style="min-width:0;grid-column:2/-1;">
+      <div class="pillar-name">Santé physique</div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:78%;background:#aee0c8;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric good">Pas/j : 8 450</span>
+        <span class="pillar-metric warn">Sport/sem : 2/3</span>
+      </div>
+      <div class="intention-wrap">
+        <div class="intention-label">🎯 Mon intention cette semaine</div>
+        <textarea class="intention-text" rows="1">Aller courir mardi et jeudi avant 8h, même s'il pleut.</textarea>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#aee0c8;align-self:start;margin-top:2px;">78%</div>
+  </div>
+
+  <div class="pillar-card">
+    <div class="pillar-emoji" style="background:var(--lavender-soft);">🧘</div>
+    <div class="pillar-info" style="min-width:0;grid-column:2/-1;">
+      <div class="pillar-name">Bien-être mental</div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:62%;background:#c9b6f0;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric warn">Humeur : 3,4/5</span>
+        <span class="pillar-metric low">Méditation : 0/2</span>
+      </div>
+      <div class="intention-wrap">
+        <div class="intention-label">🎯 Mon intention cette semaine</div>
+        <textarea class="intention-text" rows="1">10 min de méditation le matin avant d'ouvrir mon téléphone.</textarea>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#c9b6f0;align-self:start;margin-top:2px;">62%</div>
+  </div>
+
+  <div class="pillar-card">
+    <div class="pillar-emoji" style="background:var(--rose-soft);">🏠</div>
+    <div class="pillar-info" style="min-width:0;grid-column:2/-1;">
+      <div class="pillar-name">Vie pratique</div>
+      <div class="pillar-bar-wrap"><div class="pillar-bar" style="width:41%;background:#efb8c8;"></div></div>
+      <div class="pillar-metrics">
+        <span class="pillar-metric low">Ménage : en retard</span>
+        <span class="pillar-metric warn">Courses : active</span>
+      </div>
+      <div class="intention-wrap">
+        <div class="intention-label">🎯 Mon intention cette semaine</div>
+        <textarea class="intention-text intention-empty" rows="1" placeholder="Écris ton intention ici…" style="color:var(--ink-softer);font-style:normal;"></textarea>
+      </div>
+    </div>
+    <div class="pillar-score" style="color:#efb8c8;align-self:start;margin-top:2px;">41%</div>
+  </div>
+</div>
+
+</body>
+</html>
