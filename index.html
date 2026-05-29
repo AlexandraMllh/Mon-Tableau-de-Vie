@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v115</title>
+<title>Mon Tableau de Vie · v116</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1282,8 +1282,8 @@
     .tx-form .type-toggle, .tx-form .add-btn { grid-column: span 2; }
     .add-goal-form { grid-template-columns: 1fr 1fr; }
     .add-goal-form button { grid-column: span 2; }
-    .add-task-form { grid-template-columns: 1fr 1fr; }
-    .add-task-form input:first-child { grid-column: span 2; }
+    .add-task-form { display: flex; flex-wrap: wrap; gap: 8px; }
+    .add-task-form #newTaskName { flex: 0 0 100%; }
     .modal .grid-2 { grid-template-columns: 1fr; }
     /* Comptes : label + valeur ne wrappent jamais */
     .money-stat .label { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1340,12 +1340,20 @@
 
     /* === Formulaire ajout tâche === */
     .add-task-form {
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
+      display: flex; flex-wrap: wrap; gap: 6px;
     }
-    .add-task-form input[type="text"] { grid-column: span 2; }
-    .add-task-form select { font-size: 12px; padding: 8px 6px; }
-    .add-task-form input[type="date"] { font-size: 12px; padding: 8px 6px; }
+    /* Ligne 1 : champ texte pleine largeur */
+    .add-task-form #newTaskName { flex: 0 0 100%; }
+    /* Ligne 2 : section (grandit) + bouton ＋ (compact) */
+    .add-task-form #newTaskProject { flex: 1 1 0; min-width: 0; font-size: 12px; padding: 8px 8px; }
+    .add-task-form #addSectionBtn  { flex: 0 0 auto; padding: 8px 14px; }
+    /* Ligne 3 : priorité + date côte à côte */
+    .add-task-form #newTaskPriority   { flex: 1 1 0; min-width: 0; font-size: 12px; padding: 8px 6px; }
+    .add-task-form #newTaskDeadline   { flex: 1 1 0; min-width: 0; font-size: 12px; padding: 8px 6px; }
+    /* Ligne 4 : toggles (compacts) + Ajouter (grandit) */
+    .add-task-form #newKindTask,
+    .add-task-form #newKindEvent { flex: 0 0 auto; padding: 8px 12px; font-size: 14px; }
+    .add-task-form .btn-primary   { flex: 1 1 0; }
 
     /* === Activités : dots sur 2e ligne === */
     .activity-row { flex-wrap: wrap; gap: 8px; }
