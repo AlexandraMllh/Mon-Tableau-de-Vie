@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v104</title>
+<title>Mon Tableau de Vie · v105</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -126,7 +126,9 @@
     margin-bottom: 18px;
     border-bottom: 1px solid var(--line);
     padding-bottom: 14px;
+    padding-top: 6px;   /* espace pour le badge qui dépasse en haut */
     flex-wrap: wrap;
+    overflow: visible;
   }
   .sub-tab {
     background: transparent; border: 1px solid var(--line); color: var(--ink-soft);
@@ -5876,12 +5878,47 @@ function deleteTxFromModal() {
   renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback();
 }
 document.getElementById("txModal").addEventListener("click", e => { if (e.target.id === "txModal") closeTxModal(); });
-const CAT_COLORS = ["#c9b6f0", "#f5b6c9", "#b4d4f1", "#f7c9a3", "#aee0c8", "#efb8c8", "#f5e6a8", "#d4b6f0"];
+// 24 couleurs pastel toutes distinctes — assignées par index dans la liste des catégories
+const CAT_PALETTE = [
+  "#c9b6f0", // lavande
+  "#f5956e", // orange brûlé
+  "#7ecba8", // menthe
+  "#f5b6c9", // rose bonbon
+  "#6ab8e8", // bleu ciel
+  "#f0c93a", // jaune soleil
+  "#e08acd", // fuchsia
+  "#5ecab6", // turquoise
+  "#f0a060", // abricot
+  "#90aee8", // bleu pervenche
+  "#b47fe0", // violet
+  "#88d888", // vert pomme
+  "#e8c060", // miel
+  "#e86880", // corail
+  "#60c8a8", // jade
+  "#d890a8", // vieux rose
+  "#80b8e8", // bleu glacier
+  "#e8d060", // citron
+  "#98c870", // vert olive
+  "#e89050", // terracotta
+  "#a090d8", // iris
+  "#70d8a8", // aqua
+  "#d8a060", // caramel
+  "#c870a0", // framboise
+];
 function catColor(cat) {
-  if (!cat) return CAT_COLORS[0];
+  if (!cat) return CAT_PALETTE[0];
+  // Cherche d'abord dans la liste ordonnée (dépenses puis revenus puis épargne)
+  const allCats = [
+    ...(state.categories        || []),
+    ...(state.incomeCategories  || []),
+    ...(state.savingsCategories || []),
+  ];
+  const idx = allCats.indexOf(cat);
+  if (idx >= 0) return CAT_PALETTE[idx % CAT_PALETTE.length];
+  // Fallback hash pour catégories personnalisées non listées
   let h = 0;
   for (let i = 0; i < cat.length; i++) h = (Math.imul(31, h) + cat.charCodeAt(i)) | 0;
-  return CAT_COLORS[Math.abs(h) % CAT_COLORS.length];
+  return CAT_PALETTE[Math.abs(h) % CAT_PALETTE.length];
 }
 function renderTxList() {
   const list = state.transactions.slice(0, 50);
