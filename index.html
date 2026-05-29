@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v101</title>
+<title>Mon Tableau de Vie · v102</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1389,7 +1389,8 @@
     .card { overflow-x: hidden; }
 
     /* Financier : Abonnements compact + déplacé après Transactions récentes */
-    section[data-view="money"] { display: flex; flex-direction: column; }
+    /* IMPORTANT: utilise .active pour ne pas override display:none sur les sections inactives */
+    section[data-view="money"].active { display: flex !important; flex-direction: column; }
     #subsCard { order: 20; margin-top: 14px; margin-bottom: 0; }
     #txCard   { order: 19; }
     /* Compacter la liste d'abonnements sur mobile */
