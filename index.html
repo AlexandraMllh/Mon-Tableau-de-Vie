@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v107</title>
+<title>Mon Tableau de Vie · v108</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -707,6 +707,23 @@
 
   .chart-wrap { height: 240px; position: relative; }
   .chart-wrap.tall { height: 280px; }
+
+  /* Légende HTML custom du graphique Flux */
+  .flow-legend {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 6px; margin-top: 4px; margin-bottom: 14px;
+    padding: 0;
+  }
+  .flow-legend-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--ink-soft); white-space: nowrap;
+    flex: 1; justify-content: center;
+  }
+  .flow-legend-item:first-child { justify-content: flex-start; }
+  .flow-legend-item:last-child  { justify-content: flex-end; }
+  .flow-legend-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
 
   /* ========= PILIERS ========= */
   .pillar-card {
@@ -2008,6 +2025,7 @@
     <div class="grid-two-eq">
       <div class="card">
         <h2>Flux 6 derniers mois</h2>
+        <div id="flowLegend" class="flow-legend"></div>
         <div class="chart-wrap"><canvas id="moneyFlowChart"></canvas></div>
       </div>
       <div class="card">
@@ -5958,26 +5976,31 @@ function renderMoneyFlowChart() {
     const end = new Date(m.getFullYear(), m.getMonth() + 1, 1);
     return state.transactions.filter(t => { const td = new Date(t.date); return td >= m && td < end && t.type === type; }).reduce((s, t) => s + t.amount, 0);
   };
+  const flowDatasets = [
+    { label: "Revenus",      data: months.map(m => monthSum(m, "income")),   backgroundColor: "#aee0c8", borderRadius: 8 },
+    { label: "Dépenses",     data: months.map(m => monthSum(m, "expense")),  backgroundColor: "#efb8c8", borderRadius: 8 },
+    { label: "Épargne",      data: months.map(m => monthSum(m, "savings")),  backgroundColor: "#c9b6f0", borderRadius: 8 },
+    { label: "Hors compte",  data: months.map(m => monthSum(m, "external")), backgroundColor: "#f5e6a8", borderRadius: 8 },
+  ];
+  // Légende HTML custom — pleine largeur, espacement uniforme
+  const legendEl = document.getElementById("flowLegend");
+  if (legendEl) {
+    legendEl.innerHTML = flowDatasets.map(ds =>
+      `<span class="flow-legend-item">
+        <span class="flow-legend-dot" style="background:${ds.backgroundColor};"></span>
+        ${ds.label}
+      </span>`
+    ).join("");
+  }
   if (moneyFlowChart) moneyFlowChart.destroy();
   moneyFlowChart = new Chart(document.getElementById("moneyFlowChart"), {
     type: "bar",
-    data: { labels, datasets: [
-      { label: "Revenus", data: months.map(m => monthSum(m, "income")), backgroundColor: "#aee0c8", borderRadius: 8 },
-      { label: "Dépenses", data: months.map(m => monthSum(m, "expense")), backgroundColor: "#efb8c8", borderRadius: 8 },
-      { label: "Épargne", data: months.map(m => monthSum(m, "savings")), backgroundColor: "#c9b6f0", borderRadius: 8 },
-      { label: "Hors compte", data: months.map(m => monthSum(m, "external")), backgroundColor: "#f5e6a8", borderRadius: 8 },
-    ] },
+    data: { labels, datasets: flowDatasets },
     options: {
       ...baseChartOpts(),
       plugins: {
         ...baseChartOpts().plugins,
-        legend: {
-          labels: {
-            color: "#8a8499", usePointStyle: true,
-            boxWidth: 8, boxHeight: 8,
-            font: { size: 10 }, padding: 6,
-          }
-        },
+        legend: { display: false },
       },
       scales: {
         x: { grid: { display: false }, ticks: { color: "#8a8499" } },
