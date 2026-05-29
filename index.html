@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v93</title>
+<title>Mon Tableau de Vie · v94</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -69,17 +69,17 @@
   /* ========= HEADER ========= */
   header.top {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: nowrap;          /* une seule ligne sur desktop */
-    gap: 16px;
-    padding-bottom: 18px;
-    margin-bottom: 18px;
-    border-bottom: 1.5px solid var(--line);  /* séparateur net */
+    flex-direction: column;     /* 3 lignes : greeting → admin → nav */
+    gap: 14px;
+    margin-bottom: 0;
   }
-  header.top h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.3px; white-space: nowrap; }
-  header.top .date { color: var(--ink-soft); margin-top: 4px; font-size: 14px; text-transform: capitalize; }
-  .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; flex-shrink: 0; }
+  header.top h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.3px; }
+  header.top .date { color: var(--ink-soft); margin-top: 3px; font-size: 14px; text-transform: capitalize; }
+  .header-actions {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    padding-bottom: 14px;
+    border-bottom: 1.5px solid var(--line);   /* séparateur entre admin et nav */
+  }
   .btn-icon {
     background: var(--card); border: 1px solid var(--line); color: var(--ink);
     padding: 10px 14px; border-radius: 14px; cursor: pointer;
@@ -94,7 +94,8 @@
 
   /* ========= MAIN TABS ========= */
   nav.tabs {
-    display: flex; gap: 8px; margin-bottom: 24px;
+    display: flex; gap: 8px;
+    margin-top: 14px; margin-bottom: 24px;
     overflow-x: auto; padding-bottom: 0;
   }
   nav.tabs::-webkit-scrollbar { height: 0; }
@@ -1131,17 +1132,15 @@
     /* === Conteneur === */
     .container { padding: 14px 12px 80px; }
 
-    /* === Header mobile : wrap autorisé + séparateur allégé === */
-    header.top {
-      flex-wrap: wrap;
-      padding-bottom: 12px;
-      margin-bottom: 14px;
-      border-bottom-width: 1px;
-      gap: 8px;
-    }
-    header.top h1 { font-size: 24px; white-space: normal; }
+    /* === Header mobile === */
+    header.top { gap: 10px; }
+    header.top h1 { font-size: 24px; }
     header.top .date { font-size: 13px; }
-    .header-actions { flex-wrap: wrap; gap: 5px; }
+    .header-actions {
+      gap: 5px;
+      padding-bottom: 10px;
+      border-bottom-width: 1px;
+    }
     .header-actions .btn-icon { padding: 7px 10px; font-size: 11px; }
     #settingsBtn, #rechargerBtn { display: none; }
 
