@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v85</title>
+<title>Mon Tableau de Vie · v86</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1166,6 +1166,13 @@
   .adm-bar-plan { background:#c9b6f0; height:13px; }
   .adm-bar-ct { font-size:11px; min-width:90px; color:var(--ink-soft); }
 </style>
+<!-- PWA -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#b3a3dc" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Mon Tableau" />
+<link rel="apple-touch-icon" href="icon-192.png" />
 </head>
 <body>
 <div class="container">
@@ -8414,6 +8421,15 @@ function showSyncMenu() {
     console.warn("[Firebase] init error", e);
   }
 })();
+
+// Enregistrement du Service Worker (PWA)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/Mon-Tableau-de-Vie/sw.js")
+      .then(reg => console.log("[SW] enregistré :", reg.scope))
+      .catch(err => console.warn("[SW] erreur :", err));
+  });
+}
 </script>
 </body>
 </html>

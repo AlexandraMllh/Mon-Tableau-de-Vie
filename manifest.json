@@ -1,0 +1,25 @@
+{
+  "name": "Mon Tableau de Vie",
+  "short_name": "Mon Tableau",
+  "description": "Dashboard personnel — travail, santé, finances, vie quotidienne",
+  "start_url": "/Mon-Tableau-de-Vie/",
+  "scope": "/Mon-Tableau-de-Vie/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f0ff",
+  "theme_color": "#b3a3dc",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
