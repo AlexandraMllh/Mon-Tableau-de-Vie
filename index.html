@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v100</title>
+<title>Mon Tableau de Vie · v101</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -969,11 +969,42 @@
     display:inline-flex; align-items:center; gap:5px; font-size:12px;
     color:var(--lavender); cursor:pointer; background:var(--lavender-soft);
     border:1px solid var(--lavender); border-radius:8px; padding:5px 12px;
-    font-family:inherit; font-weight:600; transition:all .15s;
+    font-family:inherit; font-weight:600; transition:all .15s; white-space:nowrap;
   }
   .meal-courses-btn:hover { background:var(--lavender); color:white; }
-  .meal-courses-btn.linked { color:#16a34a; background:#dcfce7; border-color:#86efac; }
-  .meal-courses-btn.linked:hover { background:#bbf7d0; }
+
+  /* Bandeau liste courses liée/non liée */
+  .meal-grocery-link {
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    font-size:12px; background:var(--bg-1); border-radius:10px; padding:8px 12px;
+    color:var(--ink-soft);
+  }
+  .meal-grocery-link.linked { background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; }
+  .btn-link {
+    background:none; border:none; color:var(--lavender); cursor:pointer;
+    font-family:inherit; font-size:12px; font-weight:700; padding:0;
+  }
+  .btn-link:hover { text-decoration:underline; }
+
+  /* Plats expansibles */
+  .meal-dish-block { border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:6px; }
+  .meal-dish-hd {
+    display:flex; align-items:center; gap:8px; padding:9px 12px;
+    cursor:pointer; background:var(--bg-1); transition:background .15s; user-select:none;
+  }
+  .meal-dish-hd:hover { background:var(--bg-2); }
+  .meal-dish-arrow { font-size:9px; color:var(--ink-softer); flex-shrink:0; width:10px; }
+  .meal-dish-nm { flex:1; font-size:14px; font-weight:600; }
+  .meal-dish-ing-count { font-size:11px; color:var(--ink-softer); background:white; border:1px solid var(--line); border-radius:20px; padding:1px 7px; }
+  .meal-dish-del-btn { background:none; border:none; color:var(--ink-softer); cursor:pointer; font-size:13px; padding:2px 5px; border-radius:5px; }
+  .meal-dish-del-btn:hover { background:var(--rose-soft); color:var(--red); }
+
+  /* Corps du plat (ingrédients) */
+  .meal-dish-body { padding:10px 12px; background:white; border-top:1px solid var(--line); }
+  .meal-ing-row { display:flex; align-items:center; gap:8px; padding:3px 0; }
+  .meal-ing-row span { flex:1; font-size:13px; color:var(--ink); }
+  .meal-ing-del { background:none; border:none; color:var(--ink-softer); cursor:pointer; font-size:11px; padding:1px 5px; border-radius:4px; }
+  .meal-ing-del:hover { color:var(--red); background:var(--rose-soft); }
 
   /* ========= DOMESTIQUE ========= */
   .dom-row {
@@ -2914,6 +2945,15 @@ function migrate(s) {
   s.domestique.plants = s.domestique.plants || [];
   s.domestique.mealPlan = s.domestique.mealPlan || {};
   s.domestique.mealEvents = s.domestique.mealEvents || [];
+  // Migration : convertit les anciens plats (strings) en objets { id, name, ingredients }
+  (s.domestique.mealEvents || []).forEach(ev => {
+    ev.dishes = (ev.dishes || []).map(d => {
+      if (typeof d === "string") return { id: "dish" + Math.random().toString(36).slice(2,9), name: d, ingredients: [] };
+      if (!d.id) d.id = "dish" + Math.random().toString(36).slice(2,9);
+      if (!d.ingredients) d.ingredients = [];
+      return d;
+    });
+  });
   // Migration : si des groceries existent sans eventId, créer un événement par défaut
   if (s.domestique.groceries.length > 0 && !s.domestique.groceries[0].eventId) {
     let defaultEvent = s.domestique.groceryEvents.find(e => e.id === "ev-default");
@@ -7450,6 +7490,10 @@ function editMealSlot(dateKey, slot, slotEl) {
   });
 }
 
+/* ---- état UI meal events ---- */
+let _editingMealEvent = null;   // id du repas en cours d'édition
+let _expandedDishes   = new Set(); // "mealId-dishId" → plat ouvert
+
 function renderMealEvents() {
   const target = document.getElementById("mealEventsList");
   if (!target) return;
@@ -7463,30 +7507,163 @@ function renderMealEvents() {
     const linked = ev.groceryEventId
       ? state.domestique.groceryEvents.find(g => g.id === ev.groceryEventId)
       : null;
-    const dishesHtml = (ev.dishes || []).map(d =>
-      `<span class="meal-dish-tag">${escapeHtml(d)}<button class="meal-dish-del" onclick="deleteMealDish('${ev.id}',${JSON.stringify(escapeHtml(d))})">✕</button></span>`
-    ).join("");
-    const groceryBtn = linked
-      ? `<button class="meal-courses-btn linked" onclick="switchToGroceriesFor('${ev.groceryEventId}')">🛒 Voir les courses</button>`
-      : `<button class="meal-courses-btn" onclick="createGroceryFromMeal('${ev.id}')">🛒 Créer liste de courses</button>`;
+
+    // Bandeau liste de courses
+    const groceryBandeau = linked
+      ? `<div class="meal-grocery-link linked">🛒 Ingrédients auto-ajoutés dans <strong>${escapeHtml(linked.name)}</strong>
+           <button class="btn-link" onclick="switchToGroceriesFor('${ev.groceryEventId}')">Voir →</button></div>`
+      : `<div class="meal-grocery-link">
+           <span>💡 Crée une liste de courses pour auto-ajouter les ingrédients</span>
+           <button class="meal-courses-btn" onclick="createGroceryFromMeal('${ev.id}')">🛒 Créer</button>
+         </div>`;
+
+    // Plats (objets avec ingrédients)
+    const dishesHtml = (ev.dishes || []).map(dish => {
+      const key  = `${ev.id}-${dish.id}`;
+      const open = _expandedDishes.has(key);
+      const ingsHtml = (dish.ingredients || []).map((ing, idx) => `
+        <div class="meal-ing-row">
+          <span>· ${escapeHtml(ing)}</span>
+          <button class="meal-ing-del" onclick="deleteMealIngredient('${ev.id}','${dish.id}',${idx})" title="Retirer">✕</button>
+        </div>`).join("");
+      const linkedHint = linked && dish.ingredients?.length
+        ? `<div style="font-size:11px;color:#16a34a;margin-top:5px;">✅ Ajoutés dans « ${escapeHtml(linked.name)} »</div>` : "";
+      return `
+      <div class="meal-dish-block">
+        <div class="meal-dish-hd" onclick="toggleMealDish('${ev.id}','${dish.id}')">
+          <span class="meal-dish-arrow">${open ? "▼" : "▶"}</span>
+          <span class="meal-dish-nm">${escapeHtml(dish.name)}</span>
+          ${dish.ingredients?.length ? `<span class="meal-dish-ing-count">${dish.ingredients.length} ing.</span>` : ""}
+          <button class="meal-dish-del-btn" onclick="event.stopPropagation();deleteMealDish('${ev.id}','${dish.id}')" title="Supprimer ce plat">✕</button>
+        </div>
+        <div class="meal-dish-body" style="${open ? "" : "display:none;"}">
+          ${ingsHtml}
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <input type="text" placeholder="Ajouter un ingrédient…"
+              id="ing-${ev.id}-${dish.id}"
+              onkeydown="if(event.key==='Enter'){addMealIngredient('${ev.id}','${dish.id}',this.value);this.value='';}"
+              style="flex:1;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+            <button class="btn-soft" style="padding:6px 10px;font-size:12px;flex-shrink:0;"
+              onclick="(function(){const i=document.getElementById('ing-${ev.id}-${dish.id}');addMealIngredient('${ev.id}','${dish.id}',i.value);i.value='';})()">+</button>
+          </div>
+          ${linkedHint}
+        </div>
+      </div>`;
+    }).join("");
+
+    // En-tête : mode édition ou affichage
+    const editing = _editingMealEvent === ev.id;
+    const headerHtml = editing
+      ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+           <input type="text" value="${escapeHtml(ev.name)}" id="edit-meal-name-${ev.id}"
+             style="flex:1;min-width:120px;padding:7px 10px;border:1.5px solid var(--lavender);border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;" />
+           <input type="date" value="${ev.date || ""}" id="edit-meal-date-${ev.id}"
+             style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;" />
+           <button class="btn-primary" style="padding:7px 12px;" onclick="saveMealEventEdit('${ev.id}')">✓</button>
+           <button class="btn-soft" style="padding:7px 10px;" onclick="cancelMealEventEdit()">✕</button>
+         </div>`
+      : `<div class="meal-event-header">
+           <div class="meal-event-name">${escapeHtml(ev.name)}</div>
+           <span class="meal-event-date">${formatDeadline(ev.date) || ev.date || ""}</span>
+           <button class="btn-icon" style="padding:3px 7px;font-size:11px;" onclick="startMealEventEdit('${ev.id}')" title="Modifier">✏️</button>
+           <button class="meal-event-del" onclick="deleteMealEvent('${ev.id}')" title="Supprimer">✕</button>
+         </div>`;
+
     return `
     <div class="meal-event-card" data-meal-id="${ev.id}">
-      <div class="meal-event-header">
-        <div class="meal-event-name">${escapeHtml(ev.name)}</div>
-        <span class="meal-event-date">${formatDeadline(ev.date) || ev.date || ""}</span>
-        <button class="meal-event-del" onclick="deleteMealEvent('${ev.id}')">✕</button>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:10px;">${dishesHtml}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <input type="text" placeholder="Ajouter un plat ou ingrédient clé…" id="dish-input-${ev.id}"
+      ${headerHtml}
+      <div style="margin-bottom:10px;">${groceryBandeau}</div>
+      ${dishesHtml}
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <input type="text" placeholder="Ajouter un plat…" id="dish-input-${ev.id}"
           onkeydown="if(event.key==='Enter'){addMealDish('${ev.id}',this.value);this.value='';}"
-          style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+          style="flex:1;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
         <button class="btn-soft" style="padding:7px 10px;font-size:12px;flex-shrink:0;"
           onclick="(function(){const i=document.getElementById('dish-input-${ev.id}');addMealDish('${ev.id}',i.value);i.value='';})()">+</button>
-        ${groceryBtn}
       </div>
     </div>`;
   }).join("");
+}
+
+/* Édition du nom/date d'un repas */
+function startMealEventEdit(id) {
+  _editingMealEvent = id;
+  renderMealEvents();
+  setTimeout(() => document.getElementById(`edit-meal-name-${id}`)?.focus(), 30);
+}
+function cancelMealEventEdit() { _editingMealEvent = null; renderMealEvents(); }
+function saveMealEventEdit(id) {
+  const ev = (state.domestique.mealEvents || []).find(e => e.id === id);
+  if (!ev) return;
+  const name = document.getElementById(`edit-meal-name-${id}`)?.value.trim();
+  const date = document.getElementById(`edit-meal-date-${id}`)?.value;
+  if (name) ev.name = name;
+  if (date) ev.date = date;
+  // Si une liste de courses est liée, sync son nom aussi
+  if (ev.groceryEventId) {
+    const gev = state.domestique.groceryEvents.find(g => g.id === ev.groceryEventId);
+    if (gev && name) gev.name = name;
+  }
+  _editingMealEvent = null;
+  saveState(); renderMealEvents(); renderGroceries();
+}
+
+/* Toggle ouverture d'un plat */
+function toggleMealDish(mealId, dishId) {
+  const key = `${mealId}-${dishId}`;
+  if (_expandedDishes.has(key)) _expandedDishes.delete(key);
+  else _expandedDishes.add(key);
+  renderMealEvents();
+}
+
+/* Ajouter un plat (crée un objet { id, name, ingredients }) */
+function addMealDish(eventId, raw) {
+  const name = raw.trim(); if (!name) return;
+  const ev = (state.domestique.mealEvents || []).find(e => e.id === eventId);
+  if (!ev) return;
+  if (!ev.dishes) ev.dishes = [];
+  const dishId = "dish" + Date.now();
+  ev.dishes.push({ id: dishId, name, ingredients: [] });
+  _expandedDishes.add(`${eventId}-${dishId}`); // auto-ouvre le nouveau plat
+  saveState(); renderMealEvents();
+}
+
+/* Supprimer un plat */
+function deleteMealDish(mealId, dishId) {
+  const ev = (state.domestique.mealEvents || []).find(e => e.id === mealId);
+  if (!ev) return;
+  ev.dishes = (ev.dishes || []).filter(d => d.id !== dishId);
+  _expandedDishes.delete(`${mealId}-${dishId}`);
+  saveState(); renderMealEvents();
+}
+
+/* Ajouter un ingrédient à un plat → auto-sync liste de courses si liée */
+function addMealIngredient(mealId, dishId, raw) {
+  const ing = raw.trim(); if (!ing) return;
+  const ev = (state.domestique.mealEvents || []).find(e => e.id === mealId);
+  if (!ev) return;
+  const dish = (ev.dishes || []).find(d => d.id === dishId);
+  if (!dish) return;
+  if (!dish.ingredients) dish.ingredients = [];
+  dish.ingredients.push(ing);
+  // Auto-ajout dans la liste de courses liée
+  if (ev.groceryEventId) {
+    state.domestique.groceries.push({
+      id: "g" + Date.now(), eventId: ev.groceryEventId,
+      name: ing, checked: false,
+    });
+    renderGroceries();
+  }
+  saveState(); renderMealEvents();
+}
+
+/* Supprimer un ingrédient (par index) */
+function deleteMealIngredient(mealId, dishId, ingIdx) {
+  const ev   = (state.domestique.mealEvents || []).find(e => e.id === mealId);
+  const dish = ev ? (ev.dishes || []).find(d => d.id === dishId) : null;
+  if (!dish) return;
+  dish.ingredients.splice(ingIdx, 1);
+  saveState(); renderMealEvents();
 }
 
 function showAddMealEventForm() {
@@ -7517,21 +7694,6 @@ function deleteMealEvent(id) {
   state.domestique.mealEvents = state.domestique.mealEvents.filter(e => e.id !== id);
   saveState(); renderMealEvents();
 }
-function addMealDish(eventId, raw) {
-  const dish = raw.trim(); if (!dish) return;
-  const ev = (state.domestique.mealEvents || []).find(e => e.id === eventId);
-  if (!ev) return;
-  if (!ev.dishes) ev.dishes = [];
-  ev.dishes.push(dish);
-  saveState(); renderMealEvents();
-}
-function deleteMealDish(eventId, dishEscaped) {
-  const ev = (state.domestique.mealEvents || []).find(e => e.id === eventId);
-  if (!ev) return;
-  // dishEscaped is already HTML-escaped; compare against escaped versions
-  ev.dishes = (ev.dishes || []).filter(d => escapeHtml(d) !== dishEscaped);
-  saveState(); renderMealEvents();
-}
 function createGroceryFromMeal(mealEventId) {
   const ev = (state.domestique.mealEvents || []).find(e => e.id === mealEventId);
   if (!ev) return;
@@ -7541,7 +7703,6 @@ function createGroceryFromMeal(mealEventId) {
   saveState(); renderMealEvents(); renderGroceries();
 }
 function switchToGroceriesFor(groceryEventId) {
-  // Bascule sur l'onglet Courses et met en évidence l'événement
   const btn = document.querySelector('.sub-tab[data-sub="groceries"]');
   if (btn) btn.click();
   setTimeout(() => {
