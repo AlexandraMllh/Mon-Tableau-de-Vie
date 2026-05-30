@@ -97,17 +97,18 @@
   nav.tabs {
     display: flex; gap: 8px;
     overflow-x: auto;
-    /* Sticky sur desktop */
+    /* Sticky sur desktop avec coins arrondis */
     position: sticky;
-    top: 0;
+    top: 10px;
     z-index: 100;
     background: rgba(253, 246, 240, 0.93);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    padding: 10px 0;
-    margin-top: 0;
+    padding: 10px 14px;
+    margin-top: 4px;
     margin-bottom: 14px;
-    box-shadow: 0 2px 16px rgba(120, 100, 160, 0.08);
+    border-radius: 18px;
+    box-shadow: 0 4px 20px rgba(120, 100, 160, 0.12), 0 0 0 1px rgba(180,160,220,0.15);
   }
   nav.tabs::-webkit-scrollbar { height: 0; }
   .tab {
@@ -5506,11 +5507,17 @@ function renderSportPlanning() {
     for (let d = 0; d < 7; d++) {
       const day = new Date(monday); day.setDate(monday.getDate() + weekOffset * 7 + d);
       const dk = todayKey(day);
-      const evCount = state.calEvents.filter(e => e.date === dk).length;
+      const dayEvs = state.calEvents.filter(e => e.date === dk);
+      const evCount = dayEvs.length;
       const isPast   = day < now;
       const isToday  = dk === todayDk;
       const hasSport = hasActs && state.activities.some(a => state.history[dk]?.activities?.[a.id]);
-      days.push({ day, dk, evCount, isPast, isToday, hasSport, dayIdx: d });
+      // Bloque le créneau sport si : événement journée entière (time==="") OU événement en soirée (time>="18:00")
+      const blockingEv = dayEvs.find(e => e.time === "" || (e.time && e.time >= "18:00"));
+      const isBlocked  = !!blockingEv;
+      const blockReason = blockingEv ? (blockingEv.title || "").slice(0, 20) : "";
+      const blockType   = blockingEv ? (blockingEv.time === "" ? "journée" : "soirée") : "";
+      days.push({ day, dk, evCount, isPast, isToday, hasSport, dayIdx: d, isBlocked, blockReason, blockType });
     }
     return days;
   };
@@ -5522,7 +5529,7 @@ function renderSportPlanning() {
     const needed = Math.max(0, GOAL - done);
     if (needed === 0) return new Set();
     const candidates = weekDays
-      .filter(d => !d.hasSport && !d.isPast)
+      .filter(d => !d.hasSport && !d.isPast && !d.isBlocked)
       .sort((a, b) => a.evCount - b.evCount || a.dayIdx - b.dayIdx);
     const picked = [];
     let lastIdx = -2;
@@ -5570,6 +5577,10 @@ function renderSportPlanning() {
         bg = "var(--mint-soft)"; icon = "✅"; sub = "Fait !";
       } else if (d.isPast) {
         bg = "#f1f5f9"; icon = "—"; sub = "";
+      } else if (d.isBlocked) {
+        // Soirée ou journée bloquée par un événement — pas de sport possible
+        bg = "#ede9f4"; icon = "🔒";
+        sub = d.blockReason || (d.blockType === "journée" ? "journée prise" : "soirée prise");
       } else if (weekRecs.has(d.dk)) {
         // Jour recommandé — couleur selon charge
         bg = d.evCount === 0 ? "#e8f8f0" : d.evCount <= 2 ? "#e8f4e8" : "#fef3c7";
@@ -5620,7 +5631,7 @@ function renderSportPlanning() {
     + weekProgress(weeks[1], recs[1], `Semaine suivante (${weekLabel(1)})`)
     + renderWeek(weeks[1], recs[1])
     + (noCalData ? `<p style="font-size:12px;color:var(--ink-softer);margin-top:10px;">💡 Synchronise ton Google Agenda (onglet Calendrier → Configurer) pour affiner les recommandations.</p>` : "")
-    + `<div style="font-size:11px;color:var(--ink-softer);margin-top:10px;">🎯 = créneau recommandé pour atteindre 3 séances · 😴 = journée chargée → repos conseillé</div>`;
+    + `<div style="font-size:11px;color:var(--ink-softer);margin-top:10px;">🎯 = créneau recommandé · 🔒 = soirée/journée prise (sport non retenu) · 😴 = journée chargée</div>`;
 }
 
 /* ========= HEALTH ========= */
