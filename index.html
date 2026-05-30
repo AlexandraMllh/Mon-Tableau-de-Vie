@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v122</title>
+<title>Mon Tableau de Vie · v123</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2177,7 +2177,7 @@
           </div>
           <div class="card">
             <h2>📋 Liste globale à acheter</h2>
-            <p style="color:var(--ink-soft);font-size:12px;margin:-8px 0 12px;">Tous les articles non cochés, fusionnés de tous tes événements actifs.</p>
+            <p style="color:var(--ink-soft);font-size:12px;margin:-8px 0 12px;">Tous tes articles fusionnés — cocher ici coche dans toutes les listes concernées.</p>
             <div id="globalGroceryList"></div>
           </div>
         </div>
@@ -8034,28 +8034,48 @@ function renderGroceryEvents() {
 function renderGlobalGroceries() {
   const target = document.getElementById("globalGroceryList");
   if (!target) return;
-  const open = state.domestique.groceries.filter(g => !g.checked);
-  if (!open.length) {
-    target.innerHTML = `<p style="color:var(--ink-soft);font-size:14px;text-align:center;padding:14px;">Tout est coché ! 🎉</p>`;
+  if (!state.domestique.groceries.length) {
+    target.innerHTML = `<p style="color:var(--ink-soft);font-size:14px;text-align:center;padding:14px;">Aucun article encore.</p>`;
     return;
   }
-  // Fusion par nom (case-insensitive)
+  // Fusion par nom (case-insensitive) — tous les articles, cochés ou non
   const merged = {};
-  for (const g of open) {
+  for (const g of state.domestique.groceries) {
     const key = g.name.toLowerCase().trim();
-    if (!merged[key]) merged[key] = { name: g.name, count: 0, events: new Set() };
-    merged[key].count++;
+    if (!merged[key]) merged[key] = { name: g.name, total: 0, checked: 0, events: new Set() };
+    merged[key].total++;
+    if (g.checked) merged[key].checked++;
     const ev = state.domestique.groceryEvents.find(e => e.id === g.eventId);
     if (ev) merged[key].events.add(ev.name);
   }
-  const items = Object.values(merged).sort((a, b) => b.count - a.count);
+  // Tri : non cochés en premier, puis cochés ; à égalité tri par nombre d'occurrences desc
+  const items = Object.entries(merged)
+    .map(([key, it]) => ({ key, ...it, allChecked: it.checked === it.total }))
+    .sort((a, b) => {
+      if (a.allChecked !== b.allChecked) return a.allChecked ? 1 : -1;
+      return b.total - a.total;
+    });
+  const allDone = items.every(it => it.allChecked);
+  if (allDone) {
+    target.innerHTML = `<p style="color:var(--ink-soft);font-size:14px;text-align:center;padding:14px;">Tout est coché ! 🎉</p>`;
+    return;
+  }
   target.innerHTML = items.map(it => `
-    <div class="grocery-item">
-      <div class="gi-name">${escapeHtml(it.name)}${it.count > 1 ? ` <span class="gi-count-badge">×${it.count}</span>` : ""}</div>
+    <div class="grocery-item ${it.allChecked ? "checked" : ""}">
+      <div class="gi-check" onclick="toggleGlobalGrocery('${it.key.replace(/'/g,"&#39;")}')"></div>
+      <div class="gi-name">
+        ${escapeHtml(it.name)}${it.total > 1 ? ` <span class="gi-count-badge">×${it.total}</span>` : ""}
+      </div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;">
         ${[...it.events].map(e => `<span class="gi-event-tag">${escapeHtml(e)}</span>`).join("")}
       </div>
     </div>`).join("");
+}
+function toggleGlobalGrocery(nameKey) {
+  const matches = state.domestique.groceries.filter(g => g.name.toLowerCase().trim() === nameKey);
+  const allChecked = matches.every(g => g.checked);
+  matches.forEach(g => { g.checked = !allChecked; });
+  saveState(); renderGroceries();
 }
 function renderRecurringItems() {
   const target = document.getElementById("recurringItemsList");
