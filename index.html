@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v121</title>
+<title>Mon Tableau de Vie · v122</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -906,6 +906,11 @@
     font-size: 11px; padding: 3px 9px; border-radius: 999px;
     background: white; color: var(--ink-soft); border: 1px solid var(--line);
   }
+  .grocery-event-edit {
+    background: none; border: none; color: var(--ink-softer); cursor: pointer;
+    font-size: 13px; padding: 4px 7px; border-radius: 6px;
+  }
+  .grocery-event-edit:hover { background: var(--lavender-soft); color: var(--lavender); }
   .grocery-event-del {
     background: none; border: none; color: var(--ink-softer); cursor: pointer;
     font-size: 14px; padding: 4px 8px; border-radius: 6px;
@@ -7727,7 +7732,8 @@ function editMealSlot(dateKey, slot, slotEl) {
 }
 
 /* ---- état UI meal events ---- */
-let _editingMealEvent = null;   // id du repas en cours d'édition
+let _editingMealEvent    = null;   // id du repas en cours d'édition
+let _editingGroceryEvent = null;   // id de la liste de courses en cours d'édition
 let _expandedDishes   = new Set(); // "mealId-dishId" → plat ouvert
 
 function renderMealEvents() {
@@ -7994,14 +8000,29 @@ function renderGroceryEvents() {
           <button class="gi-del" onclick="deleteGrocery('${i.id}')" title="Supprimer">✕</button>
         </div>`).join("")
       : `<p style="color:var(--ink-softer);font-size:12px;text-align:center;padding:6px;">Aucun article — ajoute-en ci-dessus.</p>`;
+
+    const editing = _editingGroceryEvent === ev.id;
+    const headerHtml = editing
+      ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:2px 0 10px;">
+           <input type="text" value="${escapeHtml(ev.name)}" id="edit-gev-name-${ev.id}"
+             style="flex:1;min-width:120px;padding:7px 10px;border:1.5px solid var(--lavender);border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;"
+             onkeydown="if(event.key==='Enter')saveGroceryEventEdit('${ev.id}');if(event.key==='Escape')cancelGroceryEventEdit();" />
+           <input type="date" value="${ev.date || ""}" id="edit-gev-date-${ev.id}"
+             style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;" />
+           <button class="btn-primary" style="padding:7px 12px;" onclick="saveGroceryEventEdit('${ev.id}')">✓</button>
+           <button class="btn-soft" style="padding:7px 10px;" onclick="cancelGroceryEventEdit()">✕</button>
+         </div>`
+      : `<div class="grocery-event-header">
+           <div class="grocery-event-name">${escapeHtml(ev.name)}</div>
+           <span class="grocery-event-date">${formatDeadline(ev.date) || ""}</span>
+           <span class="grocery-event-count">${openItems}/${items.length}</span>
+           <button class="grocery-event-edit" onclick="startGroceryEventEdit('${ev.id}')" title="Modifier">✏️</button>
+           <button class="grocery-event-del" onclick="deleteGroceryEvent('${ev.id}')" title="Supprimer l'événement">✕</button>
+         </div>`;
+
     return `
       <div class="grocery-event" data-gev-id="${ev.id}">
-        <div class="grocery-event-header">
-          <div class="grocery-event-name">${escapeHtml(ev.name)}</div>
-          <span class="grocery-event-date">${formatDeadline(ev.date) || ""}</span>
-          <span class="grocery-event-count">${openItems}/${items.length}</span>
-          <button class="grocery-event-del" onclick="deleteGroceryEvent('${ev.id}')" title="Supprimer l'événement">✕</button>
-        </div>
+        ${headerHtml}
         <div class="grocery-add-row">
           <input type="text" placeholder="Ajouter un article…" onkeydown="if(event.key==='Enter'){addGroceryItem('${ev.id}', this.value); this.value='';}" />
           <button onclick="(function(btn){const inp=btn.previousElementSibling;addGroceryItem('${ev.id}', inp.value);inp.value='';})(this)">+ Ajouter</button>
@@ -8062,6 +8083,25 @@ function addGroceryEvent() {
   if (!name) return;
   state.domestique.groceryEvents.unshift({ id: "ev" + Date.now(), name, date: todayKey() });
   document.getElementById("newEventName").value = "";
+  saveState(); renderGroceries();
+}
+function startGroceryEventEdit(id) {
+  _editingGroceryEvent = id;
+  renderGroceries();
+  setTimeout(() => document.getElementById(`edit-gev-name-${id}`)?.focus(), 30);
+}
+function cancelGroceryEventEdit() {
+  _editingGroceryEvent = null;
+  renderGroceries();
+}
+function saveGroceryEventEdit(id) {
+  const ev = state.domestique.groceryEvents.find(e => e.id === id);
+  if (!ev) return;
+  const name = document.getElementById(`edit-gev-name-${id}`)?.value.trim();
+  const date = document.getElementById(`edit-gev-date-${id}`)?.value;
+  if (name) ev.name = name;
+  if (date !== undefined) ev.date = date || ev.date;
+  _editingGroceryEvent = null;
   saveState(); renderGroceries();
 }
 function deleteGroceryEvent(id) {
