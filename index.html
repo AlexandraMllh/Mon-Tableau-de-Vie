@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v126</title>
+<title>Mon Tableau de Vie · v127</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -96,8 +96,18 @@
   /* ========= MAIN TABS ========= */
   nav.tabs {
     display: flex; gap: 8px;
-    margin-top: 14px; margin-bottom: 24px;
-    overflow-x: auto; padding-bottom: 0;
+    overflow-x: auto;
+    /* Sticky sur desktop */
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(253, 246, 240, 0.93);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding: 10px 0;
+    margin-top: 0;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 16px rgba(120, 100, 160, 0.08);
   }
   nav.tabs::-webkit-scrollbar { height: 0; }
   .tab {
@@ -493,7 +503,7 @@
   .work-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
   .tasks-layout { display: grid; grid-template-columns: 1fr 234px; gap: 22px; align-items: start; }
   @media (max-width: 860px) { .tasks-layout { grid-template-columns: 1fr; } }
-  .deadline-cal-wrap { background: var(--bg-1); border-radius: 16px; padding: 14px; position: sticky; top: 80px; }
+  .deadline-cal-wrap { background: var(--bg-1); border-radius: 16px; padding: 14px; position: sticky; top: 64px; }
   .deadline-cal-title { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
   .dcal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
   .dcal-head { text-align: center; font-size: 10px; color: var(--ink-softer); font-weight: 700; padding-bottom: 4px; }
@@ -1323,6 +1333,13 @@
       overflow-x: unset;
       gap: 6px;
       margin-bottom: 18px;
+      /* Pas de sticky sur mobile : trop haute pour rester collée */
+      position: relative;
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      box-shadow: none;
+      padding: 0;
     }
     .tab {
       text-align: center;
