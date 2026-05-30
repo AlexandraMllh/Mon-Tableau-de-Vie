@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v117</title>
+<title>Mon Tableau de Vie · v118</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1069,6 +1069,10 @@
     background: #faf8fd; margin-bottom: 8px;
     transition: background 0.2s;
   }
+  /* Structure interne des cartes plantes */
+  .plant-row { flex-wrap: nowrap; }
+  .plant-row-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+  .plant-row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .dom-row:hover { background: var(--rose-soft); }
   .dom-row.checked { opacity: 0.5; }
   .dom-row.checked .dom-name { text-decoration: line-through; }
@@ -1354,6 +1358,13 @@
     .add-task-form #newKindTask,
     .add-task-form #newKindEvent { flex: 0 0 auto; padding: 8px 12px; font-size: 14px; }
     .add-task-form .btn-primary   { flex: 1 1 0; }
+
+    /* === Plantes : 2 lignes sur mobile === */
+    .plant-row { flex-wrap: wrap; gap: 8px; }
+    .plant-row-info { flex: 0 0 100%; }
+    .plant-row-actions { flex: 0 0 100%; justify-content: flex-start; padding-left: 44px; gap: 8px; }
+    .plant-row-actions .dom-btn { flex: 1; }
+    .dom-del { opacity: 1 !important; }
 
     /* === Activités : dots sur 2e ligne === */
     .activity-row { flex-wrap: wrap; gap: 8px; }
@@ -8380,20 +8391,24 @@ function renderPlants() {
   const orderStates = { late: 0, soon: 1, ok: 2 };
   const sorted = [...statuses].sort((a, b) => orderStates[a.s.state] - orderStates[b.s.state]);
   target.innerHTML = sorted.map(({ p, s }) => `
-      <div class="dom-row">
-        <div class="dom-emoji">${p.emoji || "🪴"}</div>
-        <div class="dom-name">
-          <strong>${escapeHtml(p.name)}</strong>
-          <div class="dom-meta">${frequencyLabel(p.wateringDays)}</div>
-          <textarea class="plant-notes-input" placeholder="💡 Conseils d'arrosage…"
-            onchange="updatePlantNotes('${p.id}', this.value)"
-            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
-            onkeydown="if(event.key==='Escape')this.blur()"
-            rows="1">${escapeHtml(p.notes || "")}</textarea>
+      <div class="dom-row plant-row">
+        <div class="plant-row-info">
+          <div class="dom-emoji">${p.emoji || "🪴"}</div>
+          <div class="dom-name">
+            <strong>${escapeHtml(p.name)}</strong>
+            <div class="dom-meta">${frequencyLabel(p.wateringDays)}</div>
+            <textarea class="plant-notes-input" placeholder="💡 Conseils d'arrosage…"
+              onchange="updatePlantNotes('${p.id}', this.value)"
+              oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+              onkeydown="if(event.key==='Escape')this.blur()"
+              rows="1">${escapeHtml(p.notes || "")}</textarea>
+          </div>
         </div>
-        <span class="dom-status-badge ${s.cls}">${s.label}</span>
-        <button class="dom-btn" onclick="waterPlant('${p.id}')">💧 Arroser</button>
-        <button class="dom-del" onclick="deletePlant('${p.id}')" title="Supprimer">✕</button>
+        <div class="plant-row-actions">
+          <span class="dom-status-badge ${s.cls}">${s.label}</span>
+          <button class="dom-btn" onclick="waterPlant('${p.id}')">💧 Arroser</button>
+          <button class="dom-del" onclick="deletePlant('${p.id}')" title="Supprimer">✕</button>
+        </div>
       </div>`).join("");
   // Auto-resize des textareas de notes déjà remplies
   target.querySelectorAll(".plant-notes-input").forEach(ta => {
