@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v127</title>
+<title>Mon Tableau de Vie · v128</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -5490,67 +5490,137 @@ function renderSportPlanning() {
   const el = document.getElementById("sportPlanningContent");
   if (!el) return;
 
-  const now = new Date(); now.setHours(0,0,0,0);
+  const GOAL = 3; // objectif séances/semaine
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const todayDk = todayKey();
 
-  // 14 prochains jours (en deux lignes de 7)
-  const days = [];
-  for (let i = 1; i <= 14; i++) {
-    const d = new Date(now); d.setDate(now.getDate() + i);
-    const dk = todayKey(d);
-    const evCount = state.calEvents.filter(e => e.date === dk).length;
-    const load = evCount === 0 ? "free" : evCount <= 2 ? "moderate" : "heavy";
-    const bg    = load === "free" ? "var(--mint-soft)"     : load === "moderate" ? "#fff3e0" : "var(--rose-soft)";
-    const icon  = load === "free" ? "🏃"                   : load === "moderate" ? "💪"      : "😴";
-    const tip   = load === "free" ? "Créneau libre"        : load === "moderate" ? `${evCount} évén.` : `${evCount} évén.`;
-    days.push({
-      dayName: d.toLocaleDateString("fr-FR", { weekday: "short" }),
-      dateStr: d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }),
-      evCount, load, bg, icon, tip
-    });
-  }
+  // Lundi de la semaine courante
+  const dowOffset = (now.getDay() + 6) % 7; // 0=lundi
+  const monday = new Date(now); monday.setDate(now.getDate() - dowOffset);
 
   const hasActs = state.activities.length > 0;
-  const recentActDays = lastDates(14).filter(d => {
-    const dk = todayKey(d);
-    return state.activities.some(a => state.history[dk]?.activities?.[a.id]);
-  }).length;
 
+  // Construit les 2 semaines calendaires (sem. courante + suivante)
+  const buildWeek = (weekOffset) => {
+    const days = [];
+    for (let d = 0; d < 7; d++) {
+      const day = new Date(monday); day.setDate(monday.getDate() + weekOffset * 7 + d);
+      const dk = todayKey(day);
+      const evCount = state.calEvents.filter(e => e.date === dk).length;
+      const isPast   = day < now;
+      const isToday  = dk === todayDk;
+      const hasSport = hasActs && state.activities.some(a => state.history[dk]?.activities?.[a.id]);
+      days.push({ day, dk, evCount, isPast, isToday, hasSport, dayIdx: d });
+    }
+    return days;
+  };
+
+  // Algorithme : choisit les N meilleurs créneaux restants pour atteindre l'objectif
+  // → préfère les jours les moins chargés, évite les jours consécutifs si possible
+  const pickRecommended = (weekDays) => {
+    const done   = weekDays.filter(d => d.hasSport).length;
+    const needed = Math.max(0, GOAL - done);
+    if (needed === 0) return new Set();
+    const candidates = weekDays
+      .filter(d => !d.hasSport && !d.isPast)
+      .sort((a, b) => a.evCount - b.evCount || a.dayIdx - b.dayIdx);
+    const picked = [];
+    let lastIdx = -2;
+    // Passe 1 : espacement ≥ 1 jour de repos
+    for (const c of candidates) {
+      if (picked.length >= needed) break;
+      if (c.dayIdx - lastIdx >= 2) { picked.push(c); lastIdx = c.dayIdx; }
+    }
+    // Passe 2 : relâche la contrainte si besoin
+    if (picked.length < needed) {
+      for (const c of candidates) {
+        if (picked.length >= needed) break;
+        if (!picked.includes(c)) picked.push(c);
+      }
+    }
+    return new Set(picked.map(p => p.dk));
+  };
+
+  const weeks = [buildWeek(0), buildWeek(1)];
+  const recs  = weeks.map(pickRecommended);
+
+  // Barre de progression hebdo
+  const weekProgress = (weekDays, weekRecs, label) => {
+    const done   = weekDays.filter(d => d.hasSport).length;
+    const dots   = Array.from({ length: GOAL }, (_, i) => i < done ? "●" : "○").join(" ");
+    const isThisWeek = weekDays.some(d => d.isToday);
+    const remaining = Math.max(0, GOAL - done);
+    let statusMsg = done >= GOAL
+      ? `<span style="color:#16a34a;font-weight:600;">Objectif atteint 🎉</span>`
+      : isThisWeek && remaining > 0
+        ? `<span style="color:var(--ink-soft);">${remaining} séance${remaining>1?"s":""} à caler</span>`
+        : `<span style="color:var(--ink-soft);">${done}/${GOAL}</span>`;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;">${label}</span>
+      <span style="font-size:14px;color:${done>=GOAL?"#16a34a":"var(--lavender)"};letter-spacing:3px;">${dots}</span>
+      <span style="font-size:12px;">${statusMsg}</span>
+    </div>`;
+  };
+
+  // Rendu d'une grille de 7 jours
+  const renderWeek = (weekDays, weekRecs) => {
+    return `<div class="sport-day-grid">${weekDays.map(d => {
+      let bg, icon, sub;
+      if (d.hasSport) {
+        bg = "var(--mint-soft)"; icon = "✅"; sub = "Fait !";
+      } else if (d.isPast) {
+        bg = "#f1f5f9"; icon = "—"; sub = "";
+      } else if (weekRecs.has(d.dk)) {
+        // Jour recommandé — couleur selon charge
+        bg = d.evCount === 0 ? "#e8f8f0" : d.evCount <= 2 ? "#e8f4e8" : "#fef3c7";
+        icon = "🎯"; sub = d.evCount === 0 ? "libre" : `${d.evCount} évén.`;
+      } else if (d.evCount >= 3) {
+        bg = "var(--rose-soft)"; icon = "😴"; sub = `${d.evCount} évén.`;
+      } else if (d.evCount > 0) {
+        bg = "#fff3e0"; icon = "💪"; sub = `${d.evCount} évén.`;
+      } else {
+        bg = "var(--mint-soft)"; icon = "🏃"; sub = "libre";
+      }
+      const todayBorder = d.isToday ? "box-shadow:0 0 0 2px var(--lavender);" : "";
+      return `<div class="sport-day-cell" style="background:${bg};${todayBorder}">
+        <div class="sd-label">${d.day.toLocaleDateString("fr-FR", { weekday: "short" })}</div>
+        <div class="sd-date">${d.day.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</div>
+        <div class="sd-icon">${icon}</div>
+        <div class="sd-ev">${sub}</div>
+      </div>`;
+    }).join("")}</div>`;
+  };
+
+  // Message contextuel global
   let daysSinceLast = 0;
   for (let i = 0; i < 14; i++) {
     const d = new Date(now); d.setDate(now.getDate() - i);
-    if (state.activities.some(a => state.history[todayKey(d)]?.activities?.[a.id])) break;
+    if (hasActs && state.activities.some(a => state.history[todayKey(d)]?.activities?.[a.id])) break;
     daysSinceLast++;
   }
-
-  let msg = "";
+  let alertHtml = "";
   if (!hasActs) {
-    msg = `<p style="font-size:13px;color:var(--ink-soft);text-align:center;padding:8px 0;">Définis des activités sportives dans la section ci-dessus pour obtenir des suggestions personnalisées.</p>`;
+    alertHtml = `<p style="font-size:13px;color:var(--ink-soft);text-align:center;padding:8px 0;">Définis des activités dans la section ci-dessus pour voir les recommandations.</p>`;
   } else if (daysSinceLast >= 4) {
-    msg = `<div style="font-size:13px;padding:8px 12px;background:#fff3e0;border-radius:10px;margin-bottom:10px;">⚡ <strong>${daysSinceLast} jours sans séance</strong> — vise un créneau 🏃 cette semaine !</div>`;
-  } else if (recentActDays >= 8) {
-    msg = `<div style="font-size:13px;padding:8px 12px;background:var(--mint-soft);border-radius:10px;margin-bottom:10px;">🔥 Très bonne dynamique ! (${recentActDays} jours actifs sur 14). Pense à intégrer des 😴 de récupération.</div>`;
-  } else {
-    msg = `<div style="font-size:13px;padding:8px 12px;background:var(--lavender-soft);border-radius:10px;margin-bottom:10px;">📊 ${recentActDays} jour${recentActDays>1?"s":""} d'activité sur les 14 derniers.</div>`;
+    alertHtml = `<div style="font-size:13px;padding:8px 12px;background:#fff3e0;border-radius:10px;margin-bottom:12px;">⚡ <strong>${daysSinceLast} jours sans séance</strong> — les 🎯 ci-dessous sont tes meilleurs créneaux !</div>`;
   }
 
-  const noCalData = state.calEvents.length === 0 && !state.calSources.some(s=>s.url);
+  const noCalData = state.calEvents.length === 0 && !state.calSources.some(s => s.url);
 
-  const renderWeek = (slice) => `
-    <div class="sport-day-grid">
-      ${slice.map(d => `
-        <div class="sport-day-cell" style="background:${d.bg};">
-          <div class="sd-label">${d.dayName}</div>
-          <div class="sd-date">${d.dateStr}</div>
-          <div class="sd-icon">${d.icon}</div>
-          <div class="sd-ev">${d.evCount > 0 ? d.tip : "libre"}</div>
-        </div>`).join("")}
-    </div>`;
+  const weekLabel = (offset) => {
+    const mon = new Date(monday); mon.setDate(monday.getDate() + offset * 7);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    return `${mon.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${sun.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}`;
+  };
 
-  el.innerHTML = msg
-    + renderWeek(days.slice(0, 7))
-    + `<div style="font-size:11px;color:var(--ink-softer);margin:4px 0 8px;text-align:right;">Semaine suivante ↓</div>`
-    + renderWeek(days.slice(7, 14))
-    + (noCalData ? `<p style="font-size:12px;color:var(--ink-softer);margin-top:8px;">💡 Synchronise ton Google Agenda (onglet Calendrier → Configurer) pour que les recommandations tiennent compte de tous tes événements.</p>` : "");
+  el.innerHTML = alertHtml
+    + weekProgress(weeks[0], recs[0], `Cette semaine (${weekLabel(0)})`)
+    + renderWeek(weeks[0], recs[0])
+    + `<div style="height:14px;"></div>`
+    + weekProgress(weeks[1], recs[1], `Semaine suivante (${weekLabel(1)})`)
+    + renderWeek(weeks[1], recs[1])
+    + (noCalData ? `<p style="font-size:12px;color:var(--ink-softer);margin-top:10px;">💡 Synchronise ton Google Agenda (onglet Calendrier → Configurer) pour affiner les recommandations.</p>` : "")
+    + `<div style="font-size:11px;color:var(--ink-softer);margin-top:10px;">🎯 = créneau recommandé pour atteindre 3 séances · 😴 = journée chargée → repos conseillé</div>`;
 }
 
 /* ========= HEALTH ========= */
