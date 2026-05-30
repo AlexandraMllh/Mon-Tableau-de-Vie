@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie · v124</title>
+<title>Mon Tableau de Vie · v125</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2075,6 +2075,11 @@
       <p style="font-size:12px;color:var(--ink-soft);margin:-4px 0 12px;">Fixe un objectif par catégorie de dépense — la barre t'indique où tu en es.</p>
       <div id="budgetFeedback"></div>
     </div>
+    <div class="card" style="margin-top:14px;">
+      <h2>🔮 Prévision — mois prochain</h2>
+      <p style="font-size:12px;color:var(--ink-soft);margin:-4px 0 14px;">Estimation automatique basée sur tes dépenses et revenus des derniers mois complets.</p>
+      <div id="forecastCard"></div>
+    </div>
     <div class="card" id="txCard" style="margin-top:18px;">
       <div class="card-row">
         <h2>Transactions récentes</h2>
@@ -3301,7 +3306,7 @@ function onViewChange(view) {
   if (view === "work") updateWorkTabBadges();
   if (view === "activities") renderActivityChart();
   if (view === "health") { renderBodyChart(currentBodyMetric); renderWellbeingChart(); renderStepsChart(); }
-  if (view === "money") { renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); }
+  if (view === "money") { renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast(); }
   if (view === "calendar") { renderCalendar(); autoSyncCalIfNeeded(); }
   if (view === "pillars") renderPillars();
 }
@@ -5805,7 +5810,7 @@ function setTxType(t) {
   document.getElementById("txTypeExternal").classList.toggle("active", t === "external");
   populateTxCategories();
 }
-function renderMoney() { populateTxCategories(); renderMoneySummary(); renderTxList(); renderSavings(); renderAccounts(); }
+function renderMoney() { populateTxCategories(); renderMoneySummary(); renderTxList(); renderSavings(); renderAccounts(); renderForecast(); }
 function balanceCourant() {
   const start = state.accounts?.courantStart || 0;
   let income = 0, expense = 0, savings = 0;
@@ -5916,12 +5921,12 @@ function addTransaction() {
   state.transactions.unshift({ id: "tx" + Date.now(), date: new Date().toISOString(), type: txType, amount, category, note });
   document.getElementById("txAmount").value = ""; document.getElementById("txNote").value = "";
   saveState();
-  renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback();
+  renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
 }
 function deleteTx(id) {
   state.transactions = state.transactions.filter(t => t.id !== id);
   saveState();
-  renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback();
+  renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
 }
 
 /* ===== TX EDIT MODAL ===== */
@@ -5980,7 +5985,7 @@ function saveTxFromModal() {
   tx.date = orig.toISOString();
   saveState();
   closeTxModal();
-  renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback();
+  renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
 }
 function deleteTxFromModal() {
   const id = document.getElementById("txModalId").value;
@@ -5988,7 +5993,7 @@ function deleteTxFromModal() {
   state.transactions = state.transactions.filter(t => t.id !== id);
   saveState();
   closeTxModal();
-  renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback();
+  renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
 }
 document.getElementById("txModal").addEventListener("click", e => { if (e.target.id === "txModal") closeTxModal(); });
 // 24 couleurs pastel toutes distinctes — assignées par index dans la liste des catégories
@@ -6251,6 +6256,130 @@ function renderBudgetFeedback() {
   el.innerHTML = addForm + rows;
 }
 
+function renderForecast() {
+  const el = document.getElementById("forecastCard");
+  if (!el) return;
+
+  const now = new Date();
+  const N_MAX = 6; // on regarde au max 6 mois en arrière
+
+  // Construire les plages des N_MAX derniers mois complets
+  const allMonths = [];
+  for (let i = N_MAX; i >= 1; i--) {
+    const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const end   = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+    allMonths.push({ start, end, label: start.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }) });
+  }
+
+  // Garder uniquement les mois ayant au moins une dépense
+  const usedMonths = allMonths.filter(m =>
+    state.transactions.some(t => { const d = new Date(t.date); return d >= m.start && d < m.end && t.type === "expense"; })
+  );
+
+  if (!usedMonths.length) {
+    el.innerHTML = `<p style="color:var(--ink-soft);font-size:13px;text-align:center;padding:16px 0;">Pas encore assez de données — enregistre au moins un mois de dépenses pour voir apparaître une prévision ici.</p>`;
+    return;
+  }
+
+  const n = usedMonths.length;
+
+  // Revenu moyen mensuel
+  const avgIncome = usedMonths.reduce((sum, m) =>
+    sum + state.transactions
+      .filter(t => { const d = new Date(t.date); return d >= m.start && d < m.end && t.type === "income"; })
+      .reduce((s, t) => s + t.amount, 0)
+  , 0) / n;
+
+  // Dépenses par catégorie — somme sur tous les mois utilisés, divisée par n
+  const catSums = {};
+  for (const m of usedMonths) {
+    for (const tx of state.transactions) {
+      const d = new Date(tx.date);
+      if (d >= m.start && d < m.end && tx.type === "expense")
+        catSums[tx.category] = (catSums[tx.category] || 0) + tx.amount;
+    }
+  }
+  const catAvg = Object.fromEntries(Object.entries(catSums).map(([k, v]) => [k, v / n]));
+
+  // Tendance : compare le dernier mois complet vs la moyenne
+  const lastM = usedMonths[usedMonths.length - 1];
+  const lastCat = {};
+  for (const tx of state.transactions) {
+    const d = new Date(tx.date);
+    if (d >= lastM.start && d < lastM.end && tx.type === "expense")
+      lastCat[tx.category] = (lastCat[tx.category] || 0) + tx.amount;
+  }
+
+  const budgets = state.budgets || {};
+  const subTotal = (state.subscriptions || []).reduce((s, sub) => s + monthlyEquivalent(sub.amount, sub.frequency), 0);
+
+  const cats = Object.entries(catAvg)
+    .map(([cat, avg]) => ({ cat, avg }))
+    .sort((a, b) => b.avg - a.avg);
+
+  const totalExpense = cats.reduce((s, c) => s + c.avg, 0);
+  const balance = avgIncome - totalExpense;
+
+  // Fiabilité
+  const conf = n >= 4
+    ? { label: "bonne", color: "#16a34a", bg: "#dcfce7" }
+    : n >= 2
+    ? { label: "modérée", color: "#c08a4d", bg: "#fff7ed" }
+    : { label: "faible", color: "#94a3b8", bg: "#f1f5f9" };
+
+  // Label mois prochain
+  const nextMonthLabel = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    .toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  const periodLabel = n > 1
+    ? `${usedMonths[0].label} → ${usedMonths[n - 1].label}`
+    : usedMonths[0].label;
+
+  // Lignes de catégories
+  const catRows = cats.map(({ cat, avg }) => {
+    const budget = budgets[cat];
+    const over   = budget && avg > budget;
+    const warn   = budget && !over && avg >= budget * 0.8;
+    const trend  = lastCat[cat] != null
+      ? (lastCat[cat] > avg * 1.1 ? "↑" : lastCat[cat] < avg * 0.9 ? "↓" : "→")
+      : "→";
+    const trendColor = trend === "↑" ? "#dc2626" : trend === "↓" ? "#16a34a" : "var(--ink-softer)";
+    return `
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);">
+        <span style="width:8px;height:8px;border-radius:50%;background:${catColor(cat)};flex-shrink:0;display:inline-block;"></span>
+        <span style="flex:1;font-size:13px;">${escapeHtml(cat)}</span>
+        <span style="font-size:12px;color:${trendColor};font-weight:700;min-width:14px;">${trend}</span>
+        <span style="font-size:13px;font-weight:600;color:${over ? "#dc2626" : "var(--ink)"};">~${avg.toFixed(0)} €</span>
+        ${budget
+          ? `<span style="font-size:11px;color:${over ? "#dc2626" : warn ? "#c08a4d" : "var(--ink-softer)"};">/ ${budget} €${over ? " ⚠️" : warn ? " ⚡" : ""}</span>`
+          : ""}
+      </div>`;
+  }).join("");
+
+  el.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="flex:1;min-width:100px;background:var(--mint-soft);border-radius:12px;padding:12px 14px;">
+        <div style="font-size:10px;color:var(--ink-softer);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:5px;">Revenus attendus</div>
+        <div style="font-size:19px;font-weight:700;color:#16a34a;">+${avgIncome.toFixed(0)} €</div>
+      </div>
+      <div style="flex:1;min-width:100px;background:var(--rose-soft);border-radius:12px;padding:12px 14px;">
+        <div style="font-size:10px;color:var(--ink-softer);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:5px;">Dépenses prévues</div>
+        <div style="font-size:19px;font-weight:700;color:#dc2626;">−${totalExpense.toFixed(0)} €</div>
+      </div>
+      <div style="flex:1;min-width:100px;background:${balance >= 0 ? "var(--mint-soft)" : "var(--rose-soft)"};border-radius:12px;padding:12px 14px;">
+        <div style="font-size:10px;color:var(--ink-softer);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:5px;">Solde estimé</div>
+        <div style="font-size:19px;font-weight:700;color:${balance >= 0 ? "#16a34a" : "#dc2626"};">${balance >= 0 ? "+" : ""}${balance.toFixed(0)} €</div>
+      </div>
+    </div>
+    ${subTotal > 0 ? `<p style="font-size:12px;color:var(--ink-soft);margin:0 0 10px;">
+      dont ~<strong>${subTotal.toFixed(0)} € d'abonnements fixes</strong> déjà intégrés dans les dépenses
+    </p>` : ""}
+    <div style="margin-bottom:6px;">${catRows}</div>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--ink-softer);">Basée sur ${n} mois (${periodLabel}) · ↑↓ = tendance du dernier mois vs moyenne</span>
+      <span style="font-size:11px;padding:2px 9px;border-radius:999px;background:${conf.bg};color:${conf.color};font-weight:600;">Fiabilité ${conf.label}</span>
+    </div>`;
+}
+
 function addBudgetGoal() {
   const catEl    = document.getElementById("newBudgetCat");
   const amtEl    = document.getElementById("newBudgetAmount");
@@ -6267,7 +6396,7 @@ function setBudget(cat, value) {
   if (n > 0) state.budgets[cat] = n;
   else delete state.budgets[cat];
   saveState();
-  renderBudgetFeedback();
+  renderBudgetFeedback(); renderForecast();
 }
 
 function renderMoneyIncomeCatChart() {
