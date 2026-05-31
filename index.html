@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v142</title>
+<title>Mon Tableau de Vie 🌿 · v143</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2123,6 +2123,10 @@
       <p style="color:var(--ink-soft);font-size:13px;margin:0 0 12px;">Pour ajouter une mise de côté : formulaire « Nouvelle transaction » au-dessus → choisis <strong>💰 Épargne</strong>. Pour modéliser un retrait, mets un montant négatif.</p>
       <div class="chart-wrap" style="height:200px;"><canvas id="savingsChart"></canvas></div>
     </div>
+    <div class="card" style="margin-bottom:14px;">
+      <h2>📈 Dépenses jour par jour <span id="dailyExpenseMonthLabel" style="font-size:13px;font-weight:400;color:var(--ink-soft);margin-left:6px;"></span></h2>
+      <div class="chart-wrap" style="height:180px;"><canvas id="dailyExpenseChart"></canvas></div>
+    </div>
     <div class="grid-two-eq">
       <div class="card">
         <h2>Flux 6 derniers mois</h2>
@@ -3381,7 +3385,7 @@ function onViewChange(view) {
   if (view === "work") updateWorkTabBadges();
   if (view === "activities") { renderActivityChart(); renderSportPlanning(); }
   if (view === "health") { renderBodyChart(currentBodyMetric); renderWellbeingChart(); renderStepsChart(); renderTrendPrediction(); }
-  if (view === "money") { renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast(); }
+  if (view === "money") { renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast(); }
   if (view === "calendar") { renderCalendar(); autoSyncCalIfNeeded(); }
   if (view === "pillars") renderPillars();
 }
@@ -6431,7 +6435,7 @@ function setTxType(t) {
   document.getElementById("txTypeSavingsOut").classList.toggle("active", t === "savings-out");
   populateTxCategories();
 }
-function renderMoney() { populateTxCategories(); renderMoneySummary(); renderTxList(); renderSavings(); renderAccounts(); renderForecast(); }
+function renderMoney() { populateTxCategories(); renderMoneySummary(); renderTxList(); renderSavings(); renderAccounts(); renderForecast(); renderDailyExpenseChart(); }
 function balanceCourant() {
   const start = state.accounts?.courantStart || 0;
   let income = 0, expense = 0, savings = 0, savingsOut = 0;
@@ -6547,12 +6551,12 @@ function addTransaction() {
   state.transactions.unshift({ id: "tx" + Date.now(), date: new Date().toISOString(), type: txType, amount, category, note });
   document.getElementById("txAmount").value = ""; document.getElementById("txNote").value = "";
   saveState();
-  renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
+  renderMoney(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
 }
 function deleteTx(id) {
   state.transactions = state.transactions.filter(t => t.id !== id);
   saveState();
-  renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
+  renderMoney(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
 }
 
 /* ===== TX EDIT MODAL ===== */
@@ -6612,7 +6616,7 @@ function saveTxFromModal() {
   tx.date = orig.toISOString();
   saveState();
   closeTxModal();
-  renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
+  renderMoney(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
 }
 function deleteTxFromModal() {
   const id = document.getElementById("txModalId").value;
@@ -6620,7 +6624,7 @@ function deleteTxFromModal() {
   state.transactions = state.transactions.filter(t => t.id !== id);
   saveState();
   closeTxModal();
-  renderMoney(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
+  renderMoney(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
 }
 document.getElementById("txModal").addEventListener("click", e => { if (e.target.id === "txModal") closeTxModal(); });
 // 24 couleurs pastel toutes distinctes — assignées par index dans la liste des catégories
@@ -6698,7 +6702,120 @@ function renderTxList() {
       </div>`;
   }).join("");
 }
-let moneyFlowChart, moneyCatChart, moneyIncomeCatChart, savingsChart;
+let moneyFlowChart, moneyCatChart, moneyIncomeCatChart, savingsChart, dailyExpenseChart;
+function renderDailyExpenseChart() {
+  const canvas = document.getElementById("dailyExpenseChart");
+  if (!canvas) return;
+
+  // 30 derniers jours
+  const days = [];
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    days.push(d);
+  }
+
+  // Somme des dépenses par jour (expense + external)
+  const byDay = {};
+  for (const d of days) byDay[todayKey(d)] = 0;
+  for (const tx of state.transactions) {
+    if (tx.type !== "expense" && tx.type !== "external") continue;
+    const dk = todayKey(new Date(tx.date));
+    if (dk in byDay) byDay[dk] += tx.amount;
+  }
+
+  const labels = days.map(d => d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }));
+  const data   = days.map(d => byDay[todayKey(d)]);
+
+  // Cumulatif du mois en cours
+  const [mStart] = currentMonthRange();
+  let cumul = 0;
+  const cumulData = days.map(d => {
+    if (d >= mStart) cumul += byDay[todayKey(d)];
+    return d >= mStart ? cumul : null;
+  });
+
+  // Label du mois
+  const monthLbl = document.getElementById("dailyExpenseMonthLabel");
+  if (monthLbl) monthLbl.textContent = now.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+
+  if (dailyExpenseChart) dailyExpenseChart.destroy();
+  dailyExpenseChart = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          type: "bar",
+          label: "Dépenses du jour",
+          data,
+          backgroundColor: data.map((_, i) => {
+            const d = days[i];
+            return d.toDateString() === now.toDateString() ? "#efb8c8" : "#f8d7e3";
+          }),
+          borderColor: data.map((_, i) => {
+            const d = days[i];
+            return d.toDateString() === now.toDateString() ? "#d97fa0" : "#e8b4c8";
+          }),
+          borderWidth: 1,
+          borderRadius: 4,
+          order: 2,
+        },
+        {
+          type: "line",
+          label: "Cumul mois",
+          data: cumulData,
+          borderColor: "#c9b6f0",
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          fill: false,
+          tension: 0.3,
+          order: 1,
+          yAxisID: "yCumul",
+        },
+      ],
+    },
+    options: {
+      ...baseChartOpts(),
+      plugins: {
+        ...baseChartOpts().plugins,
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              if (ctx.dataset.label === "Cumul mois") return `Cumul : ${(ctx.raw || 0).toFixed(2)} €`;
+              return `${(ctx.raw || 0).toFixed(2)} €`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: "#8a8499", font: { size: 10 },
+            maxTicksLimit: 10,
+            maxRotation: 0,
+          },
+          grid: { display: false },
+        },
+        y: {
+          position: "left",
+          ticks: { color: "#8a8499", font: { size: 10 }, callback: v => v + " €" },
+          grid: { color: "#efeaf5" },
+          beginAtZero: true,
+        },
+        yCumul: {
+          position: "right",
+          ticks: { color: "#c9b6f0", font: { size: 10 }, callback: v => v + " €" },
+          grid: { display: false },
+          beginAtZero: true,
+        },
+      },
+    },
+  });
+}
 function renderMoneyFlowChart() {
   const months = []; const now = new Date();
   for (let i = 5; i >= 0; i--) months.push(new Date(now.getFullYear(), now.getMonth() - i, 1));
