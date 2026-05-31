@@ -1523,20 +1523,23 @@
   .adm-bar-ct { font-size:11px; min-width:90px; color:var(--ink-soft); }
 
   /* ---- Hormones ---- */
-  .hormone-row { display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
-  .hormone-row:last-child { border-bottom:none; }
-  .hormone-emoji { font-size:22px; line-height:1; flex-shrink:0; margin-top:2px; }
-  .hormone-info { flex:1; min-width:0; }
-  .hormone-header { display:flex; align-items:baseline; gap:6px; margin-bottom:5px; }
-  .hormone-name { font-weight:600; font-size:14px; }
-  .hormone-desc { font-size:11px; color:var(--ink-softer); flex:1; }
-  .hormone-val { font-size:13px; font-weight:600; }
-  .hormone-val.good { color:#16a34a; }
-  .hormone-val.warn { color:#d97706; }
-  .hormone-val.low  { color:var(--ink-softer); }
-  .hormone-bar-bg { height:7px; background:#f0eff8; border-radius:4px; overflow:hidden; margin-bottom:4px; }
-  .hormone-bar { height:100%; border-radius:4px; transition:width 0.4s ease; }
-  .hormone-sources { font-size:11px; color:var(--ink-softer); }
+  /* Hormone grid — anneaux SVG */
+  .hormone-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  @media(max-width:700px) { .hormone-grid { grid-template-columns:repeat(2,1fr); } }
+  .hormone-card {
+    display:flex; flex-direction:column; align-items:center;
+    padding:18px 10px 14px; border-radius:18px;
+    background:var(--card); border:1px solid var(--line);
+    box-shadow:var(--shadow); text-align:center;
+    transition:transform 0.15s, box-shadow 0.15s;
+  }
+  .hormone-card:hover { transform:translateY(-3px); box-shadow:0 6px 24px rgba(120,100,160,.13); }
+  .hormone-ring-wrap { position:relative; width:84px; height:84px; margin-bottom:10px; flex-shrink:0; }
+  .hormone-ring-emoji { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:28px; line-height:1; }
+  .hormone-card-name { font-size:13px; font-weight:700; color:var(--ink); margin-bottom:2px; }
+  .hormone-card-desc { font-size:10px; color:var(--ink-softer); margin-bottom:6px; }
+  .hormone-card-score { font-size:20px; font-weight:800; margin-bottom:4px; }
+  .hormone-card-sources { font-size:10px; color:var(--ink-softer); line-height:1.5; }
   /* Htag pills (settings) */
   .item-edit-act { gap:8px; flex-wrap:wrap; align-items:center; }
   .htag-group { display:flex; gap:4px; }
@@ -5560,24 +5563,33 @@ function renderHormones() {
   const el = document.getElementById("hormonesContent");
   if (!el) return;
   const data = computeHormones();
-  el.innerHTML = HORMONES.map(h => {
-    const d = data[h.id];
-    const pct = Math.min(100, Math.round((d.score / h.target) * 100));
-    const uniq = [...new Set(d.sources)].slice(0, 3);
-    const cls  = pct >= 70 ? "good" : pct >= 35 ? "warn" : "low";
-    return `<div class="hormone-row">
-      <div class="hormone-emoji">${h.emoji}</div>
-      <div class="hormone-info">
-        <div class="hormone-header">
-          <span class="hormone-name">${h.label}</span>
-          <span class="hormone-desc">${h.desc}</span>
-          <span class="hormone-val ${cls}">${Math.round(d.score * 10) / 10}</span>
-        </div>
-        <div class="hormone-bar-bg"><div class="hormone-bar" style="width:${pct}%;background:${h.color};"></div></div>
-        ${uniq.length ? `<div class="hormone-sources">${uniq.join(" · ")}</div>` : `<div class="hormone-sources" style="color:var(--ink-softer);">aucune source cette semaine</div>`}
+  const R = 34, C = +(2 * Math.PI * R).toFixed(1); // rayon et circonférence de l'anneau
+  el.innerHTML = `<div class="hormone-grid">${HORMONES.map(h => {
+    const d    = data[h.id];
+    const pct  = Math.min(100, Math.round((d.score / h.target) * 100));
+    const off  = +(C * (1 - pct / 100)).toFixed(1);
+    const scoreColor = pct >= 70 ? "#16a34a" : pct >= 35 ? "#d97706" : "#94a3b8";
+    const uniq = [...new Set(d.sources)].slice(0, 2).join(" · ") || "aucune source";
+    // Couleur de l'anneau légèrement plus vive que le fill
+    const ringColor = h.color;
+    return `<div class="hormone-card">
+      <div class="hormone-ring-wrap">
+        <svg width="84" height="84" viewBox="0 0 84 84" style="display:block;">
+          <circle cx="42" cy="42" r="${R}" fill="none" stroke="#ede9f4" stroke-width="7"/>
+          <circle cx="42" cy="42" r="${R}" fill="none"
+            stroke="${ringColor}" stroke-width="7" stroke-linecap="round"
+            stroke-dasharray="${C}" stroke-dashoffset="${off}"
+            transform="rotate(-90 42 42)"
+            style="transition:stroke-dashoffset .7s cubic-bezier(.4,0,.2,1);"/>
+        </svg>
+        <div class="hormone-ring-emoji">${h.emoji}</div>
       </div>
+      <div class="hormone-card-name">${h.label}</div>
+      <div class="hormone-card-desc">${h.desc}</div>
+      <div class="hormone-card-score" style="color:${scoreColor};">${pct}%</div>
+      <div class="hormone-card-sources">${uniq}</div>
     </div>`;
-  }).join("");
+  }).join("")}</div>`;
 }
 
 function toggleActivityHormone(actId, hId) {
