@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v140</title>
+<title>Mon Tableau de Vie 🌿 · v141</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -7252,14 +7252,10 @@ const PILLAR_DEFS = [
     metrics: [
       { type: "wellbeing-avg", field: "mood", target: 5, label: "Humeur" },
       { type: "wellbeing-avg", field: "energy", target: 5, label: "Énergie" },
-      { type: "any-activity-sessions", target: 3, label: "Sport/activité physique (obj. 3/sem)" },
-      { type: "activity-sessions", regex: "médit", target: 2, label: "Méditation (obj. 2/sem)" },
+      { type: "any-activity-sessions", target: 3, label: "Activité physique (obj. 3/sem)" },
+      { type: "activity-sessions", regex: "médit|sophrolog|yoga|respir|tai.chi|qi.gong", target: 2, label: "Méditation / relaxation (obj. 2/sem)" },
       { type: "habit-avg", habitId: "h-lecture", target: 30, label: "Lecture/j" },
-      { type: "journal-pct", target: 4, label: "Journal" },
-      { type: "activity-sessions", regex: "cuisine|bak|pâtiss", target: 2, label: "Cuisine (obj. 2/sem)" },
-      { type: "meal-events-count", target: 2, label: "Dîners planifiés" },
-      { type: "cal-keywords-count", keywords: ["ami", "amie", "amis", "copain", "copine", "pote", "soirée", "apéro", "sortie"], target: 1, label: "Moments avec des amis (obj. 1/sem)" },
-      { type: "cal-keywords-count", keywords: ["famille", "maman", "papa", "parents", "frère", "sœur", "soeur", "frangine", "frangin", "mamie", "papi", "grands?-?parents"], target: 1, label: "Moments en famille (obj. 1/sem)" },
+      { type: "journal-pct", target: 4, label: "Journal (obj. 4/7j)" },
     ]
   },
   {
@@ -7282,6 +7278,15 @@ const PILLAR_DEFS = [
       { type: "groceries-active", label: "Liste courses active" },
       { type: "chores-uptodate", label: "Ménage à jour" },
       { type: "plants-uptodate", label: "Plantes arrosées" },
+    ]
+  },
+  {
+    id: "fun-social", name: "Loisirs & Social", emoji: "🎉", color: "#fbbf24", bg: "#fffbeb",
+    metrics: [
+      { type: "cal-keywords-count", keywords: ["ami", "amie", "amis", "copain", "copine", "copines", "pote", "soirée", "apéro", "déjeuner", "dejeuner", "dîner", "diner", "brunch", "repas", "goûter", "gouter", "lunch"], target: 2, label: "Moments avec des amis (obj. 2/sem)" },
+      { type: "cal-keywords-count", keywords: ["famille", "maman", "papa", "parents", "frère", "sœur", "soeur", "frangine", "frangin", "mamie", "papi"], target: 1, label: "Moments en famille (obj. 1/sem)" },
+      { type: "activity-sessions", regex: "lecture|podcast|film|ciné|série|musique|guitare|piano|dessin|peinture|créat|art|photo|jeu|danse|concert|expo|musée|balade|promenade|jardinage|cuisine|bak|pâtiss|sortie", target: 3, label: "Activités plaisir (obj. 3/sem)" },
+      { type: "cal-keywords-count", keywords: ["concert", "expo", "musée", "théâtr", "ciném", "spectacle", "festival", "vernissage"], target: 1, label: "Sortie culturelle (obj. 1/sem)" },
     ]
   },
 ];
