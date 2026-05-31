@@ -3019,7 +3019,7 @@ const DEFAULT_STATE = {
   transactions: [],
   subscriptions: [],
   accounts: { courantStart: 0, epargneStart: 0 },
-  domestique: { groceries: [], chores: [], plants: [] },
+  domestique: { groceries: [], groceryEvents: [], mealEvents: [], chores: [], plants: [] },
   calEvents: [],
   calSources: [],
   googleCal: { url: "", lastSync: null },
@@ -3045,7 +3045,7 @@ function loadState() {
       if (old) return migrate({ ...DEFAULT_STATE, ...JSON.parse(old) });
     }
   } catch (e) { console.warn("load error", e); }
-  return structuredClone(DEFAULT_STATE);
+  return migrate(structuredClone(DEFAULT_STATE));
 }
 function migrate(s) {
   s.habits = s.habits || DEFAULT_STATE.habits;
@@ -8654,7 +8654,7 @@ function renderGroceries() {
   if (el) el.textContent = total ? `(${open} à acheter / ${total})` : "";
 }
 function renderGroceryEvents() {
-  const events = state.domestique.groceryEvents;
+  const events = state.domestique?.groceryEvents || [];
   const target = document.getElementById("groceryEventsList");
   if (!target) return;
   if (!events.length) {
@@ -9920,7 +9920,7 @@ setupTabs();
 setupWellbeing();
 setupJournal();
 populateTxCategories();
-renderAll();
+try { renderAll(); } catch(e) { console.error("[renderAll] crash au démarrage :", e); }
 checkSeedBanner();
 // Synchro Google Agenda automatique au démarrage (si URL configurée et dernière sync > 30 min)
 function autoSyncCalIfNeeded() {
