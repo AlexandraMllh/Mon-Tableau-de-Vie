@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v149</title>
+<title>Mon Tableau de Vie 🌿 · v150</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1681,6 +1681,15 @@
           <div id="journalMoodTodayBadges" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
       </div>
+    </div>
+
+    <!-- Routines matin / soir -->
+    <div class="card" style="margin-top:14px;">
+      <div class="card-row" style="margin-bottom:12px;">
+        <h2 style="margin:0;">✨ Routines</h2>
+        <span id="routineTodayBadge" style="font-size:13px;color:var(--ink-soft);"></span>
+      </div>
+      <div id="routineTodayBlock"></div>
     </div>
 
     <!-- To-do du jour (widget partagé avec Domestique) -->
@@ -3398,7 +3407,7 @@ function setupTabs() {
 function onViewChange(view) {
   if (view === "work") updateWorkTabBadges();
   if (view === "activities") { renderActivityChart(); renderSportPlanning(); }
-  if (view === "health") { renderBodyChart(currentBodyMetric); renderWellbeingChart(); renderStepsChart(); renderTrendPrediction(); }
+  if (view === "health") { renderBodyChart(currentBodyMetric); renderWellbeingChart(); renderStepsChart(); renderTrendPrediction(); renderSkincare(); }
   if (view === "money") { renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast(); }
   if (view === "calendar") { renderCalendar(); autoSyncCalIfNeeded(); }
   if (view === "pillars") renderPillars();
@@ -6088,10 +6097,11 @@ function routineComplete(habitsObj, key) {
 }
 
 function renderSkincare() {
-  const todayBlock = document.getElementById("skincareTodayBlock");
-  const grid30     = document.getElementById("skincare30Grid");
-  const streakBadge = document.getElementById("skincareStreakBadge");
-  if (!todayBlock) return;
+  const todayBlock    = document.getElementById("skincareTodayBlock");   // onglet Santé
+  const todayAujourd = document.getElementById("routineTodayBlock");     // onglet Aujourd'hui
+  const grid30        = document.getElementById("skincare30Grid");
+  const streakBadge   = document.getElementById("skincareStreakBadge");
+  const routineBadge  = document.getElementById("routineTodayBadge");
 
   const todayK = todayKey();
   const habits  = getToday().habits || {};
@@ -6109,14 +6119,14 @@ function renderSkincare() {
     } else break;
   }
   if (allDone) streak++;
-  if (streakBadge) {
-    streakBadge.innerHTML = streak >= 3
-      ? `🔥 ${streak} jour${streak > 1 ? "s" : ""} d'affilée`
-      : streak === 0 ? `<span style="color:var(--ink-softer);">Aucune série en cours</span>`
-      : `✨ ${streak} jour${streak > 1 ? "s" : ""}`;
-  }
+  const streakHtml = streak >= 3
+    ? `🔥 ${streak} jour${streak > 1 ? "s" : ""} d'affilée`
+    : streak === 0 ? `<span style="color:var(--ink-softer);">Aucune série en cours</span>`
+    : `✨ ${streak} jour${streak > 1 ? "s" : ""}`;
+  if (streakBadge)  streakBadge.innerHTML  = streakHtml;
+  if (routineBadge) routineBadge.innerHTML = streakHtml;
 
-  // --- Section avec cases à cocher, séparée matin / soir ---
+  // --- Sections cases à cocher (partagées entre les deux onglets) ---
   const routineSection = (key) => {
     const r = ROUTINES[key];
     const done = r.steps.map(s => !!habits[s.id]);
@@ -6135,7 +6145,7 @@ function renderSkincare() {
           background:${isDone ? r.color : "white"};
           border:2px solid ${isDone ? r.color : "var(--line)"};
           display:flex;align-items:center;justify-content:center;
-          font-size:13px;transition:all 0.15s;
+          transition:all 0.15s;
         ">${isDone ? `<span style="color:white;font-weight:700;font-size:12px;">✓</span>` : ""}</div>
         <span style="font-size:13.5px;color:${isDone ? "var(--ink-soft)" : "var(--ink)"};
           text-decoration:${isDone ? "line-through" : "none"};">${s.emoji} ${s.label}</span>
@@ -6155,12 +6165,16 @@ function renderSkincare() {
       </div>`;
   };
 
-  todayBlock.innerHTML = `
+  const checkboxHtml = `
     <div style="display:flex;flex-direction:column;gap:14px;">
       ${routineSection("matin")}
       <div style="height:1px;background:var(--line);"></div>
       ${routineSection("soir")}
     </div>`;
+
+  // Écrire les cases à cocher dans les deux onglets
+  if (todayAujourd) todayAujourd.innerHTML = checkboxHtml;
+  if (todayBlock)   todayBlock.innerHTML   = checkboxHtml;
 
   // --- Grille 30 jours ---
   if (!grid30) return;
