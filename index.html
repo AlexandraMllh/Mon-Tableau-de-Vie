@@ -7024,9 +7024,13 @@ const PILLAR_DEFS = [
     metrics: [
       { type: "wellbeing-avg", field: "mood", target: 5, label: "Humeur" },
       { type: "wellbeing-avg", field: "energy", target: 5, label: "Énergie" },
-      { type: "activity-sessions", regex: "médit", target: 2, label: "Méditation/sem (obj. 2 séances)" },
+      { type: "any-activity-sessions", target: 3, label: "Sport/activité physique (obj. 3/sem)" },
+      { type: "activity-sessions", regex: "médit", target: 2, label: "Méditation (obj. 2/sem)" },
       { type: "habit-avg", habitId: "h-lecture", target: 30, label: "Lecture/j" },
       { type: "journal-pct", target: 4, label: "Journal" },
+      { type: "meal-events-count", target: 2, label: "Cuisine / repas planifiés (obj. 2/sem)" },
+      { type: "cal-keywords-count", keywords: ["ami", "amie", "amis", "copain", "copine", "pote", "soirée", "apéro", "sortie"], target: 1, label: "Moments avec des amis (obj. 1/sem)" },
+      { type: "cal-keywords-count", keywords: ["famille", "maman", "papa", "parents", "frère", "sœur", "soeur", "frangine", "frangin", "mamie", "papi", "grands?-?parents"], target: 1, label: "Moments en famille (obj. 1/sem)" },
     ]
   },
   {
@@ -7187,6 +7191,33 @@ function computeMetric(m) {
     if (cnt.restless)   parts.push(`${cnt.restless}× 😫`);
     if (cnt.fragmented) parts.push(`${cnt.fragmented}× 👁️`);
     return { score: avg, value: parts.join(" "), label: m.label };
+  }
+  // Toutes les activités physiques enregistrées (sans filtre par nom)
+  if (m.type === "any-activity-sessions") {
+    if (!state.activities.length) return { score: 0, value: "—", label: m.label };
+    let total = 0;
+    for (const d of _last7Days()) {
+      const acts = state.history[todayKey(d)]?.activities || {};
+      if (state.activities.some(a => acts[a.id])) total++;
+    }
+    const unit = total > 1 ? " séances" : " séance";
+    return { score: Math.min(1, total / m.target), value: total + unit, label: m.label };
+  }
+  // Dîners / repas cuisinés (via mealEvents) sur les 7 derniers jours
+  if (m.type === "meal-events-count") {
+    const sevenAgo = new Date(); sevenAgo.setDate(sevenAgo.getDate() - 7);
+    const k7 = todayKey(sevenAgo);
+    const count = (state.domestique?.mealEvents || []).filter(e => (e.date || "") >= k7).length;
+    return { score: Math.min(1, count / m.target), value: count + (count > 1 ? " repas" : " repas"), label: m.label };
+  }
+  // Événements calendrier correspondant à des mots-clés (amis, famille…)
+  if (m.type === "cal-keywords-count") {
+    const sevenAgo = new Date(); sevenAgo.setDate(sevenAgo.getDate() - 7);
+    const k7 = todayKey(sevenAgo);
+    const re = new RegExp((m.keywords || []).join("|"), "i");
+    const count = state.calEvents.filter(e => (e.date || "") >= k7 && re.test(e.title || "")).length;
+    const unit = count > 1 ? " évén." : " évén.";
+    return { score: Math.min(1, count / m.target), value: count === 0 ? "aucun" : count + unit, label: m.label };
   }
   return { score: 0, value: "—", label: m.label };
 }
