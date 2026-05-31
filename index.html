@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v137</title>
+<title>Mon Tableau de Vie 🌿 · v138</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1527,8 +1527,9 @@
   .hormone-chart-wrap { display:flex; align-items:center; gap:28px; flex-wrap:wrap; justify-content:center; }
   .hormone-svg-wrap { flex-shrink:0; position:relative; }
   .hormone-legend { flex:1; min-width:200px; }
-  .hormone-legend-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); }
+  .hormone-legend-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); cursor:pointer; border-radius:8px; transition:background .12s; }
   .hormone-legend-row:last-child { border-bottom:none; }
+  .hormone-legend-row:hover { background:var(--lavender-soft); }
   .hormone-legend-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
   .hormone-legend-body { flex:1; min-width:0; }
   .hormone-legend-top { display:flex; align-items:baseline; gap:8px; }
@@ -5510,98 +5511,111 @@ function autoHormones(name) {
   return [...h];
 }
 
+let _lastHormoneData = null; // cache pour la modale de détail
+
 function computeHormones() {
-  // Option A : on compte les JOURS (régularité), pas les sessions cumulées
   const last7 = _last7Days();
   const sevenAgo = new Date(); sevenAgo.setDate(sevenAgo.getDate() - 7);
   const k7 = todayKey(sevenAgo);
   const res = {};
-  HORMONES.forEach(h => { res[h.id] = { score: 0, sources: [] }; });
+  HORMONES.forEach(h => { res[h.id] = { score: 0, sources: [], days: [] }; });
+
+  const socialRe = /ami|amie|copain|copine|soirée|apéro|sortie|famille|maman|papa|parents|frère|sœur|soeur|frangine|frangin|mamie|papi/i;
 
   for (const d of last7) {
-    const dk = todayKey(d);
-    const entry   = state.history[dk] || {};
-    const acts    = entry.activities || {};
-    const habits  = entry.habits    || {};
+    const dk     = todayKey(d);
+    const entry  = state.history[dk] || {};
+    const acts   = entry.activities || {};
+    const habits = entry.habits     || {};
+    const label  = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
 
-    // — Endorphines : au moins 1 activité physique ce jour
+    // — Endorphines
     const endoActs = state.activities.filter(a => acts[a.id] && (a.hormones || ["endorphines"]).includes("endorphines"));
-    if (endoActs.length) {
-      res.endorphines.score++;
-      endoActs.slice(0, 2).forEach(a => res.endorphines.sources.push(a.name));
-    }
+    const endoActive = endoActs.length > 0;
+    res.endorphines.days.push({ dk, label, active: endoActive, reasons: endoActs.map(a => a.name) });
+    if (endoActive) { res.endorphines.score++; endoActs.slice(0,2).forEach(a => res.endorphines.sources.push(a.name)); }
 
-    // — Dopamine : tâche finie CE jour OU lecture OU activité dopamine
-    const taskToday = (state.work?.postdocTasks || []).some(t => t.done && t.completedAt === dk);
+    // — Dopamine
+    const taskToday    = (state.work?.postdocTasks || []).filter(t => t.done && t.completedAt === dk);
     const lectureToday = Number(habits["h-lecture"]) > 0;
-    const dopActs = state.activities.filter(a => acts[a.id] && (a.hormones || []).includes("dopamine"));
-    if (taskToday || lectureToday || dopActs.length) {
-      res.dopamine.score++;
-      if (taskToday)      res.dopamine.sources.push("tâche(s)");
-      if (lectureToday)   res.dopamine.sources.push("lecture");
-      dopActs.slice(0, 1).forEach(a => res.dopamine.sources.push(a.name));
-    }
+    const dopActs      = state.activities.filter(a => acts[a.id] && (a.hormones || []).includes("dopamine"));
+    const dopReasons   = [...taskToday.map(t => `✓ ${(t.title||"tâche").slice(0,22)}`), ...(lectureToday?["lecture"]:[]), ...dopActs.map(a=>a.name)];
+    const dopActive    = dopReasons.length > 0;
+    res.dopamine.days.push({ dk, label, active: dopActive, reasons: dopReasons });
+    if (dopActive) { res.dopamine.score++; dopReasons.slice(0,2).forEach(r => res.dopamine.sources.push(r.replace(/^✓ /,""))); }
 
-    // — Sérotonine : journal OU humeur ≥ 4 OU activité sérotonine
+    // — Sérotonine
     const hasJournal  = (entry.journal || "").trim().length > 0;
     const hasGoodMood = (entry.mood || 0) >= 4;
-    const serActs = state.activities.filter(a => acts[a.id] && (a.hormones || []).includes("serotonine"));
-    if (hasJournal || hasGoodMood || serActs.length) {
-      res.serotonine.score++;
-      if (hasJournal)    res.serotonine.sources.push("journal");
-      if (hasGoodMood)   res.serotonine.sources.push("bonne humeur");
-      serActs.slice(0, 1).forEach(a => res.serotonine.sources.push(a.name));
-    }
+    const serActs     = state.activities.filter(a => acts[a.id] && (a.hormones || []).includes("serotonine"));
+    const serReasons  = [...(hasJournal?["journal"]:[]), ...(hasGoodMood?[`humeur ${entry.mood}/5`]:[]), ...serActs.map(a=>a.name)];
+    const serActive   = serReasons.length > 0;
+    res.serotonine.days.push({ dk, label, active: serActive, reasons: serReasons });
+    if (serActive) { res.serotonine.score++; serReasons.slice(0,2).forEach(r => res.serotonine.sources.push(r)); }
+
+    // — Ocytocine (événements calendrier ce jour)
+    const socEvs    = state.calEvents.filter(e => e.date === dk && socialRe.test(e.title || ""));
+    const ocyActive = socEvs.length > 0;
+    res.ocytocine.days.push({ dk, label, active: ocyActive, reasons: socEvs.map(e => e.title || "événement social") });
+    if (ocyActive) { res.ocytocine.score++; socEvs.slice(0,2).forEach(e => res.ocytocine.sources.push(e.title||"social")); }
   }
 
-  // — Ocytocine : jours distincts avec au moins 1 événement social
-  const socialRe = /ami|amie|copain|copine|soirée|apéro|sortie|famille|maman|papa|parents|frère|sœur|soeur|frangine|frangin|mamie|papi/i;
-  const socialDays = new Set(state.calEvents.filter(e => (e.date || "") >= k7 && socialRe.test(e.title || "")).map(e => e.date));
-  res.ocytocine.score = socialDays.size;
-  if (socialDays.size) res.ocytocine.sources.push(`${socialDays.size} jour${socialDays.size > 1 ? "s" : ""} avec des proches`);
-
-  // Dédoublonner les sources pour l'affichage
-  Object.values(res).forEach(r => { r.sources = [...new Set(r.sources)]; });
+  Object.values(res).forEach(r => { r.sources = [...new Set(r.sources)].slice(0,3); });
+  _lastHormoneData = res;
   return res;
 }
 
+function showHormoneDetail(hId) {
+  if (!_lastHormoneData) return;
+  const h = HORMONES.find(x => x.id === hId);
+  const d = _lastHormoneData[hId];
+  if (!h || !d) return;
+  const rows = d.days.map(day => {
+    const icon = day.active ? `<span style="color:#16a34a;font-size:16px;">✅</span>` : `<span style="color:#cbd5e1;font-size:14px;">○</span>`;
+    const reasons = day.active ? `<span style="color:var(--ink-soft);font-size:12px;">${day.reasons.slice(0,3).join(" · ")}</span>` : `<span style="color:var(--ink-softer);font-size:12px;">—</span>`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);">
+      ${icon}
+      <span style="font-size:13px;font-weight:500;min-width:90px;">${day.label}</span>
+      ${reasons}
+    </div>`;
+  }).join("");
+  document.getElementById("hormoneDetailContent").innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+      <span style="font-size:28px;">${h.emoji}</span>
+      <div>
+        <div style="font-size:17px;font-weight:700;">${h.label}</div>
+        <div style="font-size:12px;color:var(--ink-softer);">${h.desc}</div>
+      </div>
+      <div style="margin-left:auto;text-align:right;">
+        <div style="font-size:22px;font-weight:800;color:${d.score>=h.target?"#16a34a":"#d97706"};">${Math.round(d.score/h.target*100)}%</div>
+        <div style="font-size:12px;color:var(--ink-softer);">${d.score} / ${h.target} jours</div>
+      </div>
+    </div>
+    ${rows}
+    <div style="margin-top:12px;font-size:11px;color:var(--ink-softer);text-align:center;">7 derniers jours · cible : ${h.target} jours actifs</div>`;
+  const modal = document.getElementById("hormoneDetailModal");
+  modal.style.display = "flex";
+}
+function closeHormoneDetail() { document.getElementById("hormoneDetailModal").style.display = "none"; }
+
+let _hormoneRadarChart = null;
 function renderHormones() {
   const el = document.getElementById("hormonesContent");
   if (!el) return;
   const data = computeHormones();
 
-  // Rayons des 4 anneaux concentriques (de l'extérieur vers l'intérieur)
-  const RINGS = [
-    { ...HORMONES[0], r: 82 },
-    { ...HORMONES[1], r: 63 },
-    { ...HORMONES[2], r: 44 },
-    { ...HORMONES[3], r: 25 },
-  ];
-  const SW = 11, CX = 96, CY = 96, SIZE = 192;
-
-  const svgContent = RINGS.map(h => {
-    const d   = data[h.id];
-    const pct = Math.min(1, d.score / h.target);
-    const C   = +(2 * Math.PI * h.r).toFixed(2);
-    const off = +(C * (1 - pct)).toFixed(2);
-    return `<circle cx="${CX}" cy="${CY}" r="${h.r}" fill="none" stroke="#ede9f4" stroke-width="${SW}"/>
-    <circle cx="${CX}" cy="${CY}" r="${h.r}" fill="none" stroke="${h.color}" stroke-width="${SW}"
-      stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"
-      transform="rotate(-90 ${CX} ${CY})"
-      style="transition:stroke-dashoffset .8s cubic-bezier(.4,0,.2,1);"/>`;
-  }).join("\n    ");
-
-  const legendHtml = RINGS.map(h => {
+  const legendHtml = HORMONES.map(h => {
     const d   = data[h.id];
     const pct = Math.min(100, Math.round((d.score / h.target) * 100));
     const col = pct >= 70 ? "#16a34a" : pct >= 35 ? "#d97706" : "#94a3b8";
-    const src = d.sources.slice(0, 2).join(" · ") || "aucune source";
-    return `<div class="hormone-legend-row">
+    const src = d.sources.slice(0,2).join(" · ") || "aucune source cette semaine";
+    return `<div class="hormone-legend-row" onclick="showHormoneDetail('${h.id}')" title="Voir le détail">
       <div class="hormone-legend-dot" style="background:${h.color};"></div>
       <div class="hormone-legend-body">
         <div class="hormone-legend-top">
           <span class="hormone-legend-name">${h.emoji} ${h.label}</span>
           <span class="hormone-legend-val" style="color:${col};">${d.score}/${h.target}j &nbsp;${pct}%</span>
+          <span style="color:var(--ink-softer);font-size:13px;margin-left:4px;">›</span>
         </div>
         <div class="hormone-legend-src">${src}</div>
       </div>
@@ -5609,13 +5623,44 @@ function renderHormones() {
   }).join("");
 
   el.innerHTML = `<div class="hormone-chart-wrap">
-    <div class="hormone-svg-wrap">
-      <svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
-        ${svgContent}
-      </svg>
-    </div>
+    <div class="hormone-svg-wrap"><canvas id="hormoneRadar" width="220" height="220"></canvas></div>
     <div class="hormone-legend">${legendHtml}</div>
   </div>`;
+
+  // Radar Chart.js
+  if (_hormoneRadarChart) { _hormoneRadarChart.destroy(); _hormoneRadarChart = null; }
+  const ctx = document.getElementById("hormoneRadar");
+  if (!ctx) return;
+  const pcts = HORMONES.map(h => Math.min(100, Math.round((data[h.id].score / h.target) * 100)));
+  _hormoneRadarChart = new Chart(ctx, {
+    type: "radar",
+    data: {
+      labels: HORMONES.map(h => `${h.emoji} ${h.label}`),
+      datasets: [{
+        data: pcts,
+        backgroundColor: "rgba(201,182,240,0.18)",
+        borderColor: "#c9b6f0",
+        borderWidth: 2.5,
+        pointBackgroundColor: HORMONES.map(h => h.color),
+        pointBorderColor: "white",
+        pointBorderWidth: 2,
+        pointRadius: 6,
+      }],
+    },
+    options: {
+      ...baseChartOpts(),
+      plugins: { ...baseChartOpts().plugins, legend: { display: false } },
+      scales: {
+        r: {
+          beginAtZero: true, max: 100,
+          ticks: { stepSize: 25, color: "#8a8499", font: { size: 10 }, backdropColor: "transparent" },
+          grid: { color: "#efeaf5" },
+          angleLines: { color: "#efeaf5" },
+          pointLabels: { color: "#4a4458", font: { size: 12, weight: "600" } },
+        },
+      },
+    },
+  });
 }
 
 function toggleActivityHormone(actId, hId) {
@@ -10153,5 +10198,13 @@ if ("serviceWorker" in navigator) {
   });
 }
 </script>
+
+<!-- Modale détail hormone -->
+<div id="hormoneDetailModal" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(60,50,80,.35);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)closeHormoneDetail()">
+  <div style="background:var(--card);border-radius:22px;padding:28px 24px;max-width:380px;width:92%;box-shadow:0 12px 48px rgba(60,50,80,.22);position:relative;">
+    <button onclick="closeHormoneDetail()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink-softer);">✕</button>
+    <div id="hormoneDetailContent"></div>
+  </div>
+</div>
 </body>
 </html>
