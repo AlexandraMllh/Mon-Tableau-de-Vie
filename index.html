@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v148</title>
+<title>Mon Tableau de Vie 🌿 · v149</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -6116,46 +6116,50 @@ function renderSkincare() {
       : `✨ ${streak} jour${streak > 1 ? "s" : ""}`;
   }
 
-  // --- Ligne compacte par routine ---
-  const routineRow = (key) => {
+  // --- Section avec cases à cocher, séparée matin / soir ---
+  const routineSection = (key) => {
     const r = ROUTINES[key];
     const done = r.steps.map(s => !!habits[s.id]);
     const nb   = done.filter(Boolean).length;
     const full = nb === r.steps.length;
-    const pct  = Math.round((nb / r.steps.length) * 100);
 
-    const chip = (s, isDone) => `
-      <div onclick="toggleSkincare('${s.id}')" title="${s.label}" style="
-        display:flex;align-items:center;gap:5px;padding:6px 10px;
-        border-radius:20px;cursor:pointer;transition:all 0.18s;user-select:none;
-        background:${isDone ? r.color : "white"};
-        border:1.5px solid ${isDone ? r.color : "var(--line)"};
-        font-size:12px;font-weight:600;
-        color:${isDone ? "white" : "var(--ink-soft)"};
+    const checkRow = (s, isDone) => `
+      <div onclick="toggleSkincare('${s.id}')" style="
+        display:flex;align-items:center;gap:12px;
+        padding:9px 12px;border-radius:12px;cursor:pointer;
+        transition:background 0.15s;
+        background:${isDone ? `${r.color}18` : "transparent"};
       ">
-        <span style="font-size:13px;">${isDone ? "✓" : s.emoji}</span>
-        <span>${s.label}</span>
+        <div style="
+          width:22px;height:22px;border-radius:6px;flex-shrink:0;
+          background:${isDone ? r.color : "white"};
+          border:2px solid ${isDone ? r.color : "var(--line)"};
+          display:flex;align-items:center;justify-content:center;
+          font-size:13px;transition:all 0.15s;
+        ">${isDone ? `<span style="color:white;font-weight:700;font-size:12px;">✓</span>` : ""}</div>
+        <span style="font-size:13.5px;color:${isDone ? "var(--ink-soft)" : "var(--ink)"};
+          text-decoration:${isDone ? "line-through" : "none"};">${s.emoji} ${s.label}</span>
       </div>`;
 
     return `
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;
-        border-radius:14px;transition:background 0.2s;
-        background:${full ? `${r.color}18` : "transparent"};">
-        <span style="font-size:16px;flex-shrink:0;">${r.emoji}</span>
-        <span style="font-size:13px;font-weight:700;color:var(--ink);width:110px;flex-shrink:0;">${r.label}</span>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1;">
-          ${r.steps.map((s, i) => chip(s, done[i])).join("")}
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;padding:0 4px;">
+          <span style="font-size:15px;">${r.emoji}</span>
+          <span style="font-size:13px;font-weight:700;color:var(--ink);">${r.label}</span>
+          <span style="margin-left:auto;font-size:12px;font-weight:600;
+            color:${full ? r.color : "var(--ink-softer)"};">
+            ${full ? "✓ Complète" : `${nb}/${r.steps.length}`}
+          </span>
         </div>
-        <span style="font-size:12px;font-weight:600;flex-shrink:0;
-          color:${full ? r.color : "var(--ink-soft)"};">${full ? "✓" : `${nb}/${r.steps.length}`}</span>
+        ${r.steps.map((s, i) => checkRow(s, done[i])).join("")}
       </div>`;
   };
 
   todayBlock.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:4px;">
-      ${routineRow("matin")}
-      <div style="height:1px;background:var(--line);margin:0 4px;"></div>
-      ${routineRow("soir")}
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      ${routineSection("matin")}
+      <div style="height:1px;background:var(--line);"></div>
+      ${routineSection("soir")}
     </div>`;
 
   // --- Grille 30 jours ---
