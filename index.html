@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v139</title>
+<title>Mon Tableau de Vie 🌿 · v140</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -3571,6 +3571,13 @@ function renderWellbeing() {
   const wakeEl = document.getElementById("wakeTimeInput");
   if (bedEl) bedEl.value = today.bedtime || "";
   if (wakeEl) wakeEl.value = today.wakeTime || "";
+  // Recalcul automatique depuis les heures si les deux sont renseignées
+  // (corrige les désynchronisations entre le slider et les champs heure)
+  const recomputed = calcSleepDuration(today.bedtime, today.wakeTime);
+  if (recomputed !== null && today.sleep !== recomputed) {
+    today.sleep = recomputed;
+    saveState();
+  }
   // Slider durée
   const slider = document.getElementById("sleepRange");
   const val = today.sleep != null ? today.sleep : 7.5;
