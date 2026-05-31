@@ -5544,13 +5544,6 @@ function computeHormones() {
   const journalDays = last7.filter(d => (state.history[todayKey(d)]?.journal || "").trim().length > 0).length;
   if (journalDays) { res.serotonine.score += journalDays; res.serotonine.sources.push(`${journalDays}j journal`); }
 
-  // 5. Repas planifiés/cuisinés → sérotonine + dopamine
-  const mealCount = (state.domestique?.mealEvents || []).filter(e => (e.date || "") >= k7).length;
-  if (mealCount) {
-    res.serotonine.score += mealCount; res.serotonine.sources.push(`${mealCount} repas cuisinés`);
-    res.dopamine.score  += mealCount; res.dopamine.sources.push(`${mealCount} repas cuisinés`);
-  }
-
   // 6. Événements sociaux calendrier → ocytocine
   const socialRe = /ami|amie|copain|copine|soirée|apéro|sortie|famille|maman|papa|parents|frère|sœur|soeur|frangine|frangin|mamie|papi/i;
   const socialEvs = state.calEvents.filter(e => (e.date || "") >= k7 && socialRe.test(e.title || ""));
@@ -7159,7 +7152,8 @@ const PILLAR_DEFS = [
       { type: "activity-sessions", regex: "médit", target: 2, label: "Méditation (obj. 2/sem)" },
       { type: "habit-avg", habitId: "h-lecture", target: 30, label: "Lecture/j" },
       { type: "journal-pct", target: 4, label: "Journal" },
-      { type: "meal-events-count", target: 2, label: "Cuisine / repas planifiés (obj. 2/sem)" },
+      { type: "activity-sessions", regex: "cuisine|bak|pâtiss", target: 2, label: "Cuisine (obj. 2/sem)" },
+      { type: "meal-events-count", target: 2, label: "Dîners planifiés" },
       { type: "cal-keywords-count", keywords: ["ami", "amie", "amis", "copain", "copine", "pote", "soirée", "apéro", "sortie"], target: 1, label: "Moments avec des amis (obj. 1/sem)" },
       { type: "cal-keywords-count", keywords: ["famille", "maman", "papa", "parents", "frère", "sœur", "soeur", "frangine", "frangin", "mamie", "papi", "grands?-?parents"], target: 1, label: "Moments en famille (obj. 1/sem)" },
     ]
@@ -9882,6 +9876,7 @@ function loadInitialData() {
   ensureAct("sport|salle", "Sport", "🏋️", "a-sport");
   ensureAct("médit", "Méditation", "🧘", "a-medit");
   ensureAct("danse", "Danse", "💃", "a-danse");
+  ensureAct("cuisine|baking|pâtiss|patiss", "Cuisine", "🍳", "a-cuisine");
   // Retirer marche / course si encore présent
   state.activities = state.activities.filter(a => !/marche|course/i.test(a.name));
   // Migration : ajouter les hormones aux activités qui n'en ont pas encore
