@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v146</title>
+<title>Mon Tableau de Vie 🌿 · v147</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2041,7 +2041,7 @@
     </div>
     <div class="card" style="margin-top:18px;">
       <div class="card-row" style="margin-bottom:14px;">
-        <h2 style="margin:0;">✨ Skincare</h2>
+        <h2 style="margin:0;">✨ Routines</h2>
         <span id="skincareStreakBadge" style="font-size:13px;color:var(--ink-soft);"></span>
       </div>
       <div id="skincareTodayBlock"></div>
@@ -3015,6 +3015,9 @@ const DEFAULT_STATE = {
     { id: "h-lecture", name: "Lire 30 min", type: "numeric", target: 30, unit: "min" },
     { id: "h-skincare-matin", name: "Skincare matin ☀️", type: "boolean" },
     { id: "h-skincare-soir", name: "Skincare soir 🌙", type: "boolean" },
+    { id: "h-dents-matin", name: "Brossage dents matin ☀️", type: "boolean" },
+    { id: "h-dents-soir", name: "Brossage dents soir 🌙", type: "boolean" },
+    { id: "h-douche", name: "Douche 🚿", type: "boolean" },
   ],
   activities: [
     { id: "a1", name: "Sport", emoji: "🏋️" },
@@ -3091,6 +3094,13 @@ function migrate(s) {
       s.habits.push({ id: "h-skincare-matin", name: "Skincare matin ☀️", type: "boolean" });
     if (!s.habits.find(h => h.id === "h-skincare-soir"))
       s.habits.push({ id: "h-skincare-soir", name: "Skincare soir 🌙", type: "boolean" });
+    // Migration : brossage de dents + douche
+    if (!s.habits.find(h => h.id === "h-dents-matin"))
+      s.habits.push({ id: "h-dents-matin", name: "Brossage dents matin ☀️", type: "boolean" });
+    if (!s.habits.find(h => h.id === "h-dents-soir"))
+      s.habits.push({ id: "h-dents-soir", name: "Brossage dents soir 🌙", type: "boolean" });
+    if (!s.habits.find(h => h.id === "h-douche"))
+      s.habits.push({ id: "h-douche", name: "Douche 🚿", type: "boolean" });
   }
   // Garantit que les 3 habitudes essentielles restent toujours numériques (résiste aux Recharger avec ancien cache)
   if (Array.isArray(s.habits)) {
@@ -6051,30 +6061,51 @@ function renderStepsStats() {
     <div style="font-size:11px;color:var(--ink-soft);margin-top:2px;">${daysGoal} jour${daysGoal > 1 ? "s" : ""} objectif atteint</div>
   `;
 }
-/* ========= SKINCARE ========= */
+/* ========= ROUTINES MATIN / SOIR ========= */
+const ROUTINES = {
+  matin: {
+    label: "Routine matin", emoji: "☀️", color: "#f7c9a3",
+    steps: [
+      { id: "h-skincare-matin", label: "Skincare",         emoji: "🧴" },
+      { id: "h-dents-matin",    label: "Brossage de dents", emoji: "🪥" },
+    ]
+  },
+  soir: {
+    label: "Routine soir", emoji: "🌙", color: "#c9b6f0",
+    steps: [
+      { id: "h-skincare-soir", label: "Skincare",         emoji: "🧴" },
+      { id: "h-dents-soir",    label: "Brossage de dents", emoji: "🪥" },
+      { id: "h-douche",        label: "Douche",            emoji: "🚿" },
+    ]
+  }
+};
+
+function routineComplete(habitsObj, key) {
+  return ROUTINES[key].steps.every(s => !!habitsObj[s.id]);
+}
+
 function renderSkincare() {
   const todayBlock = document.getElementById("skincareTodayBlock");
-  const grid30 = document.getElementById("skincare30Grid");
+  const grid30     = document.getElementById("skincare30Grid");
   const streakBadge = document.getElementById("skincareStreakBadge");
   if (!todayBlock) return;
 
   const todayK = todayKey();
-  const habits = getToday().habits || {};
-  const doneMatin = !!habits["h-skincare-matin"];
-  const doneSoir  = !!habits["h-skincare-soir"];
-  const bothDone  = doneMatin && doneSoir;
+  const habits  = getToday().habits || {};
+  const allDone = routineComplete(habits, "matin") && routineComplete(habits, "soir");
 
-  // --- Streak (les deux faits dans la journée) ---
+  // --- Streak : les deux routines 100% complètes ---
   let streak = 0;
-  let d = new Date();
-  if (!bothDone) d.setDate(d.getDate() - 1);
+  let sd = new Date();
+  if (!allDone) sd.setDate(sd.getDate() - 1);
   while (true) {
-    const k = todayKey(d);
+    const k = todayKey(sd);
     const h = state.history[k]?.habits || {};
-    if (h["h-skincare-matin"] && h["h-skincare-soir"]) { streak++; d.setDate(d.getDate() - 1); }
-    else break;
+    if (routineComplete(h, "matin") && routineComplete(h, "soir")) {
+      streak++; sd.setDate(sd.getDate() - 1);
+    } else break;
   }
-  if (bothDone) streak++;
+  if (allDone) streak++;
   if (streakBadge) {
     streakBadge.innerHTML = streak >= 3
       ? `🔥 ${streak} jour${streak > 1 ? "s" : ""} d'affilée`
@@ -6082,42 +6113,67 @@ function renderSkincare() {
       : `✨ ${streak} jour${streak > 1 ? "s" : ""}`;
   }
 
-  // --- Deux boutons toggle ---
-  const btn = (id, label, emoji, done, color) => `
-    <div onclick="toggleSkincare('${id}')" style="
-      flex:1;display:flex;align-items:center;gap:12px;padding:14px 16px;
-      border-radius:16px;cursor:pointer;transition:all 0.2s;
-      background:${done ? `linear-gradient(135deg,${color}30,white)` : "#faf8fd"};
-      border:2px solid ${done ? color : "var(--line)"};
-    ">
+  // --- Carte de routine ---
+  const routineCard = (key) => {
+    const r = ROUTINES[key];
+    const done = r.steps.map(s => !!habits[s.id]);
+    const nb   = done.filter(Boolean).length;
+    const full = nb === r.steps.length;
+    const pct  = Math.round((nb / r.steps.length) * 100);
+    const stepRow = (s, isDone) => `
+      <div onclick="toggleSkincare('${s.id}')" style="
+        display:flex;align-items:center;gap:10px;padding:10px 14px;
+        border-radius:12px;cursor:pointer;transition:all 0.2s;
+        background:${isDone ? `${r.color}22` : "transparent"};
+        border:1.5px solid ${isDone ? r.color : "var(--line)"};
+        margin-bottom:6px;
+      ">
+        <div style="
+          width:28px;height:28px;border-radius:50%;flex-shrink:0;
+          background:${isDone ? r.color : "white"};
+          border:2px solid ${isDone ? r.color : "var(--line)"};
+          display:flex;align-items:center;justify-content:center;
+          font-size:14px;transition:all 0.2s;
+        ">${isDone ? "✓" : s.emoji}</div>
+        <span style="font-size:13px;font-weight:500;color:var(--ink);">${s.label}</span>
+        ${isDone ? `<span style="margin-left:auto;font-size:11px;color:${r.color};">✓</span>` : ""}
+      </div>`;
+    return `
       <div style="
-        width:36px;height:36px;border-radius:50%;flex-shrink:0;
-        background:${done ? color : "white"};
-        border:2px solid ${done ? color : "var(--line)"};
-        display:flex;align-items:center;justify-content:center;
-        font-size:18px;transition:all 0.2s;
-      ">${done ? "✓" : emoji}</div>
-      <div>
-        <div style="font-weight:600;font-size:13px;color:var(--ink);">${label}</div>
-        <div style="font-size:11px;color:var(--ink-soft);margin-top:1px;">${done ? "Faite ✓" : "À faire"}</div>
-      </div>
-    </div>`;
+        flex:1;min-width:0;padding:14px 16px;border-radius:18px;
+        background:${full ? `linear-gradient(135deg,${r.color}25,white)` : "#faf8fd"};
+        border:2px solid ${full ? r.color : "var(--line)"};
+        transition:all 0.2s;
+      ">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <span style="font-size:18px;">${r.emoji}</span>
+          <span style="font-weight:700;font-size:14px;color:var(--ink);">${r.label}</span>
+          <span style="margin-left:auto;font-size:12px;font-weight:600;
+            color:${full ? r.color : "var(--ink-soft)"};">${nb}/${r.steps.length}</span>
+        </div>
+        ${r.steps.map((s, i) => stepRow(s, done[i])).join("")}
+        <div style="margin-top:8px;height:4px;border-radius:4px;background:var(--line);overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${r.color};border-radius:4px;transition:width 0.3s;"></div>
+        </div>
+      </div>`;
+  };
 
-  todayBlock.innerHTML = `<div style="display:flex;gap:10px;">
-    ${btn("h-skincare-matin", "Skincare matin", "☀️", doneMatin, "#f7c9a3")}
-    ${btn("h-skincare-soir",  "Skincare soir",  "🌙", doneSoir,  "#c9b6f0")}
+  todayBlock.innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap;">
+    ${routineCard("matin")}
+    ${routineCard("soir")}
   </div>`;
 
-  // --- Grille 30 jours (double rangée : matin / soir) ---
+  // --- Grille 30 jours ---
   if (!grid30) return;
   const dates30 = lastDates(30).reverse();
 
-  const dotsRow = (habitId, color) => dates30.map(d => {
+  const dotsRow = (key, color) => dates30.map(d => {
     const k = todayKey(d);
-    const isDone = !!state.history[k]?.habits?.[habitId];
+    const h = state.history[k]?.habits || {};
+    const isDone  = routineComplete(h, key);
     const isToday = k === todayK;
-    const label = d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-    return `<div title="${label}${isDone ? " ✓" : ""}" style="
+    const lbl = d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+    return `<div title="${lbl}${isDone ? " ✓" : ""}" style="
       width:18px;height:18px;border-radius:50%;flex-shrink:0;
       background:${isDone ? color : "var(--line)"};
       outline:${isToday ? `2px solid ${color}` : "none"};
@@ -6126,21 +6182,21 @@ function renderSkincare() {
     "></div>`;
   }).join("");
 
-  const doneM = dates30.filter(d => !!state.history[todayKey(d)]?.habits?.["h-skincare-matin"]).length;
-  const doneS = dates30.filter(d => !!state.history[todayKey(d)]?.habits?.["h-skincare-soir"]).length;
+  const doneM = dates30.filter(d => routineComplete(state.history[todayKey(d)]?.habits || {}, "matin")).length;
+  const doneS = dates30.filter(d => routineComplete(state.history[todayKey(d)]?.habits || {}, "soir")).length;
 
   grid30.innerHTML = `
     <div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px;">
-      30 derniers jours · ☀️ <strong>${doneM}/30</strong> matins · 🌙 <strong>${doneS}/30</strong> soirs
+      30 derniers jours · ☀️ <strong>${doneM}/30</strong> routines matin · 🌙 <strong>${doneS}/30</strong> routines soir
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;">
       <div style="display:flex;align-items:center;gap:6px;">
         <span style="font-size:12px;width:14px;">☀️</span>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;">${dotsRow("h-skincare-matin", "#f7c9a3")}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">${dotsRow("matin", "#f7c9a3")}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <span style="font-size:12px;width:14px;">🌙</span>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;">${dotsRow("h-skincare-soir", "#c9b6f0")}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">${dotsRow("soir", "#c9b6f0")}</div>
       </div>
     </div>`;
 }
