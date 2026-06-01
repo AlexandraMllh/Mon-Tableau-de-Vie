@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v158</title>
+<title>Mon Tableau de Vie 🌿 · v159</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -334,7 +334,7 @@
   .money-stat.expense { background: linear-gradient(135deg, white 0%, var(--rose-soft) 100%); }
   .money-stat.balance { background: linear-gradient(135deg, white 0%, var(--lavender-soft) 100%); }
   .tx-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; background: #faf8fd; padding: 12px; border-radius: 14px; }
-  .tx-form-inputs { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 8px; align-items: center; }
+  .tx-form-inputs { display: grid; grid-template-columns: 1fr 1fr 2fr auto auto; gap: 8px; align-items: center; }
   .tx-form .type-toggle {
     display: flex; gap: 5px; flex-wrap: wrap;
   }
@@ -2104,6 +2104,7 @@
           <input type="number" id="txAmount" placeholder="Montant (€)" step="0.01" />
           <select id="txCategory"></select>
           <input type="text" id="txNote" placeholder="Note (optionnel)" />
+          <input type="date" id="txDate" />
           <button class="add-btn" onclick="addTransaction()">Ajouter</button>
         </div>
       </div>
@@ -3439,7 +3440,7 @@ function onViewChange(view) {
   if (view === "work") updateWorkTabBadges();
   if (view === "activities") { renderActivityChart(); renderSportPlanning(); }
   if (view === "health") { renderBodyChart(currentBodyMetric); renderWellbeingChart(); renderStepsChart(); renderTrendPrediction(); renderSkincare(); }
-  if (view === "money") { renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast(); }
+  if (view === "money") { initTxDate(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast(); }
   if (view === "calendar") { renderCalendar(); autoSyncCalIfNeeded(); }
   if (view === "pillars") renderPillars();
 }
@@ -6663,14 +6664,22 @@ function renderMoneySummary() {
     <div class="money-stat expense"><div class="label">Dépenses — ${period}</div><div class="value">−${expense.toFixed(2)} €</div></div>
     <div class="money-stat balance"><div class="label">Solde</div><div class="value">${balance >= 0 ? "+" : ""}${balance.toFixed(2)} €</div></div>`;
 }
+function initTxDate() {
+  const el = document.getElementById("txDate");
+  if (el && !el.value) el.value = new Date().toISOString().slice(0, 10);
+}
 function addTransaction() {
   const amount = Number(document.getElementById("txAmount").value);
   if (!amount) return;
   if (amount <= 0) return;
   const category = document.getElementById("txCategory").value;
   const note = document.getElementById("txNote").value.trim();
-  state.transactions.unshift({ id: "tx" + Date.now(), date: new Date().toISOString(), type: txType, amount, category, note });
-  document.getElementById("txAmount").value = ""; document.getElementById("txNote").value = "";
+  const dateEl = document.getElementById("txDate");
+  const date = dateEl?.value ? new Date(dateEl.value).toISOString() : new Date().toISOString();
+  state.transactions.unshift({ id: "tx" + Date.now(), date, type: txType, amount, category, note });
+  document.getElementById("txAmount").value = "";
+  document.getElementById("txNote").value = "";
+  initTxDate(); // remet à aujourd'hui après ajout
   saveState();
   renderMoney(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
 }
