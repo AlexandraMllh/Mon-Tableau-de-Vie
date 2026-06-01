@@ -6605,6 +6605,7 @@ function renderExternalSummary() {
     return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed #f0eaf8;font-size:12px;">
       <span style="flex:1;color:var(--ink-soft);">${escapeHtml(tx.category)} — ${escapeHtml(tx.note || "—")}</span>
       <span style="color:var(--ink);">${tx.amount.toFixed(2)} €</span>
+      <button onclick="openTxModal('${tx.id}')" style="padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:white;color:var(--ink-soft);font-size:11px;cursor:pointer;">✎</button>
       <span style="color:var(--ink-softer);">${d}</span>
     </div>`;
   }).join("");
