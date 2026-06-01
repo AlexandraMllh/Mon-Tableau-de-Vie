@@ -1243,6 +1243,7 @@
     background: var(--card); border-radius: 22px; padding: 28px;
     width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    overscroll-behavior: contain;
   }
   .modal h2 { margin: 0 0 18px; }
   .modal label { font-size: 13px; color: var(--ink-soft); display: block; margin-bottom: 6px; margin-top: 12px; }
@@ -2666,8 +2667,8 @@
 </div>
 
 <!-- Transaction edit modal -->
-<div class="modal-bg" id="txModal" onclick="if(event.target===this)closeTxModal()">
-  <div class="modal" onclick="event.stopPropagation()">
+<div class="modal-bg" id="txModal" onmousedown="_txBdDown=event.target===this" onclick="if(event.target===this&&_txBdDown)closeTxModal()">
+  <div class="modal" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">
     <h2>Modifier la transaction</h2>
     <input type="hidden" id="txModalId" />
     <label>Type</label>
@@ -6681,6 +6682,7 @@ function renderExternalSummary() {
     </details>`;
 }
 let _reimbFormOpenId = null;
+let _txBdDown = false;
 
 function renderReimbursable() {
   const card = document.getElementById("reimbursableCard");
