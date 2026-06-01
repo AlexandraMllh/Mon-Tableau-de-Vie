@@ -6704,18 +6704,28 @@ function renderReimbursable() {
             <div style="font-size:12px;color:var(--ink-soft);">${escapeHtml(tx.note || "—")} · ${fmt(tx.date)}</div>
           </div>
           <div style="font-size:13px;font-weight:700;color:#dc7014;white-space:nowrap;">−${tx.amount.toFixed(2)} €</div>
+          <button onclick="openTxModal('${tx.id}')" title="Modifier"
+            style="padding:3px 7px;border-radius:6px;border:1px solid var(--line);background:white;color:var(--ink-soft);font-size:11px;cursor:pointer;">✎</button>
           <button onclick="toggleReimbForm('${tx.id}')"
             style="padding:4px 10px;border-radius:7px;border:1.5px solid ${isOpen ? '#6b7280' : '#dc7014'};background:${isOpen ? '#f9fafb' : '#fff7ed'};color:${isOpen ? '#6b7280' : '#dc7014'};font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">
             ${isOpen ? 'Annuler' : '→ Rembourser'}
           </button>
         </div>
         ${isOpen ? `
-        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;background:#f0fdf4;border-radius:9px;border:1.5px solid #10b981;">
-          <span style="font-size:12px;color:var(--ink-soft);">Date remboursement :</span>
-          <input type="date" id="reimbDate_${tx.id}" value="${today}"
-            style="padding:5px 9px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:12px;" />
+        <div style="margin-top:8px;padding:10px 12px;background:#f0fdf4;border-radius:9px;border:1.5px solid #10b981;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+            <span style="font-size:12px;color:var(--ink-soft);">Date :</span>
+            <input type="date" id="reimbDate_${tx.id}" value="${today}"
+              style="padding:5px 9px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:12px;" />
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+            <span style="font-size:12px;color:var(--ink-soft);">Montant remboursé :</span>
+            <input type="number" id="reimbAmt_${tx.id}" value="${tx.amount.toFixed(2)}" step="0.01" min="0"
+              style="width:100px;padding:5px 9px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:12px;" />
+            <span style="font-size:11px;color:var(--ink-soft);">€ (dépensé : ${tx.amount.toFixed(2)} €)</span>
+          </div>
           <button onclick="confirmReimbursed('${tx.id}')"
-            style="padding:5px 12px;border-radius:7px;border:none;background:#10b981;color:white;font-size:12px;font-weight:600;cursor:pointer;">
+            style="padding:5px 14px;border-radius:7px;border:none;background:#10b981;color:white;font-size:12px;font-weight:600;cursor:pointer;">
             Confirmer ✓
           </button>
         </div>` : ''}
@@ -6739,13 +6749,21 @@ function renderReimbursable() {
             Tout rembourser →
           </button>
         </div>
-        <div id="${missionDateId}_form" style="display:none;padding:8px 14px;background:#f0fdf4;border-top:1px solid #d1fae5;display:none;">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span style="font-size:12px;color:var(--ink-soft);">Date remboursement :</span>
+        <div id="${missionDateId}_form" style="display:none;padding:10px 14px;background:#f0fdf4;border-top:1px solid #d1fae5;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+            <span style="font-size:12px;color:var(--ink-soft);">Date :</span>
             <input type="date" id="${missionDateId}" value="${today}"
               style="padding:5px 9px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:12px;" />
-            <button onclick="confirmGroupReimbursed(${JSON.stringify(txs.map(t => t.id))}, '${missionDateId}')"
-              style="padding:5px 12px;border-radius:7px;border:none;background:#10b981;color:white;font-size:12px;font-weight:600;cursor:pointer;">
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+            <span style="font-size:12px;color:var(--ink-soft);">Montant remboursé :</span>
+            <input type="number" id="${missionDateId}_amt" value="${total.toFixed(2)}" step="0.01" min="0"
+              style="width:100px;padding:5px 9px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:12px;" />
+            <span style="font-size:11px;color:var(--ink-soft);">€ (total dépensé : ${total.toFixed(2)} €)</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="confirmGroupReimbursed(${JSON.stringify(txs.map(t => t.id))}, '${missionDateId}', ${JSON.stringify(key || '')})"
+              style="padding:5px 14px;border-radius:7px;border:none;background:#10b981;color:white;font-size:12px;font-weight:600;cursor:pointer;">
               Confirmer tout ✓
             </button>
             <button onclick="document.getElementById('${missionDateId}_form').style.display='none'"
@@ -6782,7 +6800,9 @@ function renderReimbursable() {
               <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed #e8f5e9;font-size:12px;">
                 <div style="flex:1;color:var(--ink);">${escapeHtml(tx.category)} — ${escapeHtml(tx.note || "—")} · ${fmt(tx.date)}</div>
                 <span style="color:#6b7280;white-space:nowrap;">${tx.amount.toFixed(2)} €</span>
-                <span style="font-size:11px;background:#f0fdf4;color:#10b981;border-radius:5px;padding:2px 6px;white-space:nowrap;">✓ ${fmt(tx.reimbursedAt)}</span>
+                <span style="font-size:11px;background:#f0fdf4;color:#10b981;border-radius:5px;padding:2px 6px;white-space:nowrap;">
+                  ✓ ${fmt(tx.reimbursedAt)}${tx.reimbursedAmount != null && tx.reimbursedAmount !== tx.amount ? ` · <strong>${tx.reimbursedAmount.toFixed(2)} €</strong>` : ''}
+                </span>
                 <button onclick="undoReimbursed('${tx.id}')" title="Annuler" style="padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:white;color:var(--ink-softer);font-size:11px;cursor:pointer;">↩</button>
               </div>`).join("")}
           </div>`).join("")}
@@ -6796,16 +6816,53 @@ function toggleGroupReimb(id) {
   const form = document.getElementById(id + "_form");
   if (form) form.style.display = form.style.display === "none" ? "flex" : "none";
 }
-function confirmGroupReimbursed(ids, dateInputId) {
-  const dateEl = document.getElementById(dateInputId);
-  const iso = new Date(dateEl?.value || new Date().toISOString().slice(0,10)).toISOString();
-  for (const id of ids) {
-    const tx = state.transactions.find(t => t.id === id);
-    if (tx) tx.reimbursedAt = iso;
-  }
+function _createReimbIncomeTx(dateIso, reimbAmount, note) {
+  // Crée une transaction Revenu pour le remboursement reçu
+  const incTx = {
+    id: "tx" + Date.now() + Math.random().toString(36).slice(2, 6),
+    date: dateIso,
+    type: "income",
+    amount: reimbAmount,
+    category: "Remboursement",
+    note,
+    reimbursable: false,
+  };
+  state.transactions.unshift(incTx);
+  return incTx.id;
+}
+
+function confirmReimbursed(id) {
+  const tx = state.transactions.find(t => t.id === id);
+  if (!tx) return;
+  const dateVal = document.getElementById("reimbDate_" + id)?.value || new Date().toISOString().slice(0, 10);
+  const reimbAmt = parseFloat(document.getElementById("reimbAmt_" + id)?.value) || tx.amount;
+  const dateIso = new Date(dateVal).toISOString();
+  tx.reimbursedAt = dateIso;
+  tx.reimbursedAmount = reimbAmt;
+  const note = [tx.mission, tx.category, tx.note].filter(Boolean).join(" — ");
+  tx.reimbTxId = _createReimbIncomeTx(dateIso, reimbAmt, note);
   _reimbFormOpenId = null;
   saveState();
-  renderMoney();
+  renderMoney(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
+}
+
+function confirmGroupReimbursed(ids, dateInputId, mission) {
+  const dateVal = document.getElementById(dateInputId)?.value || new Date().toISOString().slice(0, 10);
+  const reimbAmt = parseFloat(document.getElementById(dateInputId + "_amt")?.value) || 0;
+  const dateIso = new Date(dateVal).toISOString();
+  const txs = ids.map(id => state.transactions.find(t => t.id === id)).filter(Boolean);
+  const totalSpent = txs.reduce((s, t) => s + t.amount, 0);
+  for (const t of txs) {
+    t.reimbursedAt = dateIso;
+    t.reimbursedAmount = null; // montant individuel non défini sur le groupe
+  }
+  const note = mission ? `Mission : ${mission}` : "Remboursement frais pro";
+  const incId = _createReimbIncomeTx(dateIso, reimbAmt, note);
+  // Stocker la référence sur la première tx du groupe
+  if (txs[0]) txs[0].reimbTxId = incId;
+  _reimbFormOpenId = null;
+  saveState();
+  renderMoney(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
 }
 
 function toggleReimbForm(id) {
@@ -6813,23 +6870,18 @@ function toggleReimbForm(id) {
   renderReimbursable();
 }
 
-function confirmReimbursed(id) {
-  const tx = state.transactions.find(t => t.id === id);
-  if (!tx) return;
-  const dateEl = document.getElementById("reimbDate_" + id);
-  const dateVal = dateEl?.value || new Date().toISOString().slice(0, 10);
-  tx.reimbursedAt = new Date(dateVal).toISOString();
-  _reimbFormOpenId = null;
-  saveState();
-  renderMoney();
-}
-
 function undoReimbursed(id) {
   const tx = state.transactions.find(t => t.id === id);
   if (!tx) return;
+  // Supprimer la transaction de revenu associée si elle existe
+  if (tx.reimbTxId) {
+    state.transactions = state.transactions.filter(t => t.id !== tx.reimbTxId);
+    delete tx.reimbTxId;
+  }
   delete tx.reimbursedAt;
+  delete tx.reimbursedAmount;
   saveState();
-  renderMoney();
+  renderMoney(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
 }
 function balanceCourant() {
   const start = state.accounts?.courantStart || 0;
