@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v164</title>
+<title>Mon Tableau de Vie 🌿 · v165</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -7115,12 +7115,12 @@ function renderBudgetGauge() {
   if (remaining < 0) {
     alertHtml = `<div style="margin-bottom:14px;padding:10px 14px;border-radius:12px;background:#fee2e2;border:1.5px solid #dc2626;font-size:13px;color:#dc2626;font-weight:600;">
       🚨 Budget dépassé de ${Math.abs(remaining).toFixed(0)} € — il reste ${daysLeft} jours</div>`;
-  } else if (projectedTotal > budget * 1.05) {
-    alertHtml = `<div style="margin-bottom:14px;padding:10px 14px;border-radius:12px;background:#fef3c7;border:1.5px solid #f59e0b;font-size:13px;color:#92400e;">
-      ⚠️ À ce rythme tu finiras à ~${projectedTotal.toFixed(0)} € — limite-toi à <strong>${dailyLeft.toFixed(0)} €/jour</strong></div>`;
+  } else if (pct >= 90) {
+    alertHtml = `<div style="margin-bottom:14px;padding:10px 14px;border-radius:12px;background:#fee2e2;border:1.5px solid #dc2626;font-size:13px;color:#dc2626;">
+      🔴 ${pct}% du budget consommé — il te reste <strong>${remaining.toFixed(0)} € pour ${daysLeft} jours</strong> (${dailyLeft.toFixed(0)} €/j max)</div>`;
   } else if (pct >= 70) {
     alertHtml = `<div style="margin-bottom:14px;padding:10px 14px;border-radius:12px;background:#fef3c7;border:1.5px solid #f59e0b;font-size:13px;color:#92400e;">
-      👀 ${pct}% du budget consommé — reste <strong>${dailyLeft.toFixed(0)} €/jour</strong> pour tenir</div>`;
+      ⚠️ ${pct}% du budget consommé — il te reste <strong>${remaining.toFixed(0)} € pour ${daysLeft} jours</strong> (${dailyLeft.toFixed(0)} €/j max)</div>`;
   }
 
   el.innerHTML = `
