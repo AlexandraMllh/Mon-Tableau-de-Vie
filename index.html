@@ -2097,6 +2097,14 @@
       </div>
       <div id="budgetGauge"></div>
     </div>
+    <div class="card" id="externalCard" style="margin-bottom:18px;display:none;">
+      <div class="card-row" style="margin-bottom:10px;">
+        <h2 style="margin:0;">🧾 Hors compte — ce mois</h2>
+        <span id="externalTotal" style="font-size:14px;font-weight:700;color:var(--ink-soft);"></span>
+      </div>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 10px;">Ces dépenses ne passent pas par ton compte courant — elles n'impactent pas la jauge budget.</p>
+      <div id="externalList"></div>
+    </div>
     <div class="card" style="margin-bottom:18px;">
       <h2>Nouvelle transaction</h2>
       <div class="tx-form">
@@ -2114,6 +2122,10 @@
           <input type="date" id="txDate" />
           <button class="add-btn" onclick="addTransaction()">Ajouter</button>
         </div>
+        <label id="txReimbursableWrap" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);margin-top:4px;cursor:pointer;">
+          <input type="checkbox" id="txReimbursable" style="width:15px;height:15px;cursor:pointer;" />
+          💼 Frais pro — remboursé par le boulot
+        </label>
       </div>
     </div>
     <div class="card" style="margin-bottom:18px;">
@@ -2168,6 +2180,14 @@
       <h2>🔮 Prévision — mois prochain</h2>
       <p style="font-size:12px;color:var(--ink-soft);margin:-4px 0 14px;">Estimation automatique basée sur tes dépenses et revenus des derniers mois complets.</p>
       <div id="forecastCard"></div>
+    </div>
+    <div class="card" id="reimbursableCard" style="margin-top:18px;display:none;">
+      <div class="card-row" style="margin-bottom:12px;">
+        <h2 style="margin:0;">💼 Frais pros en attente</h2>
+        <span id="reimbursableTotal" style="font-size:15px;font-weight:700;color:#dc7014;"></span>
+      </div>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px;">Ces dépenses sont exclues de ton budget — elles seront remboursées par ton employeur.</p>
+      <div id="reimbursableList"></div>
     </div>
     <div class="card" id="txCard" style="margin-top:18px;">
       <div class="card-row">
@@ -2666,6 +2686,10 @@
     <input type="date" id="txModalDate" />
     <label>Note</label>
     <input type="text" id="txModalNote" placeholder="Optionnel" />
+    <label id="txModalReimbursableWrap" style="display:none;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);margin-top:4px;cursor:pointer;">
+      <input type="checkbox" id="txModalReimbursable" style="width:15px;height:15px;cursor:pointer;" />
+      💼 Frais pro — remboursé par le boulot
+    </label>
     <div class="actions">
       <button class="danger" onclick="deleteTxFromModal()">Supprimer</button>
       <div class="spacer"></div>
@@ -6545,9 +6569,83 @@ function setTxType(t) {
   document.getElementById("txTypeSavings").classList.toggle("active", t === "savings");
   document.getElementById("txTypeExternal").classList.toggle("active", t === "external");
   document.getElementById("txTypeSavingsOut").classList.toggle("active", t === "savings-out");
+  // Afficher le toggle frais pro uniquement pour les dépenses
+  const wrap = document.getElementById("txReimbursableWrap");
+  if (wrap) {
+    wrap.style.display = (t === "expense" || t === "external") ? "flex" : "none";
+    if (t !== "expense" && t !== "external") document.getElementById("txReimbursable").checked = false;
+  }
   populateTxCategories();
 }
-function renderMoney() { populateTxCategories(); renderMoneySummary(); renderBudgetGauge(); renderTxList(); renderSavings(); renderAccounts(); renderForecast(); renderDailyExpenseChart(); }
+function renderMoney() { populateTxCategories(); renderMoneySummary(); renderBudgetGauge(); renderExternalSummary(); renderTxList(); renderReimbursable(); renderSavings(); renderAccounts(); renderForecast(); renderDailyExpenseChart(); }
+function renderExternalSummary() {
+  const card = document.getElementById("externalCard");
+  const listEl = document.getElementById("externalList");
+  const totalEl = document.getElementById("externalTotal");
+  if (!card || !listEl) return;
+  const [start, end] = currentMonthRange();
+  const txs = state.transactions.filter(tx => {
+    const d = new Date(tx.date);
+    return tx.type === "external" && d >= start && d < end;
+  }).sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (!txs.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+  const total = txs.reduce((s, tx) => s + tx.amount, 0);
+  if (totalEl) totalEl.textContent = total.toFixed(2) + " €";
+  // Grouper par catégorie
+  const byCat = {};
+  for (const tx of txs) byCat[tx.category] = (byCat[tx.category] || 0) + tx.amount;
+  const catRows = Object.entries(byCat).sort((a, b) => b[1] - a[1])
+    .map(([cat, amt]) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px;">
+      <span style="color:var(--ink);">${escapeHtml(cat)}</span>
+      <span style="font-weight:600;color:var(--ink-soft);">${amt.toFixed(2)} €</span>
+    </div>`).join("");
+  const txRows = txs.map(tx => {
+    const d = new Date(tx.date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed #f0eaf8;font-size:12px;">
+      <span style="flex:1;color:var(--ink-soft);">${escapeHtml(tx.category)} — ${escapeHtml(tx.note || "—")}</span>
+      <span style="color:var(--ink);">${tx.amount.toFixed(2)} €</span>
+      <span style="color:var(--ink-softer);">${d}</span>
+    </div>`;
+  }).join("");
+  listEl.innerHTML = `
+    <div style="margin-bottom:10px;">${catRows}</div>
+    <details style="margin-top:8px;">
+      <summary style="font-size:12px;color:var(--ink-soft);cursor:pointer;user-select:none;">Voir le détail (${txs.length} transaction${txs.length > 1 ? "s" : ""})</summary>
+      <div style="margin-top:8px;">${txRows}</div>
+    </details>`;
+}
+function renderReimbursable() {
+  const card = document.getElementById("reimbursableCard");
+  const list = document.getElementById("reimbursableList");
+  const totalEl = document.getElementById("reimbursableTotal");
+  if (!card || !list) return;
+  const pending = state.transactions.filter(tx => tx.reimbursable && !tx.reimbursedAt);
+  if (!pending.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+  const total = pending.reduce((s, tx) => s + tx.amount, 0);
+  if (totalEl) totalEl.textContent = total.toFixed(2) + " € à récupérer";
+  list.innerHTML = pending.map(tx => {
+    const d = new Date(tx.date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);">
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:600;color:var(--ink);">${escapeHtml(tx.category)}</div>
+          <div style="font-size:12px;color:var(--ink-soft);">${escapeHtml(tx.note || "—")} · ${d}</div>
+        </div>
+        <div style="font-size:15px;font-weight:700;color:#dc7014;">−${tx.amount.toFixed(2)} €</div>
+        <button onclick="markReimbursed('${tx.id}')" style="padding:5px 12px;border-radius:8px;border:1.5px solid #10b981;background:#f0fdf4;color:#10b981;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Remboursé ✓</button>
+      </div>`;
+  }).join("");
+}
+function markReimbursed(id) {
+  const tx = state.transactions.find(t => t.id === id);
+  if (!tx) return;
+  tx.reimbursedAt = new Date().toISOString();
+  saveState();
+  renderMoney();
+  renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
+}
 function balanceCourant() {
   const start = state.accounts?.courantStart || 0;
   let income = 0, expense = 0, savings = 0, savingsOut = 0;
@@ -6684,9 +6782,12 @@ function addTransaction() {
   const note = document.getElementById("txNote").value.trim();
   const dateEl = document.getElementById("txDate");
   const date = dateEl?.value ? new Date(dateEl.value).toISOString() : new Date().toISOString();
-  state.transactions.unshift({ id: "tx" + Date.now(), date, type: txType, amount, category, note });
+  const reimbursableEl = document.getElementById("txReimbursable");
+  const reimbursable = reimbursableEl?.checked && (txType === "expense" || txType === "external") ? true : false;
+  state.transactions.unshift({ id: "tx" + Date.now(), date, type: txType, amount, category, note, reimbursable });
   document.getElementById("txAmount").value = "";
   document.getElementById("txNote").value = "";
+  if (reimbursableEl) reimbursableEl.checked = false;
   initTxDate(); // remet à aujourd'hui après ajout
   saveState();
   renderMoney(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
@@ -6710,6 +6811,8 @@ function openTxModal(id) {
   const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, "0"); const day = String(d.getDate()).padStart(2, "0");
   document.getElementById("txModalDate").value = `${y}-${m}-${day}`;
   setTxModalType(tx.type, tx.category);
+  const modalReimb = document.getElementById("txModalReimbursable");
+  if (modalReimb) modalReimb.checked = !!tx.reimbursable;
   document.getElementById("txModal").classList.add("open");
 }
 function closeTxModal() { document.getElementById("txModal").classList.remove("open"); }
@@ -6733,6 +6836,9 @@ function setTxModalType(t, presetCategory) {
   const sel = document.getElementById("txModalCategory");
   sel.innerHTML = cfg[t].list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
   if (presetCategory && cfg[t].list.includes(presetCategory)) sel.value = presetCategory;
+  // Afficher le toggle frais pro uniquement pour les dépenses
+  const modalWrap = document.getElementById("txModalReimbursableWrap");
+  if (modalWrap) modalWrap.style.display = (t === "expense" || t === "external") ? "flex" : "none";
 }
 function saveTxFromModal() {
   const id = document.getElementById("txModalId").value;
@@ -6752,6 +6858,8 @@ function saveTxFromModal() {
   tx.category = category;
   tx.note = note;
   tx.date = orig.toISOString();
+  const modalReimb = document.getElementById("txModalReimbursable");
+  tx.reimbursable = modalReimb?.checked && (txModalType === "expense" || txModalType === "external") ? true : false;
   saveState();
   closeTxModal();
   renderMoney(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
@@ -6830,8 +6938,8 @@ function renderTxList() {
       <div class="tx-row">
         <div class="tx-dot" style="background:${dotColor}"></div>
         <div class="tx-info">
-          <div class="tx-cat">${escapeHtml(tx.category)}</div>
-          <div class="tx-note">${escapeHtml(tx.note || "—")}</div>
+          <div class="tx-cat">${escapeHtml(tx.category)}${tx.reimbursable ? ' <span style="font-size:11px;background:#fff3e0;color:#dc7014;border-radius:6px;padding:1px 5px;font-weight:600;">💼 frais pro</span>' : ''}</div>
+          <div class="tx-note">${escapeHtml(tx.note || "—")}${tx.reimbursedAt ? ' ✅' : ''}</div>
         </div>
         <div class="tx-amount ${tx.type}">${sign} ${Math.abs(tx.amount).toFixed(2)} €</div>
         <div class="tx-date">${dateStr}</div>
@@ -6859,7 +6967,7 @@ function renderDailyExpenseChart() {
   for (const tx of state.transactions) {
     const dk = todayKey(new Date(tx.date));
     if (!(dk in outByDay)) continue;
-    if (tx.type === "expense" || tx.type === "external") outByDay[dk] += tx.amount;
+    if (tx.type === "expense") outByDay[dk] += tx.amount;
     else if (tx.type === "income" || tx.type === "savings-out") inByDay[dk] += tx.amount;
   }
 
@@ -7052,7 +7160,7 @@ function renderMoneyCatChart() {
   const totals = {};
   for (const tx of state.transactions) {
     const d = new Date(tx.date);
-    if (d >= start && d < end && (tx.type === "expense" || tx.type === "external")) totals[tx.category] = (totals[tx.category] || 0) + tx.amount;
+    if (d >= start && d < end && tx.type === "expense") totals[tx.category] = (totals[tx.category] || 0) + tx.amount;
   }
   const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
   if (!entries.length) { _emptyDonutPlaceholder(wrap, "Aucune dépense<br>ce mois"); return; }
@@ -7089,7 +7197,7 @@ function renderBudgetGauge() {
     if (tx.type === "income")       income     += tx.amount;
     if (tx.type === "savings")      savings    += tx.amount;
     if (tx.type === "savings-out")  savingsOut += tx.amount;
-    if (tx.type === "expense" || tx.type === "external") spent += tx.amount;
+    if (tx.type === "expense" && !tx.reimbursable) spent += tx.amount;
   }
   // Restant = solde courant réel (ce qu'il y a vraiment en banque)
   const remaining = balanceCourant();
@@ -7735,7 +7843,7 @@ function computeMetric(m) {
     let spent = 0;
     for (const tx of state.transactions) {
       const d = new Date(tx.date);
-      if (d >= start && d < end && (tx.type === "expense" || tx.type === "external")) spent += tx.amount;
+      if (d >= start && d < end && tx.type === "expense" && !tx.reimbursable) spent += tx.amount;
     }
     const remaining = balanceCourant();
     const budget = spent + remaining;
