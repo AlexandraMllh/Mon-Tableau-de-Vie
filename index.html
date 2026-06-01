@@ -2124,9 +2124,14 @@
           <button class="add-btn" onclick="addTransaction()">Ajouter</button>
         </div>
         <label id="txReimbursableWrap" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);margin-top:4px;cursor:pointer;">
-          <input type="checkbox" id="txReimbursable" style="width:15px;height:15px;cursor:pointer;" />
+          <input type="checkbox" id="txReimbursable" style="width:15px;height:15px;cursor:pointer;" onchange="toggleMissionField('txMissionWrap', this.checked)" />
           💼 Frais pro — remboursé par le boulot
         </label>
+        <div id="txMissionWrap" style="display:none;margin-top:6px;">
+          <input type="text" id="txMission" list="missionList" placeholder="Mission / déplacement (ex : Conférence MHT Amsterdam)"
+            style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;color:var(--ink);box-sizing:border-box;" />
+          <datalist id="missionList"></datalist>
+        </div>
       </div>
     </div>
     <div class="card" style="margin-bottom:18px;">
@@ -2688,9 +2693,13 @@
     <label>Note</label>
     <input type="text" id="txModalNote" placeholder="Optionnel" />
     <label id="txModalReimbursableWrap" style="display:none;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);margin-top:4px;cursor:pointer;">
-      <input type="checkbox" id="txModalReimbursable" style="width:15px;height:15px;cursor:pointer;" />
+      <input type="checkbox" id="txModalReimbursable" style="width:15px;height:15px;cursor:pointer;" onchange="toggleMissionField('txModalMissionWrap', this.checked)" />
       💼 Frais pro — remboursé par le boulot
     </label>
+    <div id="txModalMissionWrap" style="display:none;margin-top:6px;">
+      <input type="text" id="txModalMission" list="missionList" placeholder="Mission / déplacement"
+        style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;color:var(--ink);box-sizing:border-box;" />
+    </div>
     <div class="actions">
       <button class="danger" onclick="deleteTxFromModal()">Supprimer</button>
       <div class="spacer"></div>
@@ -6578,6 +6587,17 @@ function renderTrendPrediction() {
 
 /* ========= MONEY ========= */
 let txType = "expense";
+function toggleMissionField(wrapId, show) {
+  const w = document.getElementById(wrapId);
+  if (w) w.style.display = show ? "block" : "none";
+}
+function populateMissionList() {
+  const missions = [...new Set(
+    state.transactions.filter(t => t.reimbursable && t.mission).map(t => t.mission)
+  )].sort();
+  const dl = document.getElementById("missionList");
+  if (dl) dl.innerHTML = missions.map(m => `<option value="${escapeHtml(m)}">`).join("");
+}
 function setTxType(t) {
   txType = t;
   document.getElementById("txTypeExpense").classList.toggle("active", t === "expense");
@@ -6588,12 +6608,16 @@ function setTxType(t) {
   // Afficher le toggle frais pro uniquement pour les dépenses
   const wrap = document.getElementById("txReimbursableWrap");
   if (wrap) {
-    wrap.style.display = (t === "expense" || t === "external") ? "flex" : "none";
-    if (t !== "expense" && t !== "external") document.getElementById("txReimbursable").checked = false;
+    const show = (t === "expense" || t === "external");
+    wrap.style.display = show ? "flex" : "none";
+    if (!show) {
+      document.getElementById("txReimbursable").checked = false;
+      toggleMissionField("txMissionWrap", false);
+    }
   }
   populateTxCategories();
 }
-function renderMoney() { populateTxCategories(); renderMoneySummary(); renderBudgetGauge(); renderExternalSummary(); renderTxList(); renderReimbursable(); renderSavings(); renderAccounts(); renderForecast(); renderDailyExpenseChart(); }
+function renderMoney() { populateTxCategories(); populateMissionList(); renderMoneySummary(); renderBudgetGauge(); renderExternalSummary(); renderTxList(); renderReimbursable(); renderSavings(); renderAccounts(); renderForecast(); renderDailyExpenseChart(); }
 function renderExternalSummary() {
   const card = document.getElementById("externalCard");
   const listEl = document.getElementById("externalList");
@@ -6632,7 +6656,7 @@ function renderExternalSummary() {
       <div style="margin-top:8px;">${txRows}</div>
     </details>`;
 }
-let _reimbFormOpenId = null; // id de la ligne dont le formulaire de date est ouvert
+let _reimbFormOpenId = null;
 
 function renderReimbursable() {
   const card = document.getElementById("reimbursableCard");
@@ -6653,61 +6677,135 @@ function renderReimbursable() {
     : "Tout remboursé ✓";
 
   const fmt = iso => new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  const today = new Date().toISOString().slice(0, 10);
 
-  // Section EN ATTENTE
-  const pendingRows = pending.length ? pending.map(tx => {
+  // Grouper les pending par mission (clé "" = sans mission)
+  const groups = {};
+  for (const tx of pending) {
+    const key = tx.mission?.trim() || "";
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(tx);
+  }
+
+  // Trier : missions nommées d'abord (alphabétique), sans mission en dernier
+  const groupKeys = Object.keys(groups).sort((a, b) => {
+    if (!a && b) return 1;
+    if (a && !b) return -1;
+    return a.localeCompare(b, "fr");
+  });
+
+  const txRow = tx => {
     const isOpen = _reimbFormOpenId === tx.id;
-    const today = new Date().toISOString().slice(0, 10);
     return `
-      <div style="padding:10px 0;border-bottom:1px solid var(--line);">
-        <div style="display:flex;align-items:center;gap:10px;">
+      <div style="padding:8px 0 8px 12px;border-bottom:1px dashed #f0eaf8;">
+        <div style="display:flex;align-items:center;gap:8px;">
           <div style="flex:1;">
-            <div style="font-size:14px;font-weight:600;color:var(--ink);">${escapeHtml(tx.category)}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink);">${escapeHtml(tx.category)}</div>
             <div style="font-size:12px;color:var(--ink-soft);">${escapeHtml(tx.note || "—")} · ${fmt(tx.date)}</div>
           </div>
-          <div style="font-size:15px;font-weight:700;color:#dc7014;">−${tx.amount.toFixed(2)} €</div>
+          <div style="font-size:13px;font-weight:700;color:#dc7014;white-space:nowrap;">−${tx.amount.toFixed(2)} €</div>
           <button onclick="toggleReimbForm('${tx.id}')"
-            style="padding:5px 12px;border-radius:8px;border:1.5px solid ${isOpen ? '#6b7280' : '#dc7014'};background:${isOpen ? '#f9fafb' : '#fff7ed'};color:${isOpen ? '#6b7280' : '#dc7014'};font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
-            ${isOpen ? 'Annuler' : 'Non remboursé →'}
+            style="padding:4px 10px;border-radius:7px;border:1.5px solid ${isOpen ? '#6b7280' : '#dc7014'};background:${isOpen ? '#f9fafb' : '#fff7ed'};color:${isOpen ? '#6b7280' : '#dc7014'};font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">
+            ${isOpen ? 'Annuler' : '→ Rembourser'}
           </button>
         </div>
         ${isOpen ? `
-        <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#f0fdf4;border-radius:10px;border:1.5px solid #10b981;">
-          <span style="font-size:13px;color:var(--ink-soft);">Date du remboursement :</span>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;background:#f0fdf4;border-radius:9px;border:1.5px solid #10b981;">
+          <span style="font-size:12px;color:var(--ink-soft);">Date remboursement :</span>
           <input type="date" id="reimbDate_${tx.id}" value="${today}"
-            style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+            style="padding:5px 9px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:12px;" />
           <button onclick="confirmReimbursed('${tx.id}')"
-            style="padding:6px 14px;border-radius:8px;border:none;background:#10b981;color:white;font-size:13px;font-weight:600;cursor:pointer;">
+            style="padding:5px 12px;border-radius:7px;border:none;background:#10b981;color:white;font-size:12px;font-weight:600;cursor:pointer;">
             Confirmer ✓
           </button>
         </div>` : ''}
       </div>`;
-  }).join("") : `<p style="font-size:13px;color:var(--ink-soft);padding:8px 0;">Aucun frais en attente 🎉</p>`;
+  };
 
-  // Section REMBOURSÉS
+  const missionBlock = key => {
+    const txs = groups[key];
+    const total = txs.reduce((s, t) => s + t.amount, 0);
+    const label = key || "Sans mission";
+    const missionDateId = "missionDate_" + btoa(key || "_none").replace(/=/g, "");
+    return `
+      <div style="margin-bottom:14px;border:1.5px solid var(--line);border-radius:14px;overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--lavender-soft);">
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:700;color:var(--ink);">${key ? '✈️ ' + escapeHtml(key) : '📌 Sans mission'}</div>
+            <div style="font-size:12px;color:var(--ink-soft);">${txs.length} dépense${txs.length > 1 ? 's' : ''} · ${total.toFixed(2)} €</div>
+          </div>
+          <button onclick="toggleGroupReimb('${missionDateId}')"
+            style="padding:5px 11px;border-radius:8px;border:1.5px solid var(--lilac);background:white;color:var(--lilac);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
+            Tout rembourser →
+          </button>
+        </div>
+        <div id="${missionDateId}_form" style="display:none;padding:8px 14px;background:#f0fdf4;border-top:1px solid #d1fae5;display:none;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:12px;color:var(--ink-soft);">Date remboursement :</span>
+            <input type="date" id="${missionDateId}" value="${today}"
+              style="padding:5px 9px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:12px;" />
+            <button onclick="confirmGroupReimbursed(${JSON.stringify(txs.map(t => t.id))}, '${missionDateId}')"
+              style="padding:5px 12px;border-radius:7px;border:none;background:#10b981;color:white;font-size:12px;font-weight:600;cursor:pointer;">
+              Confirmer tout ✓
+            </button>
+            <button onclick="document.getElementById('${missionDateId}_form').style.display='none'"
+              style="padding:5px 10px;border-radius:7px;border:1px solid var(--line);background:white;color:var(--ink-soft);font-size:12px;cursor:pointer;">
+              Annuler
+            </button>
+          </div>
+        </div>
+        <div>${txs.map(tx => txRow(tx)).join("")}</div>
+      </div>`;
+  };
+
+  const pendingHtml = groupKeys.length
+    ? groupKeys.map(missionBlock).join("")
+    : `<p style="font-size:13px;color:var(--ink-soft);padding:8px 0;">Aucun frais en attente 🎉</p>`;
+
+  // Section REMBOURSÉS — groupés par mission
+  const doneByMission = {};
+  for (const tx of done) {
+    const key = tx.mission?.trim() || "";
+    if (!doneByMission[key]) doneByMission[key] = [];
+    doneByMission[key].push(tx);
+  }
   const doneRows = done.length ? `
     <details style="margin-top:14px;">
       <summary style="font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px;">
         <span>▸</span> Remboursés (${done.length}) · ${done.reduce((s,tx) => s + tx.amount, 0).toFixed(2)} €
       </summary>
       <div style="margin-top:8px;">
-        ${done.map(tx => `
-          <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed #e8f5e9;font-size:13px;">
-            <div style="flex:1;">
-              <span style="font-weight:600;color:var(--ink);">${escapeHtml(tx.category)}</span>
-              <span style="color:var(--ink-soft);"> — ${escapeHtml(tx.note || "—")} · ${fmt(tx.date)}</span>
-            </div>
-            <span style="color:#6b7280;">${tx.amount.toFixed(2)} €</span>
-            <span style="font-size:11px;background:#f0fdf4;color:#10b981;border-radius:6px;padding:2px 7px;font-weight:600;white-space:nowrap;">
-              ✓ ${fmt(tx.reimbursedAt)}
-            </span>
-            <button onclick="undoReimbursed('${tx.id}')" title="Annuler le remboursement"
-              style="padding:2px 7px;border-radius:6px;border:1px solid var(--line);background:white;color:var(--ink-softer);font-size:11px;cursor:pointer;">↩</button>
+        ${Object.entries(doneByMission).sort((a,b) => a[0].localeCompare(b[0],"fr")).map(([key, txs]) => `
+          <div style="margin-bottom:10px;">
+            <div style="font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;padding:4px 0 6px;">${key || 'Sans mission'}</div>
+            ${txs.map(tx => `
+              <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed #e8f5e9;font-size:12px;">
+                <div style="flex:1;color:var(--ink);">${escapeHtml(tx.category)} — ${escapeHtml(tx.note || "—")} · ${fmt(tx.date)}</div>
+                <span style="color:#6b7280;white-space:nowrap;">${tx.amount.toFixed(2)} €</span>
+                <span style="font-size:11px;background:#f0fdf4;color:#10b981;border-radius:5px;padding:2px 6px;white-space:nowrap;">✓ ${fmt(tx.reimbursedAt)}</span>
+                <button onclick="undoReimbursed('${tx.id}')" title="Annuler" style="padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:white;color:var(--ink-softer);font-size:11px;cursor:pointer;">↩</button>
+              </div>`).join("")}
           </div>`).join("")}
       </div>
     </details>` : "";
 
-  list.innerHTML = pendingRows + doneRows;
+  list.innerHTML = pendingHtml + doneRows;
+}
+
+function toggleGroupReimb(id) {
+  const form = document.getElementById(id + "_form");
+  if (form) form.style.display = form.style.display === "none" ? "flex" : "none";
+}
+function confirmGroupReimbursed(ids, dateInputId) {
+  const dateEl = document.getElementById(dateInputId);
+  const iso = new Date(dateEl?.value || new Date().toISOString().slice(0,10)).toISOString();
+  for (const id of ids) {
+    const tx = state.transactions.find(t => t.id === id);
+    if (tx) tx.reimbursedAt = iso;
+  }
+  _reimbFormOpenId = null;
+  saveState();
+  renderMoney();
 }
 
 function toggleReimbForm(id) {
@@ -6871,10 +6969,14 @@ function addTransaction() {
   const date = dateEl?.value ? new Date(dateEl.value).toISOString() : new Date().toISOString();
   const reimbursableEl = document.getElementById("txReimbursable");
   const reimbursable = reimbursableEl?.checked && (txType === "expense" || txType === "external") ? true : false;
-  state.transactions.unshift({ id: "tx" + Date.now(), date, type: txType, amount, category, note, reimbursable });
+  const mission = reimbursable ? (document.getElementById("txMission")?.value.trim() || "") : "";
+  state.transactions.unshift({ id: "tx" + Date.now(), date, type: txType, amount, category, note, reimbursable, mission });
   document.getElementById("txAmount").value = "";
   document.getElementById("txNote").value = "";
   if (reimbursableEl) reimbursableEl.checked = false;
+  const missionEl = document.getElementById("txMission");
+  if (missionEl) missionEl.value = "";
+  toggleMissionField("txMissionWrap", false);
   initTxDate(); // remet à aujourd'hui après ajout
   saveState();
   renderMoney(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
@@ -6897,9 +6999,13 @@ function openTxModal(id) {
   const d = new Date(tx.date);
   const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, "0"); const day = String(d.getDate()).padStart(2, "0");
   document.getElementById("txModalDate").value = `${y}-${m}-${day}`;
+  populateMissionList();
   setTxModalType(tx.type, tx.category);
   const modalReimb = document.getElementById("txModalReimbursable");
   if (modalReimb) modalReimb.checked = !!tx.reimbursable;
+  const modalMissionEl = document.getElementById("txModalMission");
+  if (modalMissionEl) modalMissionEl.value = tx.mission || "";
+  toggleMissionField("txModalMissionWrap", !!tx.reimbursable);
   document.getElementById("txModal").classList.add("open");
 }
 function closeTxModal() { document.getElementById("txModal").classList.remove("open"); }
@@ -6947,6 +7053,7 @@ function saveTxFromModal() {
   tx.date = orig.toISOString();
   const modalReimb = document.getElementById("txModalReimbursable");
   tx.reimbursable = modalReimb?.checked && (txModalType === "expense" || txModalType === "external") ? true : false;
+  tx.mission = tx.reimbursable ? (document.getElementById("txModalMission")?.value.trim() || "") : "";
   saveState();
   closeTxModal();
   renderMoney(); renderDailyExpenseChart(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
