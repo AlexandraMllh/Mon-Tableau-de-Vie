@@ -1,5 +1,5 @@
 // Service Worker — Mon Tableau de Vie
-const CACHE = "mon-tableau-v1780340425";
+const CACHE = "mon-tableau-v1780340761";
 const ASSETS = [
   "/Mon-Tableau-de-Vie/",
   "/Mon-Tableau-de-Vie/index.html",
