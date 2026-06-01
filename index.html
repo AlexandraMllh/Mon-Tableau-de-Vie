@@ -7802,6 +7802,20 @@ function monthlyEquivalent(amount, freq) {
   if (freq === "yearly") return amount / 12;
   return amount; // monthly default
 }
+function nextOccurrence(isoDate, frequency) {
+  // Retourne la prochaine date future à partir d'une date de référence
+  let d = new Date(isoDate); d.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (d >= today) return isoDate;
+  while (d < today) {
+    if      (frequency === "weekly")    d.setDate(d.getDate() + 7);
+    else if (frequency === "monthly")   d.setMonth(d.getMonth() + 1);
+    else if (frequency === "quarterly") d.setMonth(d.getMonth() + 3);
+    else if (frequency === "yearly")    d.setFullYear(d.getFullYear() + 1);
+    else break;
+  }
+  return d.toISOString().slice(0, 10);
+}
 const FREQ_LABEL = { weekly: "/sem", monthly: "/mois", quarterly: "/trim", yearly: "/an" };
 function renderSubs() {
   const list = state.subscriptions || [];
@@ -7819,11 +7833,11 @@ function renderSubs() {
     let renewalText = "Pas de date";
     let renewalClass = "";
     if (s.nextRenewal) {
-      const d = daysUntil(s.nextRenewal);
-      if (d < 0) { renewalText = `Échéance passée (${formatDeadline(s.nextRenewal)})`; renewalClass = "urgent"; }
-      else if (d === 0) { renewalText = `Aujourd'hui`; renewalClass = "urgent"; }
-      else if (d <= 14) { renewalText = `Dans ${d}j (${formatDeadline(s.nextRenewal)})`; renewalClass = "urgent"; }
-      else { renewalText = formatDeadline(s.nextRenewal); }
+      const effective = nextOccurrence(s.nextRenewal, s.frequency);
+      const d = daysUntil(effective);
+      if (d === 0) { renewalText = `Aujourd'hui`; renewalClass = "urgent"; }
+      else if (d <= 14) { renewalText = `Dans ${d}j (${formatDeadline(effective)})`; renewalClass = "urgent"; }
+      else { renewalText = formatDeadline(effective); }
     }
     return `
       <div class="sub-row">
@@ -8401,7 +8415,7 @@ function getAllCalEvents() {
   }
   // Subscriptions
   for (const s of state.subscriptions) {
-    if (s.nextRenewal) events.push({ date: s.nextRenewal, type: "sub", title: `${s.name} (${s.amount} €)`, source: "Abonnement" });
+    if (s.nextRenewal) { const effDate = nextOccurrence(s.nextRenewal, s.frequency); events.push({ date: effDate, type: "sub", title: `${s.name} (${s.amount} €)`, source: "Abonnement" }); }
   }
   // Plantes — prochain arrosage
   for (const p of (state.domestique?.plants || [])) {
