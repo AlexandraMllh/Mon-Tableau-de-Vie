@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v188</title>
+<title>Mon Tableau de Vie 🌿 · v189</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11537,9 +11537,9 @@ function showSyncMenu() {
 // Enregistrement du Service Worker (PWA)
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/Mon-Tableau-de-Vie/sw.js")
+    navigator.serviceWorker.register("/Mon-Tableau-de-Vie/sw.js", { updateViaCache: "none" })
       .then(reg => {
-        console.log("[SW] enregistré :", reg.scope);
+        console.log("[SW] enregistré :", reg.scope); reg.update(); // vérifie mise à jour à chaque ouverture
         // Quand un nouveau SW est en attente, lui dire de prendre le relais immédiatement
         const activateNewSW = (worker) => {
           if (!worker) return;
