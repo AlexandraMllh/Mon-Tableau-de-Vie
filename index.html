@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v183</title>
+<title>Mon Tableau de Vie 🌿 · v184</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2330,7 +2330,6 @@
       <button class="sub-tab active" data-sub="todo">📋 To-do du jour</button>
       <button class="sub-tab" data-sub="meals">🍽️ Repas</button>
       <button class="sub-tab" data-sub="groceries">🛒 Courses</button>
-      <button class="sub-tab" data-sub="chores">🧹 Ménage</button>
       <button class="sub-tab" data-sub="plants">🌱 Plantes</button>
     </div>
 
@@ -2421,28 +2420,6 @@
       </div>
     </div>
 
-    <!-- Sub: Ménage -->
-    <div class="sub-view" data-sub="chores">
-      <div class="card">
-        <div class="work-header">
-          <h2 style="margin:0;">🧹 Tâches ménagères <span class="count" id="choresCount"></span></h2>
-        </div>
-        <p style="color:var(--ink-soft);font-size:13px;margin:-8px 0 12px;">🟢 récent · 🟠 bientôt à refaire · 🔴 en retard</p>
-        <div style="display:grid;grid-template-columns:1fr 130px auto;gap:8px;margin-bottom:14px;background:#faf8fd;padding:12px;border-radius:14px;">
-          <input type="text" id="newChoreName" placeholder="Nouvelle tâche (ex: Aspirateur)" style="padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;color:var(--ink);background:white;" />
-          <select id="newChoreFreq" style="padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;color:var(--ink);background:white;">
-            <option value="1">Quotidien</option>
-            <option value="3">Tous les 3 jours</option>
-            <option value="7" selected>Hebdomadaire</option>
-            <option value="14">Bimensuel</option>
-            <option value="30">Mensuel</option>
-            <option value="90">Trimestriel</option>
-          </select>
-          <button class="btn-primary" onclick="addChore()">Ajouter</button>
-        </div>
-        <div id="choresList"></div>
-      </div>
-    </div>
 
     <!-- Sub: Plantes -->
     <div class="sub-view" data-sub="plants">
@@ -8268,7 +8245,6 @@ const PILLAR_DEFS = [
     id: "vie-pratique", name: "Vie pratique", emoji: "🏠", color: "#efb8c8", bg: "var(--rose-soft)",
     metrics: [
       { type: "groceries-active", label: "Liste courses active" },
-      { type: "chores-uptodate", label: "Ménage à jour" },
       { type: "plants-uptodate", label: "Plantes arrosées" },
     ]
   },
@@ -8615,18 +8591,6 @@ function getAllCalEvents() {
       source: "Plantes", time: "",
     });
   }
-  // Ménage — prochaine date à refaire
-  for (const c of (state.domestique?.chores || [])) {
-    if (!c.lastDone || !c.frequencyDays) continue;
-    const [y, m, d] = c.lastDone.split("-").map(Number);
-    const next = new Date(y, m - 1, d);
-    next.setDate(next.getDate() + c.frequencyDays);
-    events.push({
-      date: todayKey(next), type: "chore",
-      title: `🧹 ${c.name}`,
-      source: "Ménage", time: "",
-    });
-  }
   // ICS imported + événements manuels
   for (const ev of state.calEvents) {
     const src = state.calSources.find(s => s.id === ev.sourceId);
@@ -8680,8 +8644,7 @@ function renderCalLegend() {
     <span>${dot("var(--pink)")}Articles</span>
     <span>${dot("var(--peach)")}Communications</span>
     <span>${dot("var(--butter)")}Abonnements</span>
-    <span>${dot("#4d9c7e")}🌱 Plantes</span>
-    <span>${dot("#c08a4d")}🧹 Ménage</span>`;
+    <span>${dot("#4d9c7e")}🌱 Plantes</span>`;
 }
 function renderCalSourcesPanel() {
   const el = document.getElementById("calSourcesPanel");
@@ -9443,7 +9406,7 @@ function deleteTodoItem(id) {
   _renderAllTodo();
 }
 
-function renderDomestique() { renderTodo(); renderMealPlan(); renderGroceries(); renderChores(); renderPlants(); }
+function renderDomestique() { renderTodo(); renderMealPlan(); renderGroceries(); renderPlants(); }
 
 /* ========= PLANNING DE REPAS ========= */
 let _mealWeekOffset = 0; // 0 = semaine courante, +1 = semaine suivante, etc.
