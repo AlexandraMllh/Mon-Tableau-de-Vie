@@ -1,5 +1,5 @@
 // Service Worker — Mon Tableau de Vie
-const CACHE = "mon-tableau-v1780395673";
+const CACHE = "mon-tableau-v1780397669";
 const ASSETS = [
   "/Mon-Tableau-de-Vie/",
   "/Mon-Tableau-de-Vie/index.html",
@@ -36,10 +36,22 @@ self.addEventListener("fetch", e => {
       .then(res => {
         if (res.ok) {
           const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
+          // Mise en cache sans query params (pour gérer ?_cb=timestamp)
+          const cacheUrl = new URL(e.request.url);
+          cacheUrl.search = "";
+          const cacheReq = new Request(cacheUrl.toString(), e.request);
+          caches.open(CACHE).then(c => c.put(cacheReq, clone));
         }
         return res;
       })
-      .catch(() => caches.match(e.request))
+      .catch(() =>
+        // Cherche d'abord avec l'URL exacte, puis sans query params
+        caches.match(e.request, { ignoreSearch: true })
+      )
   );
+});
+
+// Message skipWaiting (forcé depuis la page)
+self.addEventListener("message", e => {
+  if (e.data && e.data.type === "SKIP_WAITING") self.skipWaiting();
 });
