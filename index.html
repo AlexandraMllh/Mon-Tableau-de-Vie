@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v171</title>
+<title>Mon Tableau de Vie 🌿 · v172</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11015,12 +11015,26 @@ function renderAll() {
   renderJournal();
 }
 
-setupTabs();
-setupWellbeing();
-setupJournal();
-populateTxCategories();
-try { renderAll(); } catch(e) { console.error("[renderAll] crash au démarrage :", e); }
-checkSeedBanner();
+try {
+  setupTabs();
+  setupWellbeing();
+  setupJournal();
+  populateTxCategories();
+  renderAll();
+  checkSeedBanner();
+} catch(e) {
+  console.error("[init] crash :", e);
+  document.body.innerHTML = `
+    <div style="padding:32px;font-family:sans-serif;background:#fff8f0;min-height:100vh;color:#333;">
+      <h2 style="color:#dc7014;">⚠️ L'app n'a pas pu démarrer</h2>
+      <p style="font-size:14px;">Une erreur JavaScript s'est produite au chargement.</p>
+      <pre style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;font-size:12px;overflow-x:auto;white-space:pre-wrap;">${String(e)}\n\n${e.stack||''}</pre>
+      <p style="font-size:12px;color:#888;">Fais un screenshot de cette page et envoie-le.</p>
+      <button onclick="localStorage.clear();location.reload()" style="margin-top:16px;padding:10px 20px;background:#dc7014;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;">
+        🔄 Réinitialiser et recharger
+      </button>
+    </div>`;
+}
 // Synchro Google Agenda automatique au démarrage (si URL configurée et dernière sync > 30 min)
 function autoSyncCalIfNeeded() {
   const url = state.googleCal?.url;
