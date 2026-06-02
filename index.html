@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v167</title>
+<title>Mon Tableau de Vie 🌿 · v168</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1550,6 +1550,39 @@
   /* ---- Trend Prediction ---- */
   .trend-metric-btn { padding:5px 12px; border-radius:999px; border:1.5px solid var(--line); background:white; font-size:12px; font-family:inherit; cursor:pointer; color:var(--ink-soft); transition:all 0.15s; }
   .trend-metric-btn.active { background:var(--lavender-soft); border-color:var(--lavender); color:var(--ink); font-weight:600; }
+
+  /* ---- Notes Travail ---- */
+  .note-tb-btn {
+    padding: 3px 9px; border-radius: 6px; border: 1px solid var(--line);
+    background: white; color: var(--ink); font-size: 12px; cursor: pointer;
+    font-family: inherit; transition: background .15s;
+  }
+  .note-tb-btn:hover { background: var(--lavender-soft); }
+  .note-group-item {
+    border-radius: 10px; margin-bottom: 4px; overflow: hidden;
+    border: 1.5px solid transparent;
+  }
+  .note-group-item.active { border-color: var(--lilac); }
+  .note-group-header {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    cursor: pointer; user-select: none; background: var(--lavender-soft);
+  }
+  .note-group-header:hover { filter: brightness(.97); }
+  .note-item {
+    padding: 7px 12px 7px 28px; font-size: 13px; cursor: pointer;
+    color: var(--ink); border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .note-item:hover { background: var(--lavender-soft); }
+  .note-item.active { background: var(--lavender-soft); font-weight: 600; }
+  #notePreview h2 { font-size: 16px; margin: 16px 0 6px; }
+  #notePreview h3 { font-size: 14px; margin: 12px 0 4px; }
+  #notePreview p  { margin: 6px 0; }
+  #notePreview ul, #notePreview ol { padding-left: 20px; margin: 6px 0; }
+  #notePreview blockquote { border-left: 3px solid var(--lilac); margin: 8px 0; padding: 4px 12px; color: var(--ink-soft); font-style: italic; background: var(--lavender-soft); border-radius: 0 6px 6px 0; }
+  #notePreview hr { border: none; border-top: 1px solid var(--line); margin: 12px 0; }
+  #notePreview strong { font-weight: 700; }
+  #notePreview em { font-style: italic; }
 </style>
 <!-- PWA -->
 <link rel="manifest" href="manifest.json" />
@@ -1708,6 +1741,7 @@
       <button class="sub-tab" data-sub="candidatures">📋 Candidatures</button>
       <button class="sub-tab" data-sub="valorisation">📝 Valorisation</button>
       <button class="sub-tab" data-sub="teaching">📚 Enseignement</button>
+      <button class="sub-tab" data-sub="notes">📓 Notes</button>
     </div>
 
     <!-- Sub: Tâches -->
@@ -1954,6 +1988,46 @@
           </table>
         </div>
         <div id="teachingHistoryTotal" style="text-align:right;font-weight:700;font-size:14px;margin-top:8px;color:var(--ink);"></div>
+      </div>
+    </div>
+
+    <!-- Sub: Notes -->
+    <div class="sub-view" data-sub="notes">
+      <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;min-height:600px;">
+        <!-- Sidebar groupes -->
+        <div style="display:flex;flex-direction:column;gap:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <h2 style="margin:0;font-size:15px;">Groupes</h2>
+            <button onclick="addNoteGroup()" style="padding:4px 10px;border-radius:8px;border:1.5px solid var(--lilac);background:var(--lavender-soft);color:var(--lilac);font-size:12px;font-weight:600;cursor:pointer;">+ Groupe</button>
+          </div>
+          <div id="noteGroupList" style="flex:1;overflow-y:auto;"></div>
+        </div>
+        <!-- Éditeur -->
+        <div class="card" style="display:flex;flex-direction:column;min-height:0;padding:20px;">
+          <div id="noteEditorEmpty" style="display:flex;align-items:center;justify-content:center;flex:1;color:var(--ink-soft);font-size:14px;">← Sélectionne ou crée une note</div>
+          <div id="noteEditor" style="display:none;flex-direction:column;flex:1;gap:10px;">
+            <input type="text" id="noteTitleInput" placeholder="Titre de la note…"
+              style="font-size:18px;font-weight:700;border:none;outline:none;color:var(--ink);font-family:inherit;width:100%;background:transparent;"
+              oninput="scheduleNoteSave()" />
+            <div style="display:flex;gap:4px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);">
+              <button onclick="noteCmd('bold')" title="Gras" class="note-tb-btn"><b>B</b></button>
+              <button onclick="noteCmd('italic')" title="Italique" class="note-tb-btn"><i>I</i></button>
+              <button onclick="noteCmd('h2')" title="Titre 2" class="note-tb-btn">H2</button>
+              <button onclick="noteCmd('h3')" title="Titre 3" class="note-tb-btn">H3</button>
+              <button onclick="noteCmd('ul')" title="Liste à puces" class="note-tb-btn">• —</button>
+              <button onclick="noteCmd('ol')" title="Liste numérotée" class="note-tb-btn">1.</button>
+              <button onclick="noteCmd('quote')" title="Citation" class="note-tb-btn">❝</button>
+              <button onclick="noteCmd('hr')" title="Séparateur" class="note-tb-btn">—</button>
+              <div style="flex:1;"></div>
+              <button id="notePreviewToggle" onclick="toggleNotePreview()" style="padding:3px 10px;border-radius:6px;border:1px solid var(--line);background:white;color:var(--ink-soft);font-size:11px;cursor:pointer;font-family:inherit;">👁 Preview</button>
+            </div>
+            <textarea id="noteContentInput" placeholder="Écris ta note… (markdown supporté)"
+              style="flex:1;min-height:400px;border:none;outline:none;resize:none;font-family:inherit;font-size:13px;color:var(--ink);line-height:1.7;background:transparent;"
+              oninput="scheduleNoteSave()"></textarea>
+            <div id="notePreview" style="display:none;flex:1;min-height:400px;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--ink);"></div>
+            <div style="font-size:11px;color:var(--ink-softer);text-align:right;" id="noteAutoSaveLabel"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -3137,6 +3211,7 @@ const DEFAULT_STATE = {
     candidatures: [],
     articles: [],
     communications: [],
+    workNotes: [],
   },
   contacts: [],
   admin: { missions:[], abonnement:[], congesConfig:{ droitsCA:27, droitsRTT:20 }, congesPeriodes:[] },
@@ -3384,6 +3459,8 @@ function migrate(s) {
     s.admin.congesConfig  = s.admin.congesConfig  || { droitsCA:27, droitsRTT:20 };
     s.admin.congesPeriodes= s.admin.congesPeriodes|| [];
   }
+  if (!s.work) s.work = {};
+  if (!s.work.workNotes) s.work.workNotes = [];
   return s;
 }
 function saveState() {
@@ -3491,6 +3568,7 @@ function setupTabs() {
       parent.querySelectorAll(".sub-view").forEach(v => v.classList.remove("active"));
       t.classList.add("active");
       parent.querySelector(`.sub-view[data-sub="${t.dataset.sub}"]`).classList.add("active");
+      if (t.dataset.sub === "notes") renderWorkNotes();
     });
   });
 }
@@ -11125,6 +11203,192 @@ if ("serviceWorker" in navigator) {
       .then(reg => console.log("[SW] enregistré :", reg.scope))
       .catch(err => console.warn("[SW] erreur :", err));
   });
+}
+
+/* ===== NOTES TRAVAIL ===== */
+let _currentNoteGroupId = null;
+let _currentNoteId = null;
+let _notePreviewMode = false;
+let _noteSaveTimer = null;
+
+function renderWorkNotes() {
+  const groups = state.work.workNotes || [];
+  const el = document.getElementById("noteGroupList");
+  if (!el) return;
+  if (!groups.length) {
+    el.innerHTML = `<p style="font-size:13px;color:var(--ink-soft);padding:8px 4px;">Aucun groupe. Crée-en un !</p>`;
+    return;
+  }
+  el.innerHTML = groups.map(g => {
+    const isOpen = _currentNoteGroupId === g.id;
+    return `<div class="note-group-item${isOpen ? ' active' : ''}">
+      <div class="note-group-header" onclick="toggleNoteGroup('${g.id}')">
+        <span style="font-size:15px;">${escapeHtml(g.emoji||'📁')}</span>
+        <span style="flex:1;font-size:13px;font-weight:600;color:var(--ink);">${escapeHtml(g.name)}</span>
+        <span style="font-size:11px;color:var(--ink-soft);">${g.notes.length} note${g.notes.length!==1?'s':''}</span>
+        <button onclick="event.stopPropagation();renameNoteGroup('${g.id}')" style="padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:white;font-size:10px;cursor:pointer;color:var(--ink-soft);">✎</button>
+        <button onclick="event.stopPropagation();deleteNoteGroup('${g.id}')" style="padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:white;font-size:10px;cursor:pointer;color:#dc7014;">✕</button>
+      </div>
+      ${isOpen ? `
+      <div style="background:white;">
+        ${g.notes.map(n => `
+          <div class="note-item${_currentNoteId===n.id?' active':''}" onclick="openNote('${g.id}','${n.id}')">
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(n.title||'Sans titre')}</span>
+            <button onclick="event.stopPropagation();deleteNote('${g.id}','${n.id}')" style="padding:1px 5px;border-radius:4px;border:1px solid var(--line);background:white;font-size:10px;cursor:pointer;color:#dc7014;flex-shrink:0;">✕</button>
+          </div>`).join('')}
+        <div style="padding:6px 12px;">
+          <button onclick="addNote('${g.id}')" style="width:100%;padding:5px;border-radius:7px;border:1.5px dashed var(--line);background:transparent;color:var(--ink-soft);font-size:12px;cursor:pointer;">+ Nouvelle note</button>
+        </div>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function toggleNoteGroup(gid) {
+  if (_currentNoteGroupId === gid) {
+    _currentNoteGroupId = null; _currentNoteId = null;
+    showNoteEditor(false);
+  } else {
+    _currentNoteGroupId = gid;
+    _currentNoteId = null;
+    showNoteEditor(false);
+  }
+  renderWorkNotes();
+}
+
+function addNoteGroup() {
+  const name = prompt("Nom du groupe :");
+  if (!name?.trim()) return;
+  const emoji = prompt("Emoji (optionnel) :", "📁") || "📁";
+  const id = "ng" + Date.now();
+  state.work.workNotes = state.work.workNotes || [];
+  state.work.workNotes.push({ id, name: name.trim(), emoji, notes: [] });
+  _currentNoteGroupId = id;
+  saveState(); renderWorkNotes();
+}
+
+function renameNoteGroup(gid) {
+  const g = (state.work.workNotes||[]).find(x => x.id === gid);
+  if (!g) return;
+  const name = prompt("Nouveau nom :", g.name);
+  if (!name?.trim()) return;
+  g.name = name.trim();
+  const emoji = prompt("Emoji :", g.emoji || "📁");
+  if (emoji) g.emoji = emoji;
+  saveState(); renderWorkNotes();
+}
+
+function deleteNoteGroup(gid) {
+  if (!confirm("Supprimer ce groupe et toutes ses notes ?")) return;
+  state.work.workNotes = (state.work.workNotes||[]).filter(g => g.id !== gid);
+  if (_currentNoteGroupId === gid) { _currentNoteGroupId = null; _currentNoteId = null; showNoteEditor(false); }
+  saveState(); renderWorkNotes();
+}
+
+function addNote(gid) {
+  const g = (state.work.workNotes||[]).find(x => x.id === gid);
+  if (!g) return;
+  const id = "n" + Date.now();
+  const now = new Date().toISOString();
+  g.notes.unshift({ id, title: "", content: "", createdAt: now, updatedAt: now });
+  _currentNoteGroupId = gid; _currentNoteId = id;
+  saveState(); renderWorkNotes(); _openNoteEditor(g, g.notes[0]);
+}
+
+function openNote(gid, nid) {
+  const g = (state.work.workNotes||[]).find(x => x.id === gid);
+  const n = g?.notes.find(x => x.id === nid);
+  if (!g || !n) return;
+  _currentNoteGroupId = gid; _currentNoteId = nid;
+  renderWorkNotes(); _openNoteEditor(g, n);
+}
+
+function _openNoteEditor(g, n) {
+  showNoteEditor(true);
+  document.getElementById("noteTitleInput").value = n.title || "";
+  document.getElementById("noteContentInput").value = n.content || "";
+  document.getElementById("noteAutoSaveLabel").textContent = n.updatedAt ? "Sauvegardé " + new Date(n.updatedAt).toLocaleString("fr-FR") : "";
+  if (_notePreviewMode) _updateNotePreview();
+}
+
+function showNoteEditor(show) {
+  document.getElementById("noteEditorEmpty").style.display = show ? "none" : "flex";
+  document.getElementById("noteEditor").style.display = show ? "flex" : "none";
+}
+
+function scheduleNoteSave() {
+  clearTimeout(_noteSaveTimer);
+  _noteSaveTimer = setTimeout(saveCurrentNote, 800);
+  if (_notePreviewMode) _updateNotePreview();
+}
+
+function saveCurrentNote() {
+  if (!_currentNoteGroupId || !_currentNoteId) return;
+  const g = (state.work.workNotes||[]).find(x => x.id === _currentNoteGroupId);
+  const n = g?.notes.find(x => x.id === _currentNoteId);
+  if (!n) return;
+  n.title = document.getElementById("noteTitleInput").value;
+  n.content = document.getElementById("noteContentInput").value;
+  n.updatedAt = new Date().toISOString();
+  document.getElementById("noteAutoSaveLabel").textContent = "Sauvegardé à " + new Date().toLocaleTimeString("fr-FR");
+  saveState(); renderWorkNotes();
+}
+
+function deleteNote(gid, nid) {
+  const g = (state.work.workNotes||[]).find(x => x.id === gid);
+  if (!g) return;
+  if (!confirm("Supprimer cette note ?")) return;
+  g.notes = g.notes.filter(n => n.id !== nid);
+  if (_currentNoteId === nid) { _currentNoteId = null; showNoteEditor(false); }
+  saveState(); renderWorkNotes();
+}
+
+function noteCmd(cmd) {
+  const ta = document.getElementById("noteContentInput");
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  const sel = ta.value.slice(start, end);
+  const before = ta.value.slice(0, start), after = ta.value.slice(end);
+  let insert = "";
+  if (cmd === "bold")   insert = `**${sel||"texte gras"}**`;
+  else if (cmd === "italic") insert = `*${sel||"texte italique"}*`;
+  else if (cmd === "h2")    insert = `\n## ${sel||"Titre"}`;
+  else if (cmd === "h3")    insert = `\n### ${sel||"Sous-titre"}`;
+  else if (cmd === "ul")    insert = `\n- ${sel||"Élément"}`;
+  else if (cmd === "ol")    insert = `\n1. ${sel||"Élément"}`;
+  else if (cmd === "quote") insert = `\n> ${sel||"Citation"}`;
+  else if (cmd === "hr")    insert = `\n---\n`;
+  ta.value = before + insert + after;
+  ta.selectionStart = ta.selectionEnd = start + insert.length;
+  ta.focus();
+  scheduleNoteSave();
+}
+
+function toggleNotePreview() {
+  _notePreviewMode = !_notePreviewMode;
+  document.getElementById("noteContentInput").style.display = _notePreviewMode ? "none" : "block";
+  document.getElementById("notePreview").style.display    = _notePreviewMode ? "block" : "none";
+  document.getElementById("notePreviewToggle").textContent = _notePreviewMode ? "✏️ Éditer" : "👁 Preview";
+  if (_notePreviewMode) _updateNotePreview();
+}
+
+function _updateNotePreview() {
+  const md = document.getElementById("noteContentInput").value;
+  document.getElementById("notePreview").innerHTML = _renderMd(md);
+}
+
+function _renderMd(md) {
+  let h = escapeHtml(md);
+  h = h.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+  h = h.replace(/^## (.+)$/gm, "<h2>$1</h2>");
+  h = h.replace(/^---$/gm, "<hr>");
+  h = h.replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>");
+  h = h.replace(/^[*-] (.+)$/gm, "<li>$1</li>");
+  h = h.replace(/^(\d+)\. (.+)$/gm, "<li>$2</li>");
+  h = h.replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>");
+  h = h.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  h = h.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  h = h.replace(/\n\n+/g, "</p><p>");
+  return "<p>" + h + "</p>";
 }
 </script>
 
