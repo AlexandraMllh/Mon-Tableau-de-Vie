@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v187</title>
+<title>Mon Tableau de Vie 🌿 · v188</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11554,19 +11554,19 @@ if ("serviceWorker" in navigator) {
       })
       .catch(err => console.warn("[SW] erreur :", err));
 
-    // Quand le nouveau SW prend le contrôle : bannière discrète (pas de rechargement forcé)
+    // Rechargement auto quand le nouveau SW prend le contrôle
+    // (les notes sont protégées par _noteFlushToLocalStorage + pagehide)
+    let _swRefreshing = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      // Sauvegarde d'urgence des notes avant tout
+      if (_swRefreshing) return;
+      _swRefreshing = true;
       _noteFlushToLocalStorage && _noteFlushToLocalStorage();
-      // Afficher la bannière de mise à jour
-      let banner = document.getElementById("swUpdateBanner");
-      if (!banner) {
-        banner = document.createElement("div");
-        banner.id = "swUpdateBanner";
-        banner.style.cssText = "position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--card);color:var(--ink);padding:12px 18px;border-radius:14px;box-shadow:0 8px 28px rgba(120,100,160,0.22);z-index:9999;font-size:13px;font-weight:500;border:1px solid var(--lavender);display:flex;align-items:center;gap:10px;white-space:nowrap;";
-        banner.innerHTML = `🔄 Mise à jour disponible <button onclick="location.reload()" style="padding:5px 12px;border-radius:8px;border:none;background:var(--lilac);color:white;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Recharger</button><button onclick="this.parentElement.remove()" style="padding:3px 7px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);font-size:11px;cursor:pointer;">Plus tard</button>`;
-        document.body.appendChild(banner);
-      }
+      // Petit toast avant rechargement
+      const t = document.createElement("div");
+      t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card);color:var(--ink);padding:12px 20px;border-radius:14px;box-shadow:0 8px 28px rgba(120,100,160,0.22);z-index:9999;font-size:13px;font-weight:500;border:1px solid var(--lavender);";
+      t.textContent = "🔄 Mise à jour — rechargement…";
+      document.body.appendChild(t);
+      setTimeout(() => window.location.reload(), 1200);
     });
   });
 }
