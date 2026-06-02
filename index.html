@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v185</title>
+<title>Mon Tableau de Vie 🌿 · v186</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1757,6 +1757,18 @@
           <div style="font-size:12px;color:var(--ink-softer);margin-bottom:6px;">✍️ Ton journal d'aujourd'hui évoque :</div>
           <div id="journalMoodTodayBadges" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
+        <!-- 💊 Pilule -->
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
+          <button id="pillBtn" onclick="togglePill()"
+            style="width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;border:2px solid var(--line);background:white;cursor:pointer;font-family:inherit;transition:all 0.2s;text-align:left;">
+            <span id="pillEmoji" style="font-size:22px;">💊</span>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:700;color:var(--ink);" id="pillLabel">Pilule du jour</div>
+              <div style="font-size:12px;color:var(--ink-soft);" id="pillStreakLabel"></div>
+            </div>
+            <span id="pillCheck" style="font-size:20px;opacity:0.3;">✓</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -2169,6 +2181,31 @@
         <span id="skincareStreakBadge" style="font-size:13px;color:var(--ink-soft);"></span>
       </div>
       <div id="skincare30Grid"></div>
+    </div>
+
+    <!-- 💊 Suivi pilule -->
+    <div class="card" style="margin-top:18px;">
+      <div class="card-row" style="margin-bottom:14px;">
+        <h2 style="margin:0;">💊 Suivi pilule — 90 jours</h2>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">
+          <div style="text-align:center;">
+            <div style="font-size:11px;color:var(--ink-softer);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Streak actuel</div>
+            <strong id="pillStreakSante" style="font-size:22px;font-weight:700;color:#7c5cbf;">—</strong>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:11px;color:var(--ink-softer);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Ce mois</div>
+            <strong id="pillMonthPct" style="font-size:22px;font-weight:700;color:#4d9c7e;">—</strong>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:11px;color:var(--ink-softer);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Record</div>
+            <strong id="pillBestStreak" style="font-size:22px;font-weight:700;color:var(--ink-soft);">—</strong>
+          </div>
+        </div>
+      </div>
+      <div id="pillCalendar" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      <div style="display:flex;gap:12px;margin-top:10px;font-size:11px;color:var(--ink-softer);flex-wrap:wrap;">
+        <span>✅ Prise</span><span>⬜ Oubliée</span><span>🔵 Aujourd'hui</span>
+      </div>
     </div>
 
     <div class="card" style="margin-top:18px;">
@@ -3531,6 +3568,7 @@ function getToday() {
     if (d.accomplishment === undefined) d.accomplishment = "";
     if (d.gratitude === undefined) d.gratitude = "";
     if (d.highlight === undefined) d.highlight = "";
+    if (d.pillTaken === undefined) d.pillTaken = false;
   }
   return state.history[k];
 }
@@ -3673,7 +3711,7 @@ function onViewChange(view) {
   if (view === "today") maybeLoadWeather();
   if (view === "work") updateWorkTabBadges();
   if (view === "activities") { renderActivityChart(); renderSportPlanning(); }
-  if (view === "health") { renderBodyChart(currentBodyMetric); renderWellbeingChart(); renderStepsChart(); renderTrendPrediction(); renderSkincare(); }
+  if (view === "health") { renderBodyChart(currentBodyMetric); renderWellbeingChart(); renderStepsChart(); renderTrendPrediction(); renderSkincare(); renderPillSante(); }
   if (view === "money") { initTxDate(); renderBudgetGauge(); renderDailyExpenseChart(); renderBalanceEvolutionChart(); renderMonthComparison(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast(); }
   if (view === "calendar") { renderCalendar(); autoSyncCalIfNeeded(); }
   if (view === "pillars") renderPillars();
@@ -6360,6 +6398,111 @@ const ROUTINES = {
 
 function routineComplete(habitsObj, key) {
   return ROUTINES[key].steps.every(s => !!habitsObj[s.id]);
+}
+
+/* ========= PILULE ========= */
+function togglePill() {
+  const d = getToday();
+  d.pillTaken = !d.pillTaken;
+  saveState();
+  renderPill();
+  renderPillSante();
+}
+
+function renderPill() {
+  const d = getToday();
+  const taken = !!d.pillTaken;
+  const btn   = document.getElementById("pillBtn");
+  const check = document.getElementById("pillCheck");
+  const label = document.getElementById("pillLabel");
+  const sl    = document.getElementById("pillStreakLabel");
+  if (!btn) return;
+
+  if (taken) {
+    btn.style.borderColor  = "#7c5cbf";
+    btn.style.background   = "#f3eeff";
+    check.style.opacity    = "1";
+    check.style.color      = "#7c5cbf";
+    label.textContent      = "Pilule prise aujourd'hui ✓";
+    label.style.color      = "#7c5cbf";
+  } else {
+    btn.style.borderColor  = "var(--line)";
+    btn.style.background   = "white";
+    check.style.opacity    = "0.2";
+    check.style.color      = "var(--ink-soft)";
+    label.textContent      = "Pilule du jour";
+    label.style.color      = "var(--ink)";
+  }
+  // Streak dans "Aujourd'hui"
+  const streak = _pillStreak();
+  if (sl) sl.textContent = streak > 1 ? `🔥 ${streak} jours de suite` : taken ? "C'est bon pour aujourd'hui !" : "Pense à la prendre 💜";
+}
+
+function _pillStreak() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  let streak = 0;
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    const dk = d.toISOString().slice(0,10);
+    if (state.history[dk]?.pillTaken) streak++;
+    else break;
+  }
+  return streak;
+}
+
+function _pillBestStreak() {
+  const days = Object.keys(state.history).sort();
+  let best = 0, cur = 0;
+  for (const dk of days) {
+    if (state.history[dk]?.pillTaken) { cur++; best = Math.max(best, cur); }
+    else cur = 0;
+  }
+  return best;
+}
+
+function renderPillSante() {
+  const calEl = document.getElementById("pillCalendar");
+  const streakEl = document.getElementById("pillStreakSante");
+  const pctEl = document.getElementById("pillMonthPct");
+  const bestEl = document.getElementById("pillBestStreak");
+  if (!calEl) return;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayK = today.toISOString().slice(0,10);
+
+  // Calendrier 90 jours
+  const days = [];
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0,10));
+  }
+
+  calEl.innerHTML = days.map(dk => {
+    const taken = !!state.history[dk]?.pillTaken;
+    const isToday = dk === todayK;
+    const d = new Date(dk);
+    const label = d.toLocaleDateString("fr-FR", { day:"numeric", month:"short" });
+    let bg, title;
+    if (isToday) { bg = taken ? "#7c5cbf" : "#b4d4f1"; title = "Aujourd'hui" + (taken ? " ✓" : ""); }
+    else if (taken) { bg = "#c9b6f0"; title = label + " ✓"; }
+    else { bg = "#ece6f5"; title = label + " —"; }
+    const opacity = taken || isToday ? "1" : "0.5";
+    return `<div title="${title}" style="width:18px;height:18px;border-radius:4px;background:${bg};opacity:${opacity};cursor:default;font-size:10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">${taken && !isToday ? "" : isToday ? "●" : ""}</div>`;
+  }).join("");
+
+  // Stats
+  const streak = _pillStreak();
+  const best = _pillBestStreak();
+  if (streakEl) streakEl.textContent = streak + " j";
+  if (bestEl)   bestEl.textContent = best + " j";
+
+  // % ce mois
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+  const daysInMonth = days.filter(dk => dk >= firstOfMonth && dk <= todayK);
+  const takenInMonth = daysInMonth.filter(dk => !!state.history[dk]?.pillTaken).length;
+  const pct = daysInMonth.length ? Math.round(takenInMonth / daysInMonth.length * 100) : 0;
+  if (pctEl) pctEl.textContent = pct + "%";
 }
 
 function renderSkincare() {
@@ -11169,6 +11312,7 @@ function loadInitialData() {
 function renderAll() {
   renderHeader();
   renderTodayView();
+  renderPill();
   renderProjects();
   renderTasks();
   renderTaskBilan();
