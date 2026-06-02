@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v175</title>
+<title>Mon Tableau de Vie 🌿 · v176</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1587,6 +1587,30 @@
   #noteContentInput li { margin: 2px 0; }
   #noteContentInput blockquote { border-left: 3px solid var(--lilac); margin: 8px 0; padding: 4px 12px; color: var(--ink-soft); font-style: italic; background: var(--lavender-soft); border-radius: 0 6px 6px 0; }
   #noteContentInput hr { border: none; border-top: 1px solid var(--line); margin: 10px 0; }
+
+  /* ---- Notes responsive (mobile) ---- */
+  .notes-layout {
+    display: grid; grid-template-columns: 260px 1fr; gap: 16px; min-height: 600px;
+  }
+  .notes-back-btn { display: none; }
+  @media (max-width: 640px) {
+    .notes-layout { grid-template-columns: 1fr; min-height: unset; gap: 10px; }
+    /* Par défaut sur mobile : sidebar visible, éditeur caché */
+    #notesEditorPanel { display: none !important; }
+    /* Quand une note est ouverte : éditeur visible, sidebar cachée */
+    .notes-layout.note-open #notesSidebar { display: none !important; }
+    .notes-layout.note-open #notesEditorPanel { display: flex !important; min-height: 80vh; }
+    /* Bouton retour visible uniquement mobile */
+    .notes-back-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: none; border: none; color: var(--lilac); font-weight: 700;
+      font-size: 14px; padding: 4px 0 10px; cursor: pointer; font-family: inherit;
+    }
+    /* Toolbar plus petite sur mobile */
+    .note-tb-btn { padding: 5px 8px; font-size: 13px; min-width: 32px; }
+    /* Contenu éditeur moins haut */
+    #noteContentInput { min-height: 180px !important; }
+  }
 </style>
 <!-- PWA -->
 <link rel="manifest" href="manifest.json" />
@@ -1997,9 +2021,9 @@
 
     <!-- Sub: Notes -->
     <div class="sub-view" data-sub="notes">
-      <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;min-height:600px;">
+      <div class="notes-layout" id="notesLayout">
         <!-- Sidebar groupes -->
-        <div style="display:flex;flex-direction:column;gap:0;">
+        <div id="notesSidebar" style="display:flex;flex-direction:column;gap:0;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
             <h2 style="margin:0;font-size:15px;">Groupes</h2>
             <button onclick="addNoteGroup()" style="padding:4px 10px;border-radius:8px;border:1.5px solid var(--lilac);background:var(--lavender-soft);color:var(--lilac);font-size:12px;font-weight:600;cursor:pointer;">+ Groupe</button>
@@ -2007,7 +2031,8 @@
           <div id="noteGroupList" style="flex:1;overflow-y:auto;"></div>
         </div>
         <!-- Éditeur -->
-        <div class="card" style="display:flex;flex-direction:column;min-height:0;padding:20px;">
+        <div id="notesEditorPanel" class="card" style="display:flex;flex-direction:column;min-height:0;padding:20px;">
+          <button class="notes-back-btn" onclick="notesBackToList()">← Groupes</button>
           <div id="noteEditorEmpty" style="display:flex;align-items:center;justify-content:center;flex:1;color:var(--ink-soft);font-size:14px;">← Sélectionne ou crée une note</div>
           <div id="noteEditor" style="display:none;flex-direction:column;flex:1;gap:10px;">
             <input type="text" id="noteTitleInput" placeholder="Titre de la note…"
@@ -11365,12 +11390,20 @@ function _openNoteEditor(g, n) {
   const ed = document.getElementById("noteContentInput");
   ed.innerHTML = n.content || "";
   document.getElementById("noteAutoSaveLabel").textContent = n.updatedAt ? "Sauvegardé " + new Date(n.updatedAt).toLocaleString("fr-FR") : "";
+  // Mobile : passer en mode "éditeur" (cache la sidebar)
+  if (window.innerWidth <= 640) {
+    document.getElementById("notesLayout").classList.add("note-open");
+  }
   setTimeout(() => ed.focus(), 50);
 }
 
 function showNoteEditor(show) {
   document.getElementById("noteEditorEmpty").style.display = show ? "none" : "flex";
   document.getElementById("noteEditor").style.display = show ? "flex" : "none";
+}
+
+function notesBackToList() {
+  document.getElementById("notesLayout").classList.remove("note-open");
 }
 
 function scheduleNoteSave() {
