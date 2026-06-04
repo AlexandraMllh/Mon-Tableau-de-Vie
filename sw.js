@@ -1,5 +1,5 @@
 // Service Worker — Mon Tableau de Vie
-const CACHE = "mon-tableau-v1780566936";
+const CACHE = "mon-tableau-v1780567404";
 const ASSETS = [
   "/Mon-Tableau-de-Vie/",
   "/Mon-Tableau-de-Vie/index.html",
@@ -26,28 +26,25 @@ self.addEventListener("activate", e => {
 
 // Fetch : network-first pour l'app, cache en fallback
 self.addEventListener("fetch", e => {
-  // Ignore les requêtes non-GET et les externes (Firebase, CDN…)
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
   if (!url.origin.includes("github.io") && !url.origin.includes("localhost")) return;
 
+  const isHtml = url.pathname.endsWith(".html") || url.pathname.endsWith("/");
+
   e.respondWith(
-    fetch(e.request)
+    // index.html : cache: 'no-cache' → le navigateur valide toujours avec le serveur
+    fetch(e.request, isHtml ? { cache: "no-cache" } : {})
       .then(res => {
-        if (res.ok) {
-          const clone = res.clone();
-          // Mise en cache sans query params (pour gérer ?_cb=timestamp)
+        if (res.ok && !isHtml) {
+          // Mettre en cache uniquement les assets statiques (icônes, manifest…)
           const cacheUrl = new URL(e.request.url);
           cacheUrl.search = "";
-          const cacheReq = new Request(cacheUrl.toString(), e.request);
-          caches.open(CACHE).then(c => c.put(cacheReq, clone));
+          caches.open(CACHE).then(c => c.put(new Request(cacheUrl.toString()), res.clone()));
         }
         return res;
       })
-      .catch(() =>
-        // Cherche d'abord avec l'URL exacte, puis sans query params
-        caches.match(e.request, { ignoreSearch: true })
-      )
+      .catch(() => caches.match(e.request, { ignoreSearch: true }))
   );
 });
 
