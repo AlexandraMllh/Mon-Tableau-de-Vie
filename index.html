@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v194</title>
+<title>Mon Tableau de Vie 🌿 · v195</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -8055,7 +8055,7 @@ function renderBudgetGauge() {
   const spent     = Math.max(0, spentRaw - fixedTotal);
   // Restant = solde courant réel (ce qu'il y a vraiment en banque)
   const remaining = balanceCourant();
-  const budget    = spent + remaining + fixedTotal; // total disponible = dépensé + ce qu'il reste
+  const budget    = spent + remaining; // solde libre = dépenses libres + ce qui reste en banque (loyer + épargne déjà déduits)
 
   if (budget <= 0 && income === 0) {
     el.innerHTML = `<p style="font-size:13px;color:var(--ink-soft);padding:6px 0;">
