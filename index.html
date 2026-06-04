@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v242</title>
+<title>Mon Tableau de Vie 🌿 · v243</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -3065,9 +3065,21 @@
     </div>
     <div class="grid-2" style="margin-top:10px;">
       <div><label>Page(s)</label><input type="text" id="extractModalPage" placeholder="ex : 45 ou 45-47" /></div>
-      <div><label>Codes attribués *</label></div>
+      <div>
+        <label>Codes attribués *</label>
+        <!-- Codes sélectionnés -->
+        <div id="extractSelectedCodes" style="display:flex;flex-wrap:wrap;gap:5px;min-height:28px;margin-bottom:6px;"></div>
+        <!-- Recherche de code -->
+        <div style="position:relative;">
+          <input type="text" id="extractCodeSearch" placeholder="🏷️ Rechercher un code…"
+            oninput="renderExtractCodeSearch()"
+            style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;box-sizing:border-box;" />
+          <div id="extractCodeDropdown" style="display:none;position:absolute;z-index:200;left:0;right:0;background:white;border:1px solid var(--line);border-radius:10px;box-shadow:0 4px 16px rgba(120,100,160,0.12);max-height:180px;overflow-y:auto;margin-top:2px;"></div>
+        </div>
+      </div>
     </div>
-    <div id="extractCodePicker" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;padding:8px;background:#faf8fd;border-radius:10px;min-height:36px;"></div>
+    <!-- Champ caché pour compatibilité JS existant -->
+    <div id="extractCodePicker" style="display:none;"></div>
     <label>Passage (texte à citer)</label>
     <textarea id="extractModalText" rows="6"
       style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;resize:vertical;box-sizing:border-box;line-height:1.6;"
@@ -11072,20 +11084,11 @@ function openExtractModal(id) {
   document.getElementById("extractModalNote").value = e?.note || "";
   // Code picker
   const selectedCodes = e?.codes || [];
-  const picker = document.getElementById("extractCodePicker");
-  const allCodes = biblio.codes||[];
-  function renderPickerCodeNode(parentId, depth) {
-    return allCodes.filter(c => (c.parentId||"") === (parentId||"")).map(c => {
-      const on = selectedCodes.includes(c.id);
-      const indent = depth > 0 ? `margin-left:${depth*14}px;` : "";
-      return `<button onclick="toggleExtractCode('${c.id}',this)" data-code="${c.id}" data-selected="${on?'1':'0'}"
-        style="font-size:12px;padding:4px 10px;border-radius:20px;border:1.5px solid ${c.color};background:${on?c.color+"55":"white"};color:var(--ink);cursor:pointer;font-family:inherit;font-weight:${on?700:400};${indent}">${escapeHtml(c.label)}</button>
-      ${renderPickerCodeNode(c.id, depth+1)}`;
-    }).join("");
-  }
-  picker.innerHTML = allCodes.length
-    ? renderPickerCodeNode("", 0) || `<span style="font-size:12px;color:var(--ink-softer);">Crée d'abord des codes dans l'onglet 🏷️ Codes.</span>`
-    : `<span style="font-size:12px;color:var(--ink-softer);">Crée d'abord des codes dans l'onglet 🏷️ Codes.</span>`;
+  // Nouveau picker avec recherche
+  document.getElementById("extractCodeSearch").value = "";
+  document.getElementById("extractCodeDropdown").style.display = "none";
+  _renderExtractSelectedCodes(selectedCodes, biblio.codes||[]);
+  renderExtractCodeSearch();
   const delBtn = document.getElementById("extractModalDeleteBtn");
   if (delBtn) delBtn.style.display = e ? "inline-block" : "none";
   document.getElementById("extractModal").classList.add("open");
@@ -11195,6 +11198,88 @@ function clearExtractRef() {
   renderExtractRefPicker();
 }
 
+// ── Picker codes avec recherche ──────────────────────────────
+let _extractSelectedCodeIds = [];
+
+function _renderExtractSelectedCodes(ids, allCodes) {
+  _extractSelectedCodeIds = [...ids];
+  const el = document.getElementById("extractSelectedCodes");
+  if (!el) return;
+  if (!_extractSelectedCodeIds.length) {
+    el.innerHTML = '<span style="font-size:12px;color:var(--ink-softer);">Aucun code sélectionné</span>';
+    return;
+  }
+  el.innerHTML = _extractSelectedCodeIds.map(cid => {
+    const c = allCodes.find(x => x.id === cid);
+    if (!c) return "";
+    return `<span style="font-size:12px;background:${c.color}33;border:1.5px solid ${c.color};border-radius:20px;padding:3px 9px;font-weight:600;display:inline-flex;align-items:center;gap:5px;">
+      ${escapeHtml(c.label)}
+      <span onclick="removeExtractCode('${cid}')" style="cursor:pointer;font-size:10px;opacity:0.7;">✕</span>
+    </span>`;
+  }).join("");
+}
+
+function removeExtractCode(cid) {
+  _extractSelectedCodeIds = _extractSelectedCodeIds.filter(x => x !== cid);
+  const biblio = _getActiveBiblio() || _biblioDef();
+  _renderExtractSelectedCodes(_extractSelectedCodeIds, biblio.codes||[]);
+}
+
+function renderExtractCodeSearch() {
+  const search = (document.getElementById("extractCodeSearch")?.value || "").toLowerCase().trim();
+  const dropdown = document.getElementById("extractCodeDropdown");
+  const biblio = _getActiveBiblio() || _biblioDef();
+  const allCodes = biblio.codes || [];
+  if (!allCodes.length) {
+    dropdown.innerHTML = '<p style="padding:8px;font-size:12px;color:var(--ink-softer);">Crée d'abord des codes dans l'onglet 🏷️ Codes.</p>';
+    dropdown.style.display = "block";
+    return;
+  }
+  const filtered = search
+    ? allCodes.filter(c => c.label.toLowerCase().includes(search) || (c.description||"").toLowerCase().includes(search))
+    : allCodes;
+  if (!filtered.length) {
+    dropdown.innerHTML = '<p style="padding:8px;font-size:12px;color:var(--ink-softer);">Aucun code trouvé.</p>';
+    dropdown.style.display = "block";
+    return;
+  }
+  // Afficher avec indentation selon parentId
+  dropdown.innerHTML = filtered.map(c => {
+    const depth = _codeDepth(c.id, allCodes);
+    const selected = _extractSelectedCodeIds.includes(c.id);
+    return `<div onclick="selectExtractCode('${c.id}')"
+      style="padding:7px 12px 7px ${depth*14+12}px;cursor:pointer;font-size:13px;background:${selected?"var(--lavender-soft)":"transparent"};display:flex;align-items:center;gap:8px;"
+      onmouseover="this.style.background='var(--lavender-soft)'"
+      onmouseout="this.style.background='${selected?"var(--lavender-soft)":"transparent"}'">
+      <span style="width:12px;height:12px;border-radius:50%;background:${c.color};flex-shrink:0;"></span>
+      <span style="flex:1;">${escapeHtml(c.label)}</span>
+      ${selected ? '<span style="font-size:11px;color:var(--lilac);">✓</span>' : ""}
+    </div>`;
+  }).join("");
+  dropdown.style.display = "block";
+}
+
+function selectExtractCode(cid) {
+  const biblio = _getActiveBiblio() || _biblioDef();
+  const allCodes = biblio.codes || [];
+  if (_extractSelectedCodeIds.includes(cid)) {
+    _extractSelectedCodeIds = _extractSelectedCodeIds.filter(x => x !== cid);
+  } else {
+    _extractSelectedCodeIds.push(cid);
+  }
+  _renderExtractSelectedCodes(_extractSelectedCodeIds, allCodes);
+  renderExtractCodeSearch(); // re-render pour mettre à jour ✓
+}
+
+// Fermer dropdown si clic ailleurs
+document.addEventListener("click", e => {
+  const search = document.getElementById("extractCodeSearch");
+  const dropdown = document.getElementById("extractCodeDropdown");
+  if (search && dropdown && !search.contains(e.target) && !dropdown.contains(e.target)) {
+    dropdown.style.display = "none";
+  }
+});
+
 function toggleExtractCode(codeId, btn) {
   const biblio = _getActiveBiblio() || _biblioDef();
   const c = (biblio.codes||[]).find(x=>x.id===codeId);
@@ -11225,10 +11310,7 @@ function saveExtract() {
   if (!b) { alert("Aucun projet sélectionné. Crée un projet dans l'onglet Codes."); return; }
 
   // Codes sélectionnés
-  const codes = [];
-  document.querySelectorAll("#extractCodePicker button").forEach(btn => {
-    if (btn.dataset.selected === "1") codes.push(btn.dataset.code);
-  });
+  const codes = [..._extractSelectedCodeIds];
   const data = {
     id: id || "ext" + Date.now(),
     refId, text, codes,
