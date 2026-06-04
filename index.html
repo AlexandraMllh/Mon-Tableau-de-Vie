@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v206</title>
+<title>Mon Tableau de Vie 🌿 · v207</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -10583,26 +10583,34 @@ function saveZoteroConfig() {
   showToast("✅ Config Zotero enregistrée");
 }
 async function syncZotero() {
-  const b = state.work.biblio || _biblioDef();
-  const uid = b.zoteroUserId; const key = b.zoteroApiKey;
+  const b = _getActiveBiblio() || _biblioDef(); _setActiveBiblio(b);
+  const cfg = state.work.biblio || {};
+  const uid = cfg.zoteroUserId; const key = cfg.zoteroApiKey;
   const statusEl = document.getElementById("zoteroStatus");
   if (!uid || !key) { if(statusEl) statusEl.textContent = "❌ Renseigne ton User ID et ta clé API d'abord."; return; }
-  if (statusEl) statusEl.innerHTML = "⏳ Synchronisation en cours…";
-  try {
+  if (statusEl) statusEl.innerHTML = "⏳ Récupération des bibliothèques…";
+
+  // Fonction utilitaire : récupère tous les items d'une URL paginée
+  async function fetchAll(baseUrl) {
     let start = 0; const limit = 100; let items = [];
     while (true) {
-      const url = `https://api.zotero.org/users/${uid}/items?format=json&limit=${limit}&start=${start}&key=${key}`;
-      const res = await fetch(url);
+      const res = await fetch(`${baseUrl}&limit=${limit}&start=${start}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const batch = await res.json();
       items = items.concat(batch);
       if (batch.length < limit) break;
       start += limit;
     }
+    return items;
+  }
+
+  // Fonction : traiter une liste d'items Zotero
+  function processItems(items, sourceName) {
     let added = 0, updated = 0;
     items.forEach(item => {
       const d = item.data;
       if (!d || !d.title) return;
+      if (["attachment","note","annotation"].includes(d.itemType)) return;
       const typeMap = { book:"book", journalArticle:"article", bookSection:"chapter", report:"report" };
       const type = typeMap[d.itemType] || "other";
       const authors = (d.creators||[]).filter(c=>c.creatorType==="author")
@@ -10616,17 +10624,47 @@ async function syncZotero() {
         publisher: d.publisher || d.publicationTitle || "",
         doi: d.DOI || d.url || "",
         pages: d.numPages || d.pages || "",
-        notes: "", status: existing?.status || "to-read",
+        notes: existing?.notes || "",
+        status: existing?.status || "to-read",
+        zoteroSource: sourceName,
         createdAt: existing?.createdAt || new Date().toISOString(),
       };
       if (existing) { const i = b.refs.findIndex(r=>r.id===existing.id); b.refs[i]={...b.refs[i],...data}; updated++; }
       else          { if(!b.refs) b.refs=[]; b.refs.unshift(data); added++; }
     });
-    if (!state.work.biblio) state.work.biblio = b;
-    else { state.work.biblio.refs = b.refs; }
+    return { added, updated };
+  }
+
+  try {
+    let totalAdded = 0, totalUpdated = 0;
+    const sources = [];
+
+    // 1. Bibliothèque personnelle
+    if (statusEl) statusEl.innerHTML = "⏳ Bibliothèque personnelle…";
+    const personalItems = await fetchAll(`https://api.zotero.org/users/${uid}/items?format=json&key=${key}`);
+    const { added: pa, updated: pu } = processItems(personalItems, "Perso");
+    totalAdded += pa; totalUpdated += pu;
+    sources.push(`Perso (${pa} ajoutées)`);
+
+    // 2. Bibliothèques de groupe
+    if (statusEl) statusEl.innerHTML = "⏳ Bibliothèques de groupe…";
+    const groupsRes = await fetch(`https://api.zotero.org/users/${uid}/groups?format=json&key=${key}`);
+    if (groupsRes.ok) {
+      const groups = await groupsRes.json();
+      for (const g of groups) {
+        if (statusEl) statusEl.innerHTML = `⏳ Groupe : ${g.data?.name||g.id}…`;
+        const groupItems = await fetchAll(`https://api.zotero.org/groups/${g.id}/items?format=json&key=${key}`);
+        const { added: ga, updated: gu } = processItems(groupItems, g.data?.name || `Groupe ${g.id}`);
+        totalAdded += ga; totalUpdated += gu;
+        sources.push(`${g.data?.name||g.id} (${ga} ajoutées)`);
+      }
+    }
+
+    _setActiveBiblio(b);
     saveState();
-    if (statusEl) statusEl.innerHTML = `✅ Synchronisé : <strong>${added}</strong> nouvelles références, <strong>${updated}</strong> mises à jour.`;
-    showToast(`📚 Zotero : ${added} ajoutées, ${updated} mises à jour`);
+    if (statusEl) statusEl.innerHTML = `✅ <strong>${totalAdded}</strong> nouvelles références, <strong>${totalUpdated}</strong> mises à jour.<br><span style="font-size:11px;color:var(--ink-softer);">Sources : ${sources.join(" · ")}</span>`;
+    showToast(`📚 Zotero : ${totalAdded} ajoutées, ${totalUpdated} mises à jour`);
+    renderBiblioRefs();
   } catch(err) {
     if (statusEl) statusEl.innerHTML = `❌ Erreur : ${err.message}. Vérifie ton User ID et ta clé API.`;
   }
