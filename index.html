@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v210</title>
+<title>Mon Tableau de Vie 🌿 · v211</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -10229,7 +10229,15 @@ function deleteBiblioProject() {
 }
 
 let _biblioPanel = "refs";
-let _biblioActiveCollection = ""; // clé Zotero de la collection filtrée
+let _biblioActiveCollection = "";
+const _biblioCollapsed = new Set(); // collections repliées
+
+function toggleBiblioCollapse(key, e) {
+  e.stopPropagation();
+  if (_biblioCollapsed.has(key)) _biblioCollapsed.delete(key);
+  else _biblioCollapsed.add(key);
+  renderBiblioCollectionTree();
+}
 
 function renderBiblioCollectionTree() {
   const el = document.getElementById("biblioCollectionTree");
@@ -10242,34 +10250,39 @@ function renderBiblioCollectionTree() {
     return;
   }
 
-  // Construire l'arbre
   function renderNode(parentKey, depth) {
     const children = cols.filter(c => (c.parentKey||"") === (parentKey||""));
     if (!children.length) return "";
     return children.map(c => {
-      const active = _biblioActiveCollection === c.key;
-      const refCount = (biblio.refs||[]).filter(r => (r.zoteroCollections||[]).includes(c.key)).length;
-      return `<div style="padding-left:${depth*12}px;">
-        <div onclick="filterBiblioCollection('${c.key}')"
-          style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:13px;
-            background:${active?"var(--lavender-soft)":"transparent"};font-weight:${active?600:400};color:var(--ink);"
+      const active    = _biblioActiveCollection === c.key;
+      const collapsed = _biblioCollapsed.has(c.key);
+      const hasChildren = cols.some(x => x.parentKey === c.key);
+      const refCount  = (biblio.refs||[]).filter(r => (r.zoteroCollections||[]).includes(c.key)).length;
+      const bg = active ? "var(--lavender-soft)" : "transparent";
+      return `<div style="padding-left:${depth*14}px;">
+        <div style="display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:8px;cursor:pointer;font-size:13px;background:${bg};"
+          onclick="filterBiblioCollection('${c.key}')"
           onmouseover="this.style.background='var(--lavender-soft)'"
-          onmouseout="this.style.background='${active?"var(--lavender-soft)":"transparent"}'">
-          <span>📁</span>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(c.name)}</span>
-          ${refCount?`<span style="font-size:10px;color:var(--ink-softer);">${refCount}</span>`:""}
+          onmouseout="this.style.background='${bg}'">
+          ${hasChildren
+            ? `<span onclick="toggleBiblioCollapse('${c.key}',event)" style="flex-shrink:0;width:14px;font-size:10px;color:var(--ink-soft);">${collapsed?"▶":"▼"}</span>`
+            : `<span style="flex-shrink:0;width:14px;"></span>`}
+          <span style="flex-shrink:0;font-size:13px;">${hasChildren ? (collapsed?"📁":"📂") : "📄"}</span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:${active?600:400};">${escapeHtml(c.name)}</span>
+          ${refCount ? `<span style="font-size:10px;color:var(--ink-softer);flex-shrink:0;">${refCount}</span>` : ""}
         </div>
-        ${renderNode(c.key, depth+1)}
+        ${collapsed ? "" : renderNode(c.key, depth+1)}
       </div>`;
     }).join("");
   }
 
+  const active0 = !_biblioActiveCollection;
+  const bg0 = active0 ? "var(--lavender-soft)" : "transparent";
   const allBtn = `<div onclick="filterBiblioCollection('')"
-    style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:13px;
-      background:${!_biblioActiveCollection?"var(--lavender-soft)":"transparent"};font-weight:${!_biblioActiveCollection?600:400};color:var(--ink);margin-bottom:4px;"
+    style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:13px;background:${bg0};font-weight:${active0?600:400};margin-bottom:4px;"
     onmouseover="this.style.background='var(--lavender-soft)'"
-    onmouseout="this.style.background='${!_biblioActiveCollection?"var(--lavender-soft)":"transparent"}'">
-    <span>📚</span> <span>Toutes (${(biblio.refs||[]).length})</span>
+    onmouseout="this.style.background='${bg0}'">
+    <span>📚</span><span>Toutes (${(biblio.refs||[]).length})</span>
   </div>`;
   el.innerHTML = allBtn + renderNode("", 0);
 }
