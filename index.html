@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v216</title>
+<title>Mon Tableau de Vie 🌿 · v217</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2230,6 +2230,10 @@
                 style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;box-sizing:border-box;" />
             </div>
           </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);margin-bottom:10px;cursor:pointer;">
+            <input type="checkbox" id="zoteroSkipPersonal" style="width:15px;height:15px;" />
+            Ignorer la bibliothèque personnelle (n'importer que les groupes)
+          </label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn-primary" onclick="saveZoteroConfig()">💾 Enregistrer</button>
             <button class="btn-soft" onclick="syncZotero()">🔄 Synchroniser la bibliothèque</button>
@@ -10682,11 +10686,14 @@ function loadZoteroConfig() {
   const keyEl = document.getElementById("zoteroApiKey");
   if (uidEl) uidEl.value = b.zoteroUserId || "";
   if (keyEl) keyEl.value = b.zoteroApiKey || "";
+  const skipEl = document.getElementById("zoteroSkipPersonal");
+  if (skipEl) skipEl.checked = !!b.zoteroSkipPersonal;
 }
 function saveZoteroConfig() {
   if (!state.work.biblio) state.work.biblio = _biblioDef();
   state.work.biblio.zoteroUserId = document.getElementById("zoteroUserId")?.value.trim() || "";
   state.work.biblio.zoteroApiKey = document.getElementById("zoteroApiKey")?.value.trim() || "";
+  state.work.biblio.zoteroSkipPersonal = document.getElementById("zoteroSkipPersonal")?.checked || false;
   saveState();
   showToast("✅ Config Zotero enregistrée");
 }
@@ -10763,7 +10770,7 @@ async function syncZotero() {
     // 0. Collections personnelles
     if (statusEl) statusEl.innerHTML = "⏳ Récupération des collections…";
     const allCollections = [];
-    try {
+    if (!skipPersonal) try {
       const colRes = await fetch(`https://api.zotero.org/users/${uid}/collections?format=json&limit=100&key=${key}`);
       if (colRes.ok) {
         const cols = await colRes.json();
@@ -10771,12 +10778,15 @@ async function syncZotero() {
       }
     } catch(e) {}
 
-    // 1. Bibliothèque personnelle
-    if (statusEl) statusEl.innerHTML = "⏳ Bibliothèque personnelle…";
-    const personalItems = await fetchAll(`https://api.zotero.org/users/${uid}/items?format=json&key=${key}`);
-    const { added: pa, updated: pu } = processItems(personalItems, "Perso");
-    totalAdded += pa; totalUpdated += pu;
-    sources.push(`Perso (${pa} ajoutées)`);
+    // 1. Bibliothèque personnelle (sauf si ignorée)
+    const skipPersonal = cfg.zoteroSkipPersonal || false;
+    if (!skipPersonal) {
+      if (statusEl) statusEl.innerHTML = "⏳ Bibliothèque personnelle…";
+      const personalItems = await fetchAll(`https://api.zotero.org/users/${uid}/items?format=json&key=${key}`);
+      const { added: pa, updated: pu } = processItems(personalItems, "Perso");
+      totalAdded += pa; totalUpdated += pu;
+      sources.push(`Perso (${pa} ajoutées)`);
+    }
 
     // 2. Bibliothèques de groupe
     if (statusEl) statusEl.innerHTML = "⏳ Bibliothèques de groupe…";
