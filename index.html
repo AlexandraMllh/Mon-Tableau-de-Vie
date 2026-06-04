@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v208</title>
+<title>Mon Tableau de Vie 🌿 · v209</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2125,7 +2125,14 @@
 
       <!-- Panel : Références -->
       <div id="biblioPanel-refs">
-        <div class="card">
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:14px;align-items:start;">
+          <!-- Arbre collections -->
+          <div class="card" style="padding:12px;">
+            <div style="font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Collections</div>
+            <div id="biblioCollectionTree"></div>
+          </div>
+          <!-- Liste refs -->
+          <div class="card">
           <div class="work-header">
             <h2 style="margin:0;">📚 Mes références <span class="count" id="biblioRefCount"></span></h2>
             <button class="btn-primary" onclick="openRefModal()">+ Ajouter</button>
@@ -2152,8 +2159,9 @@
             </select>
           </div>
           <div id="biblioRefList"></div>
-        </div>
-      </div>
+          </div><!-- fin card liste -->
+        </div><!-- fin grid -->
+      </div><!-- fin panel refs -->
 
       <!-- Panel : Extraits -->
       <div id="biblioPanel-extracts" style="display:none;">
@@ -10221,6 +10229,57 @@ function deleteBiblioProject() {
 }
 
 let _biblioPanel = "refs";
+let _biblioActiveCollection = ""; // clé Zotero de la collection filtrée
+
+function renderBiblioCollectionTree() {
+  const el = document.getElementById("biblioCollectionTree");
+  if (!el) return;
+  const biblio = _getActiveBiblio() || _biblioDef();
+  const cols = biblio.collections || [];
+
+  if (!cols.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--ink-softer);padding:4px 0;">Synchronise Zotero pour voir les collections.</div>';
+    return;
+  }
+
+  // Construire l'arbre
+  function renderNode(parentKey, depth) {
+    const children = cols.filter(c => (c.parentKey||"") === (parentKey||""));
+    if (!children.length) return "";
+    return children.map(c => {
+      const active = _biblioActiveCollection === c.key;
+      const refCount = (biblio.refs||[]).filter(r => (r.zoteroCollections||[]).includes(c.key)).length;
+      return `<div style="padding-left:${depth*12}px;">
+        <div onclick="filterBiblioCollection('${c.key}')"
+          style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:13px;
+            background:${active?"var(--lavender-soft)":"transparent"};font-weight:${active?600:400};color:var(--ink);"
+          onmouseover="this.style.background='var(--lavender-soft)'"
+          onmouseout="this.style.background='${active?"var(--lavender-soft)":"transparent"}'">
+          <span>📁</span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(c.name)}</span>
+          ${refCount?`<span style="font-size:10px;color:var(--ink-softer);">${refCount}</span>`:""}
+        </div>
+        ${renderNode(c.key, depth+1)}
+      </div>`;
+    }).join("");
+  }
+
+  const allBtn = `<div onclick="filterBiblioCollection('')"
+    style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:13px;
+      background:${!_biblioActiveCollection?"var(--lavender-soft)":"transparent"};font-weight:${!_biblioActiveCollection?600:400};color:var(--ink);margin-bottom:4px;"
+    onmouseover="this.style.background='var(--lavender-soft)'"
+    onmouseout="this.style.background='${!_biblioActiveCollection?"var(--lavender-soft)":"transparent"}'">
+    <span>📚</span> <span>Toutes (${(biblio.refs||[]).length})</span>
+  </div>`;
+  el.innerHTML = allBtn + renderNode("", 0);
+}
+
+function filterBiblioCollection(key) {
+  _biblioActiveCollection = key;
+  renderBiblioCollectionTree();
+  renderBiblioRefs();
+}
+
 function switchBiblioPanel(panel) {
   _biblioPanel = panel;
   renderBiblioProjectSelect();
@@ -10232,7 +10291,7 @@ function switchBiblioPanel(panel) {
     const btn = document.querySelector(`.biblio-tab[data-biblio="${p}"]`);
     if (btn) btn.classList.toggle("active", p === panel);
   });
-  if (panel === "refs")     renderBiblioRefs();
+  if (panel === "refs")     { renderBiblioCollectionTree(); renderBiblioRefs(); }
   if (panel === "extracts") { populateBiblioExtractFilters(); renderBiblioExtracts(); }
   if (panel === "codes")    renderBiblioCodes();
   if (panel === "bycode")   { populateBiblioByCodeSelect(); renderBiblioByCode(); }
@@ -10253,6 +10312,7 @@ function renderBiblioRefs() {
   const search = (document.getElementById("biblioSearch")?.value || "").toLowerCase();
   const filterStatus = document.getElementById("biblioFilterStatus")?.value || "";
   const filterType   = document.getElementById("biblioFilterType")?.value   || "";
+  const filterColl   = _biblioActiveCollection || "";
   let refs = biblio.refs || [];
   if (search) refs = refs.filter(r =>
     (r.title||"").toLowerCase().includes(search) ||
@@ -10261,6 +10321,7 @@ function renderBiblioRefs() {
   );
   if (filterStatus) refs = refs.filter(r => r.status === filterStatus);
   if (filterType)   refs = refs.filter(r => r.type   === filterType);
+  if (filterColl)   refs = refs.filter(r => (r.zoteroCollections||[]).includes(filterColl));
   const countEl = document.getElementById("biblioRefCount");
   if (countEl) countEl.textContent = `(${refs.length}/${biblio.refs.length})`;
   const el = document.getElementById("biblioRefList");
@@ -10276,7 +10337,7 @@ function renderBiblioRefs() {
       <div style="flex:1;min-width:0;">
         <div style="font-weight:600;font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.title||"Sans titre")}</div>
         <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;">${escapeHtml(r.authors||"")}${r.year?" · "+r.year:""}</div>
-        ${r.zoteroKey?'<span style="font-size:10px;background:#fff3e0;color:#dc7014;border-radius:5px;padding:1px 5px;">Z</span>':''}
+        ${r.zoteroKey?`<span style="font-size:10px;background:#fff3e0;color:#dc7014;border-radius:5px;padding:1px 5px;">${escapeHtml(r.zoteroSource||'Zotero')}</span>`:''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
         <span style="font-size:11px;background:#f0f0f5;color:var(--ink-soft);border-radius:6px;padding:2px 7px;">${REF_STATUS[r.status]||""}</span>
@@ -10627,6 +10688,7 @@ async function syncZotero() {
       const data = {
         id: existing?.id || "ref" + Date.now() + Math.random().toString(36).slice(2,6),
         zoteroKey: item.key, type,
+        zoteroCollections: d.collections || [],
         title: d.title, authors,
         year: (d.date||"").slice(0,4),
         publisher: d.publisher || d.publicationTitle || "",
@@ -10647,6 +10709,17 @@ async function syncZotero() {
     let totalAdded = 0, totalUpdated = 0;
     const sources = [];
 
+    // 0. Collections personnelles
+    if (statusEl) statusEl.innerHTML = "⏳ Récupération des collections…";
+    const allCollections = [];
+    try {
+      const colRes = await fetch(`https://api.zotero.org/users/${uid}/collections?format=json&limit=100&key=${key}`);
+      if (colRes.ok) {
+        const cols = await colRes.json();
+        cols.forEach(c => allCollections.push({ key: c.key, name: c.data?.name||c.key, parentKey: c.data?.parentCollection||"", source: "Perso" }));
+      }
+    } catch(e) {}
+
     // 1. Bibliothèque personnelle
     if (statusEl) statusEl.innerHTML = "⏳ Bibliothèque personnelle…";
     const personalItems = await fetchAll(`https://api.zotero.org/users/${uid}/items?format=json&key=${key}`);
@@ -10661,15 +10734,25 @@ async function syncZotero() {
       const groups = await groupsRes.json();
       for (const g of groups) {
         if (statusEl) statusEl.innerHTML = `⏳ Groupe : ${g.data?.name||g.id}…`;
-        const groupItems = await fetchAll(`https://api.zotero.org/groups/${g.id}/items?format=json&key=${key}`);
+        // Collections du groupe
+      try {
+        const gcRes = await fetch(`https://api.zotero.org/groups/${g.id}/collections?format=json&limit=100&key=${key}`);
+        if (gcRes.ok) {
+          const gcols = await gcRes.json();
+          gcols.forEach(c => allCollections.push({ key: c.key, name: c.data?.name||c.key, parentKey: c.data?.parentCollection||"", source: g.data?.name||`Groupe ${g.id}` }));
+        }
+      } catch(e) {}
+      const groupItems = await fetchAll(`https://api.zotero.org/groups/${g.id}/items?format=json&key=${key}`);
         const { added: ga, updated: gu } = processItems(groupItems, g.data?.name || `Groupe ${g.id}`);
         totalAdded += ga; totalUpdated += gu;
         sources.push(`${g.data?.name||g.id} (${ga} ajoutées)`);
       }
     }
 
+    b.collections = allCollections;
     _setActiveBiblio(b);
     saveState();
+    renderBiblioCollectionTree();
     if (statusEl) statusEl.innerHTML = `✅ <strong>${totalAdded}</strong> nouvelles références, <strong>${totalUpdated}</strong> mises à jour.<br><span style="font-size:11px;color:var(--ink-softer);">Sources : ${sources.join(" · ")}</span>`;
     showToast(`📚 Zotero : ${totalAdded} ajoutées, ${totalUpdated} mises à jour`);
     renderBiblioRefs();
