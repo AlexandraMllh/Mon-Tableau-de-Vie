@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v220</title>
+<title>Mon Tableau de Vie 🌿 · v221</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -10251,6 +10251,16 @@ function deleteBiblioProject() {
 let _biblioPanel = "refs";
 let _biblioActiveCollection = "";
 const _biblioCollapsed = new Set(); // collections repliées
+const _biblioHidden = new Set(); // collections masquées de l'arbre
+
+function hideBiblioCollection(key) {
+  _biblioHidden.add(key);
+  renderBiblioCollectionTree();
+}
+function showAllBiblioCollections() {
+  _biblioHidden.clear();
+  renderBiblioCollectionTree();
+}
 
 function toggleBiblioCollapse(key, e) {
   e.stopPropagation();
@@ -10277,7 +10287,8 @@ function renderBiblioCollectionTree() {
       const active    = _biblioActiveCollection === c.key;
       const collapsed = _biblioCollapsed.has(c.key);
       const hasChildren = cols.some(x => x.parentKey === c.key);
-      const refCount  = (biblio.refs||[]).filter(r => (r.zoteroCollections||[]).includes(c.key)).length;
+      const descKeys = getAllDescendantKeys(c.key, cols);
+      const refCount  = (biblio.refs||[]).filter(r => (r.zoteroCollections||[]).some(k => descKeys.has(k))).length;
       const bg = active ? "var(--lavender-soft)" : "transparent";
       return `<div style="padding-left:${depth*14}px;">
         <div style="display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:8px;cursor:pointer;font-size:13px;background:${bg};"
@@ -10290,6 +10301,7 @@ function renderBiblioCollectionTree() {
           <span style="flex-shrink:0;font-size:13px;">${c.isGroupRoot ? "🗂️" : hasChildren ? (collapsed?"📁":"📂") : "📄"}</span>
           <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:${active?600:400};">${escapeHtml(c.name)}</span>
           ${refCount ? `<span style="font-size:10px;color:var(--ink-softer);flex-shrink:0;">${refCount}</span>` : ""}
+          ${depth===0 && !c.isGroupRoot ? `<span onclick="event.stopPropagation();hideBiblioCollection('${c.key}')" title="Masquer" style="font-size:10px;color:var(--ink-softer);cursor:pointer;flex-shrink:0;padding:0 2px;opacity:0.5;">✕</span>` : ""}
         </div>
         ${collapsed ? "" : renderNode(c.key, depth+1)}
       </div>`;
@@ -10304,7 +10316,10 @@ function renderBiblioCollectionTree() {
     onmouseout="this.style.background='${bg0}'">
     <span>📚</span><span>Toutes (${(biblio.refs||[]).length})</span>
   </div>`;
-  el.innerHTML = allBtn + renderNode("", 0);
+  const hiddenBtn = _biblioHidden.size > 0
+    ? `<div onclick="showAllBiblioCollections()" style="font-size:11px;color:var(--lilac);cursor:pointer;padding:6px 8px;text-align:center;">↩ Tout réafficher (${_biblioHidden.size} masquée${_biblioHidden.size>1?'s':''})</div>`
+    : "";
+  el.innerHTML = allBtn + renderNode("", 0) + hiddenBtn;
 }
 
 function startBiblioResize(e) {
@@ -10329,6 +10344,21 @@ function startBiblioResize(e) {
   document.getElementById("biblioResizeHandle").style.background = "var(--lavender)";
   document.addEventListener("mousemove", onMove);
   document.addEventListener("mouseup",   onUp);
+}
+
+// Récupère les clés d'une collection ET toutes ses descendantes
+function getAllDescendantKeys(colKey, collections) {
+  const keys = new Set([colKey]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    collections.forEach(c => {
+      if (keys.has(c.parentKey) && !keys.has(c.key)) {
+        keys.add(c.key); changed = true;
+      }
+    });
+  }
+  return keys;
 }
 
 function filterBiblioCollection(key) {
@@ -10378,7 +10408,11 @@ function renderBiblioRefs() {
   );
   if (filterStatus) refs = refs.filter(r => r.status === filterStatus);
   if (filterType)   refs = refs.filter(r => r.type   === filterType);
-  if (filterColl)   refs = refs.filter(r => (r.zoteroCollections||[]).includes(filterColl));
+  if (filterColl) {
+    const biblio2 = _getActiveBiblio() || _biblioDef();
+    const descKeys = getAllDescendantKeys(filterColl, biblio2.collections || []);
+    refs = refs.filter(r => (r.zoteroCollections||[]).some(k => descKeys.has(k)));
+  }
   const countEl = document.getElementById("biblioRefCount");
   if (countEl) countEl.textContent = `(${refs.length}/${biblio.refs.length})`;
   const el = document.getElementById("biblioRefList");
