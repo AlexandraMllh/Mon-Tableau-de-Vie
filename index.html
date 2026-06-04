@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v244</title>
+<title>Mon Tableau de Vie 🌿 · v245</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1644,7 +1644,7 @@
       <button class="btn-icon" id="importBtn" onclick="importData()">↙ Importer</button>
       <button class="btn-icon" id="settingsBtn" onclick="openSettings()">⚙ Personnaliser</button>
       <button class="btn-icon" onclick="openGestionModal()" style="background:linear-gradient(135deg,var(--butter-soft),var(--peach-soft));">🛠 Gestion</button>
-      <button class="btn-icon" id="syncSignInBtn" onclick="signInWithGoogle()" style="background:linear-gradient(135deg,#e8f0fe,#d2e3fc);color:#1a73e8;font-weight:600;display:none;">☁️ Connexion</button>
+      <button class="btn-icon" id="syncSignInBtn" onclick="signInWithGoogle()" style="background:linear-gradient(135deg,#e8f0fe,#d2e3fc);color:#1a73e8;font-weight:600;">☁️ Connexion</button>
       <div class="sync-row">
         <div id="syncUserAvatar" style="display:none;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:10px 14px;cursor:pointer;box-shadow:var(--shadow);font-size:13px;" onclick="showSyncMenu()" title="Synchronisation cloud"></div>
         <span id="syncStatusPill" style="font-size:13px;padding:10px 14px;border-radius:999px;background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);display:none;"></span>
