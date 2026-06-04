@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v259</title>
+<title>Mon Tableau de Vie 🌿 · v260</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -10449,11 +10449,7 @@ function pickRecipeForMeal(dateKey, slot, slotEl) {
   const recipes = state.domestique.recipes || [];
   if (!recipes.length) { alert("Aucune recette — crée-en une dans l'onglet 🍳 Cuisine."); return; }
   const names = ["— Aucune recette —", ...recipes.map(r => r.name + " (" + r.servings + " portions)")];
-  const choice = prompt("Choisir une recette pour ce repas :
-" + names.map((n,i)=>i+". "+n).join("
-") + "
-
-Tape le numéro :");
+  const choice = prompt("Choisir une recette pour ce repas :\n" + names.map((n,i)=>i+". "+n).join("\n") + "\n\nTape le numéro :");
   const idx = parseInt(choice);
   if (isNaN(idx) || idx < 0 || idx > recipes.length) return;
   if (!state.domestique.mealPlan) state.domestique.mealPlan = {};
