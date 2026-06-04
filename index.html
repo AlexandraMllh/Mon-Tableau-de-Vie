@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v200</title>
+<title>Mon Tableau de Vie 🌿 · v201</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1633,6 +1633,7 @@
       <button class="btn-icon" id="exportBtn" onclick="exportData()">↗ Exporter</button>
       <button class="btn-icon" id="importBtn" onclick="importData()">↙ Importer</button>
       <button class="btn-icon" id="settingsBtn" onclick="openSettings()">⚙ Personnaliser</button>
+      <button class="btn-icon" onclick="openGestionModal()" style="background:linear-gradient(135deg,var(--butter-soft),var(--peach-soft));">🛠 Gestion</button>
       <button class="btn-icon" id="syncSignInBtn" onclick="signInWithGoogle()" style="background:linear-gradient(135deg,#e8f0fe,#d2e3fc);color:#1a73e8;font-weight:600;display:none;">☁️ Connexion</button>
       <div class="sync-row">
         <div id="syncUserAvatar" style="display:none;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:10px 14px;cursor:pointer;box-shadow:var(--shadow);font-size:13px;" onclick="showSyncMenu()" title="Synchronisation cloud"></div>
@@ -2652,6 +2653,75 @@
 </div>
 
 <!-- ========= MODALS ========= -->
+<div class="modal-bg" id="gestionModal" onclick="if(event.target===this)closeGestionModal()">
+  <div class="modal" style="max-width:680px;max-height:85vh;overflow-y:auto;">
+    <h2 style="margin:0 0 4px;">🛠 Gestion du tableau</h2>
+    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 16px;">Toutes les infos à donner à Claude pour continuer la configuration.</p>
+
+    <!-- Infos projet -->
+    <div class="section-title">📁 Projet</div>
+    <div style="background:#faf8fd;border-radius:12px;padding:12px 14px;font-size:13px;line-height:2;">
+      <b>Fichier local :</b> <code>/Users/alexandramallah/Documents/Mon-Tableau-de-Vie/index.html</code><br>
+      <b>GitHub :</b> <a href="https://github.com/AlexandraMllh/Mon-Tableau-de-Vie" target="_blank">github.com/AlexandraMllh/Mon-Tableau-de-Vie</a><br>
+      <b>App live :</b> <a href="https://alexandramllh.github.io/Mon-Tableau-de-Vie" target="_blank">alexandramllh.github.io/Mon-Tableau-de-Vie</a><br>
+      <b>Version actuelle :</b> <span id="gestionVersion"></span>
+    </div>
+
+    <!-- Prompt prêt à copier -->
+    <div class="section-title">📋 Prompt à copier pour Claude</div>
+    <div style="position:relative;">
+      <textarea id="gestionPrompt" readonly
+        style="width:100%;height:220px;padding:12px;border:1px solid var(--line);border-radius:12px;font-family:inherit;font-size:12px;color:var(--ink);background:#faf8fd;resize:vertical;box-sizing:border-box;line-height:1.6;"></textarea>
+      <button onclick="copyGestionPrompt()"
+        style="position:absolute;top:10px;right:10px;padding:5px 12px;border-radius:8px;border:none;background:var(--lilac);color:white;font-size:12px;font-weight:600;cursor:pointer;" id="gestionCopyBtn">
+        📋 Copier
+      </button>
+    </div>
+
+    <!-- Stack technique -->
+    <div class="section-title">⚙️ Stack technique</div>
+    <div style="background:#faf8fd;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.9;">
+      HTML/CSS/JS vanilla · fichier unique · Chart.js 4 (CDN)<br>
+      Firebase Firestore (auth Google) · localStorage <code>tableauDeVie_v3</code><br>
+      PWA : Service Worker network-first · GitHub Pages<br>
+      Météo : Open-Meteo (gratuit, sans clé)
+    </div>
+
+    <!-- Firebase -->
+    <div class="section-title">🔥 Firebase</div>
+    <div style="background:#faf8fd;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.9;">
+      <b>Project ID :</b> mon-tableau-de-vie<br>
+      <b>Auth domain :</b> mon-tableau-de-vie.firebaseapp.com<br>
+      <b>API key :</b> AIzaSyDPnPO3IQd3puR4qkx0nWFHLHSDAPuAGcM
+    </div>
+
+    <!-- Fonctionnalités -->
+    <div class="section-title">✅ Fonctionnalités implémentées</div>
+    <div style="background:#faf8fd;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.9;">
+      Onglets : Aujourd'hui · Travail · Activités · Santé · Finances · Domestique · Calendrier · Journal · Piliers<br>
+      Météo widget (Open-Meteo) · 💊 Suivi pilule (streak + calendrier 90j)<br>
+      Notes WYSIWYG (Travail) · Tâches Domestiques · Logo PWA personnalisé 🌿<br>
+      Finances : 🏠 Charges fixes · 💼 Frais pro exclus des graphiques<br>
+      Budget : jauge basée sur rythme réel/idéal · évolution solde 3 mois · comparaison N/N-1<br>
+      Service Worker : auto-update · protection notes avant reload
+    </div>
+
+    <!-- Notes -->
+    <div class="section-title">⚠️ Points critiques à ne pas casser</div>
+    <div style="background:#fef3c7;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.9;border:1px solid #f59e0b;">
+      • <code>location.reload()</code> ne marche pas en PWA Samsung → utiliser <code>window.location.href</code><br>
+      • Icône PWA iOS : lire <code>apple-touch-icon</code> dans &lt;head&gt;, renommer le fichier à chaque changement<br>
+      • Notes : <code>_noteFlushToLocalStorage()</code> à chaque frappe + listener <code>pagehide</code><br>
+      • SW : <code>{ updateViaCache: "none" }</code> + <code>reg.update()</code> au démarrage<br>
+      • Cache : <code>ignoreSearch: true</code> pour gérer les URLs <code>?_cb=timestamp</code>
+    </div>
+
+    <div class="actions">
+      <button class="primary" onclick="closeGestionModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="settingsModal">
   <div class="modal">
     <h2>Personnaliser</h2>
@@ -10797,6 +10867,57 @@ function openSettings() {
   document.getElementById("settingsModal").classList.add("open");
 }
 function closeSettings() { document.getElementById("settingsModal").classList.remove("open"); }
+
+/* ========= MODALE GESTION ========= */
+function openGestionModal() {
+  // Version
+  const vMatch = document.title.match(/v(\d+)/);
+  const v = vMatch ? vMatch[1] : "?";
+  const vEl = document.getElementById("gestionVersion");
+  if (vEl) vEl.textContent = "v" + v;
+
+  // Prompt prêt à copier
+  const prompt = `Voici le contexte de mon projet pour continuer la configuration :
+
+**Projet : Mon Tableau de Vie**
+- Fichier local : /Users/alexandramallah/Documents/Mon-Tableau-de-Vie/index.html
+- GitHub : https://github.com/AlexandraMllh/Mon-Tableau-de-Vie
+- App live : https://alexandramllh.github.io/Mon-Tableau-de-Vie
+- Version actuelle : v${v}
+
+**Stack :** HTML/CSS/JS vanilla, fichier unique (~12000 lignes), Chart.js 4, Firebase Firestore, localStorage (clé tableauDeVie_v3), PWA GitHub Pages.
+
+**Onglets :** Aujourd'hui, Travail, Activités, Santé, Finances, Domestique, Calendrier, Journal, Piliers.
+
+**Points critiques :**
+- location.reload() ne marche pas en PWA Samsung → window.location.href = '...?_r=' + Date.now()
+- Icône iOS : apple-touch-icon dans <head>, renommer fichier à chaque changement
+- Notes : _noteFlushToLocalStorage() à chaque frappe + pagehide listener
+- SW : { updateViaCache: 'none' } + reg.update() au démarrage
+- Cache : ignoreSearch: true pour les URLs ?_cb=timestamp
+- Tout commit doit bumper la version dans <title> (pre-commit hook automatique)
+
+**Finances :**
+- tx.fixedCharge = true → exclu de la jauge budget, donut dépenses, flux 6 mois
+- tx.reimbursable = true → exclu du donut dépenses, flux 6 mois, objectifs catégorie
+- Jauge budget : couleur sur rythme réel/idéal, pas sur % consommé
+- Cycle financier : 26 mois précédent → 25 mois courant
+
+Le CLAUDE.md à la racine du projet contient tout le contexte technique détaillé.`;
+
+  const textarea = document.getElementById("gestionPrompt");
+  if (textarea) textarea.value = prompt;
+  document.getElementById("gestionModal").classList.add("open");
+}
+function closeGestionModal() { document.getElementById("gestionModal").classList.remove("open"); }
+function copyGestionPrompt() {
+  const ta = document.getElementById("gestionPrompt");
+  if (!ta) return;
+  navigator.clipboard.writeText(ta.value).then(() => {
+    const btn = document.getElementById("gestionCopyBtn");
+    if (btn) { btn.textContent = "✅ Copié !"; setTimeout(() => btn.textContent = "📋 Copier", 2000); }
+  }).catch(() => { ta.select(); document.execCommand("copy"); });
+}
 function renderSettingsLists() {
   document.getElementById("habitEditList").innerHTML = state.habits.map(h =>
     `<div class="item-edit"><span>${escapeHtml(h.name)}</span><button class="del" onclick="removeHabit('${h.id}')">✕</button></div>`).join("");
