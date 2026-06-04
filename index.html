@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v219</title>
+<title>Mon Tableau de Vie 🌿 · v220</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -10750,7 +10750,6 @@ function saveZoteroConfig() {
   showToast("✅ Config Zotero enregistrée");
 }
 async function syncZotero() {
-  // Si aucun projet n'existe, en créer un automatiquement
   if (!_getBiblioProjects().length) {
     if (!state.work.biblioProjects) state.work.biblioProjects = [];
     const id = 'bproj' + Date.now();
@@ -10760,20 +10759,22 @@ async function syncZotero() {
   }
   const b = _getActiveBiblio() || _biblioDef();
   const cfg = state.work.biblio || {};
-  const uid = cfg.zoteroUserId; const key = cfg.zoteroApiKey;
+  const uid = cfg.zoteroUserId;
+  const key = cfg.zoteroApiKey;
+  const skipPersonal = cfg.zoteroSkipPersonal || false;
   const statusEl = document.getElementById("zoteroStatus");
   if (!uid || !key) { if(statusEl) statusEl.textContent = "❌ Renseigne ton User ID et ta clé API d'abord."; return; }
-  if (statusEl) statusEl.innerHTML = "⏳ Récupération des bibliothèques…";
+  if (statusEl) statusEl.innerHTML = "⏳ Synchronisation en cours…";
 
-  // Réinitialiser les refs Zotero (garder seulement les manuelles) et les collections
+  // Garder les refs manuelles, vider les refs Zotero et les collections
   b.refs = (b.refs||[]).filter(r => !r.zoteroKey);
   b.collections = [];
 
-  // Fonction utilitaire : récupère tous les items d'une URL paginée
+  // Récupère tous les items d'une URL paginée
   async function fetchAll(baseUrl) {
     let start = 0; const limit = 100; let items = [];
     while (true) {
-      const res = await fetch(`${baseUrl}&limit=${limit}&start=${start}`);
+      const res = await fetch(`${baseUrl}&limit=${limit}&start=${start}`, { signal: AbortSignal.timeout(20000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const batch = await res.json();
       items = items.concat(batch);
@@ -10783,14 +10784,14 @@ async function syncZotero() {
     return items;
   }
 
-  // Fonction : traiter une liste d'items Zotero
+  // Traite une liste d'items et les ajoute à b.refs
   function processItems(items, sourceName) {
     let added = 0, updated = 0;
+    const typeMap = { book:"book", journalArticle:"article", bookSection:"chapter", report:"report" };
     items.forEach(item => {
       const d = item.data;
       if (!d || !d.title) return;
       if (["attachment","note","annotation"].includes(d.itemType)) return;
-      const typeMap = { book:"book", journalArticle:"article", bookSection:"chapter", report:"report" };
       const type = typeMap[d.itemType] || "other";
       const authors = (d.creators||[]).filter(c=>c.creatorType==="author")
         .map(c => [c.lastName, c.firstName].filter(Boolean).join(", ")).join("; ");
@@ -10810,77 +10811,84 @@ async function syncZotero() {
         createdAt: existing?.createdAt || new Date().toISOString(),
       };
       if (existing) { const i = b.refs.findIndex(r=>r.id===existing.id); b.refs[i]={...b.refs[i],...data}; updated++; }
-      else          { if(!b.refs) b.refs=[]; b.refs.unshift(data); added++; }
+      else { if(!b.refs) b.refs=[]; b.refs.unshift(data); added++; }
     });
     return { added, updated };
   }
 
-  try {
-    let totalAdded = 0, totalUpdated = 0;
-    const sources = [];
+  const statusLines = [];
+  let hasError = false;
 
-    // 0. Collections personnelles
-    const skipPersonal = cfg.zoteroSkipPersonal || false;
-    if (statusEl) statusEl.innerHTML = "⏳ Récupération des collections…";
-    const allCollections = [];
-    if (!skipPersonal) try {
+  // 1. Bibliothèque personnelle
+  if (!skipPersonal) {
+    if (statusEl) statusEl.innerHTML = "⏳ Bibliothèque personnelle…";
+    try {
+      // Collections perso
       const colRes = await fetch(`https://api.zotero.org/users/${uid}/collections?format=json&limit=100&key=${key}`);
       if (colRes.ok) {
         const cols = await colRes.json();
-        cols.forEach(c => allCollections.push({ key: c.key, name: c.data?.name||c.key, parentKey: c.data?.parentCollection||"", source: "Perso" }));
+        cols.forEach(c => b.collections.push({ key: c.key, name: c.data?.name||c.key, parentKey: c.data?.parentCollection||"", source: "Perso" }));
       }
-    } catch(e) {}
-
-    // 1. Bibliothèque personnelle (sauf si ignorée)
-    if (!skipPersonal) {
-      if (statusEl) statusEl.innerHTML = "⏳ Bibliothèque personnelle…";
+      // Items perso
       const personalItems = await fetchAll(`https://api.zotero.org/users/${uid}/items?format=json&key=${key}`);
       const { added: pa, updated: pu } = processItems(personalItems, "Perso");
-      totalAdded += pa; totalUpdated += pu;
-      sources.push(`Perso (${pa} ajoutées)`);
+      statusLines.push(`Perso : ${pa} ajoutées, ${pu} mises à jour`);
+    } catch(err) {
+      statusLines.push(`⚠️ Biblio perso : erreur (${err.message})`);
+      hasError = true;
     }
+  }
 
-    // 2. Bibliothèques de groupe
-    if (statusEl) statusEl.innerHTML = "⏳ Bibliothèques de groupe…";
+  // 2. Groupes
+  if (statusEl) statusEl.innerHTML = "⏳ Bibliothèques de groupe…";
+  try {
     const groupsRes = await fetch(`https://api.zotero.org/users/${uid}/groups?format=json&key=${key}`);
     if (groupsRes.ok) {
       const groups = await groupsRes.json();
       for (const g of groups) {
-        if (statusEl) statusEl.innerHTML = `⏳ Groupe : ${g.data?.name||g.id}…`;
-        // Collections du groupe
-      try {
-        const gcRes = await fetch(`https://api.zotero.org/groups/${g.id}/collections?format=json&limit=100&key=${key}`);
-        if (gcRes.ok) {
-          const gcols = await gcRes.json();
-          const gName = g.data?.name || `Groupe ${g.id}`;
-          const gVirtualKey = `grp-${g.id}`;
-          // Nœud virtuel racine pour le groupe
-          if (!allCollections.find(c => c.key === gVirtualKey)) {
-            allCollections.push({ key: gVirtualKey, name: gName, parentKey: "", source: gName, isGroupRoot: true });
+        const gName = g.data?.name || `Groupe ${g.id}`;
+        const gVKey = `grp-${g.id}`;
+        if (statusEl) statusEl.innerHTML = `⏳ Groupe : ${gName}…`;
+        try {
+          // Collections du groupe
+          const gcRes = await fetch(`https://api.zotero.org/groups/${g.id}/collections?format=json&limit=100&key=${key}`);
+          if (gcRes.ok) {
+            const gcols = await gcRes.json();
+            if (!b.collections.find(c => c.key === gVKey)) {
+              b.collections.push({ key: gVKey, name: gName, parentKey: "", source: gName, isGroupRoot: true });
+            }
+            gcols.forEach(c => b.collections.push({
+              key: c.key, name: c.data?.name||c.key,
+              parentKey: c.data?.parentCollection || gVKey,
+              source: gName
+            }));
           }
-          gcols.forEach(c => {
-            const parentKey = c.data?.parentCollection || gVirtualKey; // sous collection → parent réel, racine → nœud virtuel groupe
-            allCollections.push({ key: c.key, name: c.data?.name||c.key, parentKey, source: gName });
-          });
+          // Items du groupe
+          const groupItems = await fetchAll(`https://api.zotero.org/groups/${g.id}/items?format=json&key=${key}`);
+          const { added: ga, updated: gu } = processItems(groupItems, gName);
+          statusLines.push(`${gName} : ${ga} ajoutées, ${gu} mises à jour`);
+        } catch(err) {
+          statusLines.push(`⚠️ ${gName} : erreur (${err.message})`);
+          hasError = true;
         }
-      } catch(e) {}
-      const groupItems = await fetchAll(`https://api.zotero.org/groups/${g.id}/items?format=json&key=${key}`);
-        const { added: ga, updated: gu } = processItems(groupItems, g.data?.name || `Groupe ${g.id}`);
-        totalAdded += ga; totalUpdated += gu;
-        sources.push(`${g.data?.name||g.id} (${ga} ajoutées)`);
       }
     }
-
-    b.collections = allCollections;
-    _setActiveBiblio(b);
-    saveState();
-    renderBiblioCollectionTree();
-    if (statusEl) statusEl.innerHTML = `✅ <strong>${totalAdded}</strong> nouvelles références, <strong>${totalUpdated}</strong> mises à jour.<br><span style="font-size:11px;color:var(--ink-softer);">Sources : ${sources.join(" · ")}</span>`;
-    showToast(`📚 Zotero : ${totalAdded} ajoutées, ${totalUpdated} mises à jour`);
-    renderBiblioRefs();
   } catch(err) {
-    if (statusEl) statusEl.innerHTML = `❌ Erreur : ${err.message}. Vérifie ton User ID et ta clé API.`;
+    statusLines.push(`⚠️ Groupes : erreur (${err.message})`);
+    hasError = true;
   }
+
+  _setActiveBiblio(b);
+  saveState();
+  renderBiblioCollectionTree();
+  renderBiblioRefs();
+  renderZoteroSources();
+
+  const total = (b.refs||[]).filter(r=>r.zoteroKey).length;
+  const icon = hasError ? "⚠️" : "✅";
+  if (statusEl) statusEl.innerHTML = `${icon} <strong>${total}</strong> références Zotero au total.<br>
+    <span style="font-size:11px;color:var(--ink-softer);">${statusLines.join(" · ")}</span>`;
+  showToast(`📚 Zotero : ${total} références`);
 }
 
 
