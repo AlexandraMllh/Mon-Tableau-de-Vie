@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v251</title>
+<title>Mon Tableau de Vie 🌿 · v252</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -3608,6 +3608,11 @@
 <input type="file" id="importFile" accept=".json" style="display:none;" />
 
 <script>
+// Détecteur d'erreur JS global - affiche une alerte si quelque chose plante
+window.onerror = function(msg, src, line, col, err) {
+  alert("Erreur JS ligne " + line + ":\n" + msg);
+  return false;
+};
 /* ===== ANALYSE ÉMOTIONNELLE DU JOURNAL ===== */
 const JOURNAL_EMOTIONS = [
   { id: "joie", label: "Joie", emoji: "😊", color: "#16a34a", bg: "#dcfce7",
