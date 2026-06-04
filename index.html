@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v224</title>
+<title>Mon Tableau de Vie 🌿 · v225</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -10266,6 +10266,41 @@ let _biblioActiveCollection = "";
 const _biblioCollapsed = new Set(); // collections repliées
 const _biblioHidden = new Set(); // collections masquées de l'arbre
 
+// ── Drag & drop pour réordonner les collections racine ──────────
+let _biblioDragKey = null;
+
+function biblioDragStart(e, key) {
+  _biblioDragKey = key;
+  e.dataTransfer.effectAllowed = "move";
+}
+
+function biblioDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  e.currentTarget.style.outline = "2px solid var(--lavender)";
+}
+
+function biblioDrop(e, targetKey) {
+  e.preventDefault();
+  e.currentTarget.style.outline = "";
+  if (!_biblioDragKey || _biblioDragKey === targetKey) return;
+  const b = _getActiveBiblio() || _biblioDef();
+  if (!b.collectionOrder) {
+    // Initialiser l'ordre à partir de l'ordre actuel
+    b.collectionOrder = (b.collections||[]).filter(c => !c.parentKey || c.parentKey === "").map(c => c.key);
+  }
+  const order = b.collectionOrder;
+  const fromIdx = order.indexOf(_biblioDragKey);
+  const toIdx   = order.indexOf(targetKey);
+  if (fromIdx < 0 || toIdx < 0) return;
+  order.splice(fromIdx, 1);
+  order.splice(toIdx, 0, _biblioDragKey);
+  _setActiveBiblio(b);
+  saveState();
+  renderBiblioCollectionTree();
+  _biblioDragKey = null;
+}
+
 function hideBiblioCollection(key) {
   _biblioHidden.add(key);
   renderBiblioCollectionTree();
@@ -10297,16 +10332,30 @@ function renderBiblioCollectionTree() {
   }
 
   function renderNode(parentKey, depth) {
+    const biblio_b = _getActiveBiblio() || _biblioDef();
+    const colOrder = biblio_b.collectionOrder || [];
     const children = cols.filter(c => (c.parentKey||"") === (parentKey||"") && !_biblioHidden.has(c.key));
     if (!children.length) return "";
-    return children.map(c => {
+    // Tri par ordre personnalisé pour les racines
+    const sorted = parentKey === "" && colOrder.length
+      ? [...children].sort((a, b) => {
+          const ia = colOrder.indexOf(a.key); const ib = colOrder.indexOf(b.key);
+          if (ia < 0 && ib < 0) return 0;
+          if (ia < 0) return 1; if (ib < 0) return -1;
+          return ia - ib;
+        })
+      : children;
+    return sorted.map(c => {
       const active    = _biblioActiveCollection === c.key;
       const collapsed = _biblioCollapsed.has(c.key);
       const hasChildren = cols.some(x => x.parentKey === c.key);
       const descKeys = getAllDescendantKeys(c.key, cols);
       const refCount  = (biblio.refs||[]).filter(r => (r.zoteroCollections||[]).some(k => descKeys.has(k))).length;
       const bg = active ? "var(--lavender-soft)" : "transparent";
-      return `<div style="padding-left:${depth*14}px;">
+      const dragAttrs = depth === 0
+        ? `draggable="true" ondragstart="biblioDragStart(event,'${c.key}')" ondragover="biblioDragOver(event)" ondrop="biblioDrop(event,'${c.key}')" ondragleave="this.style.outline=''" style="padding-left:0;"`
+        : `style="padding-left:${depth*14}px;"`;
+      return `<div ${dragAttrs}>
         <div style="display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:8px;cursor:pointer;font-size:13px;background:${bg};"
           onclick="filterBiblioCollection('${c.key}')"
           onmouseover="this.style.background='var(--lavender-soft)'"
@@ -10317,7 +10366,7 @@ function renderBiblioCollectionTree() {
           <span style="flex-shrink:0;font-size:13px;">${c.isGroupRoot ? "🗂️" : hasChildren ? (collapsed?"📁":"📂") : "📄"}</span>
           <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:${active?600:400};">${escapeHtml(c.name)}</span>
           ${refCount ? `<span style="font-size:10px;color:var(--ink-softer);flex-shrink:0;">${refCount}</span>` : ""}
-          ${depth===0 && !c.isGroupRoot ? `<span onclick="event.stopPropagation();hideBiblioCollection('${c.key}')" title="Masquer" style="font-size:10px;color:var(--ink-softer);cursor:pointer;flex-shrink:0;padding:0 2px;opacity:0.5;">✕</span>` : ""}
+          ${depth===0 ? `<span onclick="event.stopPropagation();hideBiblioCollection('${c.key}')" title="Masquer" style="font-size:10px;color:var(--ink-softer);cursor:pointer;flex-shrink:0;padding:0 4px;opacity:0.5;">✕</span>` : ""}
         </div>
         ${collapsed ? "" : renderNode(c.key, depth+1)}
       </div>`;
@@ -10692,7 +10741,7 @@ function renderExtractRefPicker() {
   function renderPickerNode(parentKey, depth) {
     const children = cols.filter(c => (c.parentKey||"") === (parentKey||"") && !_biblioHidden.has(c.key));
     if (!children.length && depth === 0) return refs.slice(0,20).map(r=>refItem(r,0)).join("");
-    return children.map(c => {
+    return sorted.map(c => {
       const open = !_pickerCollapsed.has(c.key);
       const cRefs = refs.filter(r => {
         const dk = getAllDescendantKeys(c.key, cols);
