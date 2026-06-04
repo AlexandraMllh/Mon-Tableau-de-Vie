@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v223</title>
+<title>Mon Tableau de Vie 🌿 · v224</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2164,7 +2164,7 @@
               <option value="other">📎 Autre</option>
             </select>
           </div>
-          <div id="biblioRefList"></div>
+          <div id="biblioRefList" style="max-height:65vh;overflow-y:auto;"></div>
           </div><!-- fin card liste -->
         </div><!-- fin grid -->
       </div><!-- fin panel refs -->
@@ -2994,7 +2994,20 @@
     <h2 id="extractModalTitle">Nouvel extrait</h2>
     <input type="hidden" id="extractModalId" />
     <label>Référence *</label>
-    <select id="extractModalRef" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;margin-bottom:0;"></select>
+    <input type="hidden" id="extractModalRef" />
+    <!-- Picker de référence : recherche + arbre collections -->
+    <div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:0;">
+      <div style="display:flex;gap:6px;padding:8px;background:#faf8fd;border-bottom:1px solid var(--line);">
+        <input type="text" id="extractRefSearch" placeholder="🔍 Rechercher une référence…"
+          oninput="renderExtractRefPicker()"
+          style="flex:1;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+      </div>
+      <div id="extractRefPickerTree" style="max-height:200px;overflow-y:auto;padding:6px;"></div>
+      <div id="extractRefSelected" style="padding:8px 10px;font-size:13px;color:var(--lilac);font-weight:600;background:var(--lavender-soft);display:none;border-top:1px solid var(--line);">
+        ✓ <span id="extractRefSelectedLabel"></span>
+        <button onclick="clearExtractRef()" style="float:right;background:none;border:none;cursor:pointer;color:var(--ink-softer);font-size:12px;">✕ changer</button>
+      </div>
+    </div>
     <div class="grid-2" style="margin-top:10px;">
       <div><label>Page(s)</label><input type="text" id="extractModalPage" placeholder="ex : 45 ou 45-47" /></div>
       <div><label>Codes attribués *</label></div>
@@ -10266,7 +10279,10 @@ function toggleBiblioCollapse(key, e) {
   e.stopPropagation();
   if (_biblioCollapsed.has(key)) _biblioCollapsed.delete(key);
   else _biblioCollapsed.add(key);
+  const treeWrap = document.getElementById("biblioCollectionTree")?.parentElement;
+  const scrollTop = treeWrap?.scrollTop || 0;
   renderBiblioCollectionTree();
+  if (treeWrap) requestAnimationFrame(() => { treeWrap.scrollTop = scrollTop; });
 }
 
 function renderBiblioCollectionTree() {
@@ -10363,8 +10379,13 @@ function getAllDescendantKeys(colKey, collections) {
 
 function filterBiblioCollection(key) {
   _biblioActiveCollection = key;
+  // Sauvegarder le scroll du panneau collections
+  const treeWrap = document.getElementById("biblioCollectionTree")?.parentElement;
+  const scrollTop = treeWrap?.scrollTop || 0;
   renderBiblioCollectionTree();
   renderBiblioRefs();
+  // Restaurer le scroll
+  if (treeWrap) requestAnimationFrame(() => { treeWrap.scrollTop = scrollTop; });
 }
 
 function switchBiblioPanel(panel) {
@@ -10605,10 +10626,18 @@ function openExtractModal(id) {
   const e = id ? (biblio.extracts||[]).find(x => x.id === id) : null;
   document.getElementById("extractModalTitle").textContent = e ? "Modifier l'extrait" : "Nouvel extrait";
   document.getElementById("extractModalId").value = id || "";
-  // Référence select
-  const refSel = document.getElementById("extractModalRef");
-  refSel.innerHTML = '<option value="">— Choisir une référence —</option>' +
-    (biblio.refs||[]).map(r => `<option value="${r.id}"${e&&e.refId===r.id?" selected":""}>${escapeHtml(r.title)}</option>`).join("");
+  // Picker référence
+  document.getElementById("extractRefSearch").value = "";
+  renderExtractRefPicker();
+  const selId = e?.refId || "";
+  const selRef = selId ? (biblio.refs||[]).find(r => r.id === selId) : null;
+  document.getElementById("extractModalRef").value = selId;
+  if (selRef) {
+    document.getElementById("extractRefSelected").style.display = "block";
+    document.getElementById("extractRefSelectedLabel").textContent = selRef.title;
+  } else {
+    document.getElementById("extractRefSelected").style.display = "none";
+  }
   // Page, texte, note
   document.getElementById("extractModalPage").value = e?.page || "";
   document.getElementById("extractModalText").value = e?.text || "";
@@ -10628,6 +10657,87 @@ function openExtractModal(id) {
   if (delBtn) delBtn.style.display = e ? "inline-block" : "none";
   document.getElementById("extractModal").classList.add("open");
 }
+function renderExtractRefPicker() {
+  const biblio = _getActiveBiblio() || _biblioDef();
+  const refs = biblio.refs || [];
+  const cols = biblio.collections || [];
+  const search = (document.getElementById("extractRefSearch")?.value || "").toLowerCase().trim();
+  const el = document.getElementById("extractRefPickerTree");
+  if (!el) return;
+  const selectedId = document.getElementById("extractModalRef").value;
+  const bg = (id) => selectedId===id ? "var(--lavender-soft)" : "transparent";
+
+  if (search) {
+    const filtered = refs.filter(r =>
+      (r.title||"").toLowerCase().includes(search) ||
+      (r.authors||"").toLowerCase().includes(search)
+    ).slice(0, 40);
+    el.innerHTML = filtered.length
+      ? filtered.map(r => refItem(r, 0)).join("")
+      : "<p style='font-size:13px;color:var(--ink-softer);padding:8px;'>Aucun résultat</p>";
+    return;
+  }
+
+  function refItem(r, depth) {
+    const title = escapeHtml(r.title||"Sans titre");
+    const authors = r.authors ? ` — ${escapeHtml(r.authors)}${r.year?" ("+r.year+")":""}` : "";
+    return `<div onclick="selectExtractRef('${r.id}')"
+      style="padding:5px 10px 5px ${depth*12+16}px;border-radius:8px;cursor:pointer;font-size:13px;background:${bg(r.id)};"
+      onmouseover="this.style.background='var(--lavender-soft)'"
+      onmouseout="this.style.background='${bg(r.id)}'">
+      ${title}<span style="font-size:11px;color:var(--ink-softer);">${authors}</span>
+    </div>`;
+  }
+
+  function renderPickerNode(parentKey, depth) {
+    const children = cols.filter(c => (c.parentKey||"") === (parentKey||"") && !_biblioHidden.has(c.key));
+    if (!children.length && depth === 0) return refs.slice(0,20).map(r=>refItem(r,0)).join("");
+    return children.map(c => {
+      const open = !_pickerCollapsed.has(c.key);
+      const cRefs = refs.filter(r => {
+        const dk = getAllDescendantKeys(c.key, cols);
+        return (r.zoteroCollections||[]).some(k => dk.has(k));
+      });
+      return `<div>
+        <div onclick="togglePickerCollapse('${c.key}')"
+          style="display:flex;align-items:center;gap:5px;padding:4px 8px 4px ${depth*12+8}px;cursor:pointer;font-size:12px;font-weight:600;color:var(--ink-soft);border-radius:6px;"
+          onmouseover="this.style.background='#f0eeff'" onmouseout="this.style.background='transparent'">
+          <span style="font-size:10px;">${open?"▼":"▶"}</span>
+          <span>${c.isGroupRoot?"🗂️":"📁"}</span>
+          <span style="flex:1;">${escapeHtml(c.name)}</span>
+          <span style="font-size:10px;color:var(--ink-softer);">${cRefs.length}</span>
+        </div>
+        ${open ? renderPickerNode(c.key, depth+1) : ""}
+      </div>`;
+    }).join("");
+  }
+
+  el.innerHTML = renderPickerNode("", 0) || "<p style='font-size:13px;color:var(--ink-softer);padding:8px;'>Aucune référence</p>";
+}
+
+const _pickerCollapsed = new Set();
+function togglePickerCollapse(key) {
+  if (_pickerCollapsed.has(key)) _pickerCollapsed.delete(key);
+  else _pickerCollapsed.add(key);
+  renderExtractRefPicker();
+}
+
+function selectExtractRef(id) {
+  const biblio = _getActiveBiblio() || _biblioDef();
+  const r = (biblio.refs||[]).find(x => x.id === id);
+  document.getElementById("extractModalRef").value = id;
+  document.getElementById("extractRefSelected").style.display = "block";
+  document.getElementById("extractRefSelectedLabel").textContent = r?.title || id;
+  renderExtractRefPicker();
+}
+
+function clearExtractRef() {
+  document.getElementById("extractModalRef").value = "";
+  document.getElementById("extractRefSelected").style.display = "none";
+  document.getElementById("extractRefSearch").value = "";
+  renderExtractRefPicker();
+}
+
 function toggleExtractCode(codeId, btn) {
   const biblio = state.work.biblio || _biblioDef();
   const c = (biblio.codes||[]).find(x=>x.id===codeId);
