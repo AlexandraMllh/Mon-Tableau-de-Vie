@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v213</title>
+<title>Mon Tableau de Vie 🌿 · v214</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2133,7 +2133,7 @@
           </div>
           <!-- Handle de redimensionnement -->
           <div id="biblioResizeHandle"
-            style="cursor:col-resize;background:var(--line);border-radius:3px;align-self:stretch;margin:0 4px;transition:background 0.15s;"
+            style="cursor:col-resize;background:var(--line);border-radius:4px;align-self:stretch;margin:0 2px;width:8px;min-width:8px;transition:background 0.15s;display:flex;align-items:center;justify-content:center;"
             onmousedown="startBiblioResize(event)"
             onmouseover="this.style.background='var(--lavender)'"
             onmouseout="this.style.background='var(--line)'"></div>
@@ -10277,7 +10277,7 @@ function renderBiblioCollectionTree() {
           ${hasChildren
             ? `<span onclick="toggleBiblioCollapse('${c.key}',event)" style="flex-shrink:0;width:14px;font-size:10px;color:var(--ink-soft);">${collapsed?"▶":"▼"}</span>`
             : `<span style="flex-shrink:0;width:14px;"></span>`}
-          <span style="flex-shrink:0;font-size:13px;">${hasChildren ? (collapsed?"📁":"📂") : "📄"}</span>
+          <span style="flex-shrink:0;font-size:13px;">${c.isGroupRoot ? "🗂️" : hasChildren ? (collapsed?"📁":"📂") : "📄"}</span>
           <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:${active?600:400};">${escapeHtml(c.name)}</span>
           ${refCount ? `<span style="font-size:10px;color:var(--ink-softer);flex-shrink:0;">${refCount}</span>` : ""}
         </div>
@@ -10786,7 +10786,16 @@ async function syncZotero() {
         const gcRes = await fetch(`https://api.zotero.org/groups/${g.id}/collections?format=json&limit=100&key=${key}`);
         if (gcRes.ok) {
           const gcols = await gcRes.json();
-          gcols.forEach(c => allCollections.push({ key: c.key, name: c.data?.name||c.key, parentKey: c.data?.parentCollection||"", source: g.data?.name||`Groupe ${g.id}` }));
+          const gName = g.data?.name || `Groupe ${g.id}`;
+          const gVirtualKey = `grp-${g.id}`;
+          // Nœud virtuel racine pour le groupe
+          if (!allCollections.find(c => c.key === gVirtualKey)) {
+            allCollections.push({ key: gVirtualKey, name: gName, parentKey: "", source: gName, isGroupRoot: true });
+          }
+          gcols.forEach(c => {
+            const parentKey = c.data?.parentCollection || gVirtualKey; // sous collection → parent réel, racine → nœud virtuel groupe
+            allCollections.push({ key: c.key, name: c.data?.name||c.key, parentKey, source: gName });
+          });
         }
       } catch(e) {}
       const groupItems = await fetchAll(`https://api.zotero.org/groups/${g.id}/items?format=json&key=${key}`);
