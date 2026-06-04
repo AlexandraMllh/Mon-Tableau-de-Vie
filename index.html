@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v240</title>
+<title>Mon Tableau de Vie 🌿 · v241</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11140,12 +11140,24 @@ function toggleExtractCode(codeId, btn) {
 }
 function closeExtractModal() { document.getElementById("extractModal").classList.remove("open"); }
 function saveExtract() {
-  const b = _getActiveBiblio() || _biblioDef(); _setActiveBiblio(b);
   const id = document.getElementById("extractModalId").value;
   const text = document.getElementById("extractModalText").value.trim();
   if (!text) { alert("Le passage est obligatoire."); return; }
   const refId = document.getElementById("extractModalRef").value;
   if (!refId) { alert("Choisis une référence."); return; }
+
+  // S'assurer qu'on a un projet actif — en créer un si besoin
+  if (!_getBiblioProjects().length) {
+    if (!state.work.biblioProjects) state.work.biblioProjects = [];
+    const pid = "bproj" + Date.now();
+    state.work.biblioProjects.push({ id: pid, name: "Mon projet", biblio: _biblioDef() });
+    _biblioProjectId = pid;
+    renderBiblioProjectSelect();
+  }
+  // Forcer l'initialisation de _biblioProjectId
+  const b = _getActiveBiblio();
+  if (!b) { alert("Aucun projet sélectionné. Crée un projet dans l'onglet Codes."); return; }
+
   // Codes sélectionnés
   const codes = [];
   document.querySelectorAll("#extractCodePicker button").forEach(btn => {
@@ -11153,16 +11165,30 @@ function saveExtract() {
   });
   const data = {
     id: id || "ext" + Date.now(),
-    refId,
-    text,
+    refId, text, codes,
     page: document.getElementById("extractModalPage").value.trim(),
     note: document.getElementById("extractModalNote").value.trim(),
-    codes,
     createdAt: id ? ((b.extracts||[]).find(e=>e.id===id)?.createdAt||new Date().toISOString()) : new Date().toISOString(),
   };
-  if (id) { const i = (b.extracts||[]).findIndex(e=>e.id===id); if(i>=0) b.extracts[i]=data; }
-  else    { if(!b.extracts) b.extracts=[]; b.extracts.unshift(data); }
-  saveState(); closeExtractModal();
+
+  // Sauvegarder DIRECTEMENT dans state (via la référence du projet)
+  const projects = _getBiblioProjects();
+  const p = projects.find(x => x.id === _biblioProjectId);
+  if (!p) { alert("Projet introuvable. Recharge la page."); return; }
+  if (!p.biblio) p.biblio = _biblioDef();
+  if (!p.biblio.extracts) p.biblio.extracts = [];
+
+  if (id) {
+    const i = p.biblio.extracts.findIndex(e=>e.id===id);
+    if (i >= 0) p.biblio.extracts[i] = data;
+    else p.biblio.extracts.unshift(data);
+  } else {
+    p.biblio.extracts.unshift(data);
+  }
+
+  saveState();
+  showToast(`✅ Extrait sauvegardé${codes.length ? " (" + codes.length + " code" + (codes.length>1?"s":"") + ")" : ""}`);
+  closeExtractModal();
   populateBiblioExtractFilters(); renderBiblioExtracts();
 }
 function deleteExtract() {
