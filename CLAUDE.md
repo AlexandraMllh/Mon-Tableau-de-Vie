@@ -4,6 +4,21 @@ Fichier de contexte complet pour reprendre le projet sans aucune explication sup
 
 ---
 
+## ⚠️ RÈGLE ABSOLUE — MOBILE FIRST
+
+**Toute nouvelle fonctionnalité doit être adaptée à l'interface téléphone (Samsung, iOS).**
+
+- ❌ Pas de scroll horizontal sur mobile
+- ❌ Pas de grilles fixes qui débordent (ex: `grid-template-columns: 260px 1fr` sans breakpoint)
+- ✅ Utiliser `flex-wrap: wrap`, `minmax()`, `@media (max-width: 640px)`
+- ✅ Tester mentalement : "Est-ce que ça tient sur 390px de large ?"
+- ✅ Les modales : `max-width: 95vw`, scroll interne si contenu long
+- ✅ Les grilles 2 colonnes : passer en 1 colonne sous 640px
+
+Si tu ajoutes un nouveau panneau avec layout côte-à-côte → **obligatoirement** prévoir la version mobile empilée.
+
+---
+
 ## Qui est Alexandra
 
 Alexandra Mallah, postdoctorante en géographie (UPHF), française. Ce dashboard est son outil de vie quotidien personnel. Elle n'est pas développeuse — elle ne connaît pas Git, ne lit pas le code, et communique en français. Toutes les réponses doivent être **en français**, concises, et sans jargon technique inutile.
@@ -17,7 +32,7 @@ Alexandra Mallah, postdoctorante en géographie (UPHF), française. Ce dashboard
 - **URL live** : https://alexandramllh.github.io/Mon-Tableau-de-Vie/
 - **Repo GitHub** : https://github.com/AlexandraMllh/Mon-Tableau-de-Vie
 - **Fichier de travail** : `/Users/alexandramallah/Documents/Mon-Tableau-de-Vie/index.html`
-- **Version actuelle** : v199 (dans le `<title>`)
+- **Version actuelle** : v256 (dans le `<title>`)
 - **Taille** : ~12000 lignes
 
 ---
