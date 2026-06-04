@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v190</title>
+<title>Mon Tableau de Vie 🌿 · v191</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2394,6 +2394,7 @@
   <section class="view" data-view="domestic">
     <div class="sub-tabs">
       <button class="sub-tab active" data-sub="todo">📋 To-do du jour</button>
+      <button class="sub-tab" data-sub="domtasks">🗒️ Tâches</button>
       <button class="sub-tab" data-sub="meals">🍽️ Repas</button>
       <button class="sub-tab" data-sub="groceries">🛒 Courses</button>
       <button class="sub-tab" data-sub="plants">🌱 Plantes</button>
@@ -2412,6 +2413,46 @@
           <button class="btn-primary" onclick="addTodoItem('newTodoInput')">+</button>
         </div>
         <div class="todo-list" id="todoList"></div>
+      </div>
+    </div>
+
+    <!-- Sub: Tâches domestiques -->
+    <div class="sub-view" data-sub="domtasks">
+      <div class="card">
+        <div class="work-header">
+          <h2 style="margin:0;">🗒️ Mes tâches <span class="count" id="domTaskCount"></span></h2>
+          <button class="btn-soft" id="domTaskShowDone" onclick="toggleDomTaskShowDone()" style="font-size:12px;">Voir terminées</button>
+        </div>
+        <p style="color:var(--ink-soft);font-size:13px;margin:-4px 0 14px;">🚨 urgent · 🔴 haute · 🟠 moyenne · ⚪ faible</p>
+
+        <!-- Formulaire ajout -->
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#faf8fd;padding:12px;border-radius:14px;margin-bottom:16px;">
+          <input type="text" id="newDomTaskName" placeholder="Nouvelle tâche…"
+            style="flex:1;min-width:160px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;color:var(--ink);"
+            onkeydown="if(event.key==='Enter')addDomesticTask()" />
+          <select id="newDomTaskCat" style="padding:9px 10px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;color:var(--ink);background:white;">
+            <option value="">Catégorie…</option>
+            <option value="🏠 Maison">🏠 Maison</option>
+            <option value="🏥 Santé">🏥 Santé</option>
+            <option value="🏛️ Admin">🏛️ Admin</option>
+            <option value="📞 Appels">📞 Appels</option>
+            <option value="🎁 Achats">🎁 Achats</option>
+            <option value="👤 Personnel">👤 Personnel</option>
+            <option value="✈️ Voyage">✈️ Voyage</option>
+          </select>
+          <select id="newDomTaskPrio" style="padding:9px 10px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;color:var(--ink);background:white;">
+            <option value="urgent">🚨 Urgent</option>
+            <option value="high">🔴 Haute</option>
+            <option value="medium" selected>🟠 Moyenne</option>
+            <option value="low">⚪ Faible</option>
+          </select>
+          <input type="date" id="newDomTaskDeadline"
+            style="padding:9px 10px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;color:var(--ink);background:white;" />
+          <button class="btn-primary" onclick="addDomesticTask()">Ajouter</button>
+        </div>
+
+        <!-- Liste -->
+        <div id="domTaskList" style="max-height:520px;overflow-y:auto;padding-right:2px;"></div>
       </div>
     </div>
 
@@ -3277,7 +3318,7 @@ const DEFAULT_STATE = {
   transactions: [],
   subscriptions: [],
   accounts: { courantStart: 0, epargneStart: 0 },
-  domestique: { groceries: [], groceryEvents: [], mealEvents: [], chores: [], plants: [] },
+  domestique: { groceries: [], groceryEvents: [], mealEvents: [], chores: [], plants: [], tasks: [] },
   calEvents: [],
   calSources: [],
   googleCal: { url: "", lastSync: null },
@@ -3369,6 +3410,7 @@ function migrate(s) {
   s.domestique.groceryEvents = s.domestique.groceryEvents || [];
   s.domestique.chores = s.domestique.chores || [];
   s.domestique.plants = s.domestique.plants || [];
+  s.domestique.tasks  = s.domestique.tasks  || [];
   s.domestique.mealPlan = s.domestique.mealPlan || {};
   s.domestique.mealEvents = s.domestique.mealEvents || [];
   // Migration : convertit les anciens plats (strings) en objets { id, name, ingredients }
@@ -9730,7 +9772,98 @@ function deleteTodoItem(id) {
   _renderAllTodo();
 }
 
-function renderDomestique() { renderTodo(); renderMealPlan(); renderGroceries(); renderPlants(); }
+function renderDomestique() { renderTodo(); renderDomesticTasks(); renderMealPlan(); renderGroceries(); renderPlants(); }
+
+/* ========= TÂCHES DOMESTIQUES ========= */
+let _domTaskShowDone = false;
+
+function toggleDomTaskShowDone() {
+  _domTaskShowDone = !_domTaskShowDone;
+  const btn = document.getElementById("domTaskShowDone");
+  if (btn) btn.textContent = _domTaskShowDone ? "Masquer terminées" : "Voir terminées";
+  renderDomesticTasks();
+}
+
+function renderDomesticTasks() {
+  const tasks = state.domestique.tasks || [];
+  const open = tasks.filter(t => !t.done).length;
+  const countEl = document.getElementById("domTaskCount");
+  if (countEl) countEl.textContent = `(${open} en cours / ${tasks.length})`;
+
+  const listEl = document.getElementById("domTaskList");
+  if (!listEl) return;
+
+  const visible = _domTaskShowDone ? tasks : tasks.filter(t => !t.done);
+  if (!visible.length) {
+    listEl.innerHTML = `<p style="color:var(--ink-soft);font-size:14px;text-align:center;padding:20px;">${tasks.length ? "Toutes les tâches sont terminées 🎉" : "Aucune tâche pour l'instant."}</p>`;
+    return;
+  }
+
+  const prio = { urgent: 0, high: 1, medium: 2, low: 3 };
+  const sorted = [...visible].sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    if (prio[a.priority] !== prio[b.priority]) return prio[a.priority] - prio[b.priority];
+    if (a.deadline && b.deadline) return a.deadline.localeCompare(b.deadline);
+    if (a.deadline) return -1;
+    if (b.deadline) return 1;
+    return 0;
+  });
+
+  const prioIcon = { urgent: "🚨", high: "🔴", medium: "🟠", low: "⚪" };
+
+  listEl.innerHTML = sorted.map(t => {
+    const dlClass = deadlineClass(t.deadline);
+    const dlText  = t.deadline ? `⏰ ${formatDeadline(t.deadline)}` : "";
+    const catHtml = t.category ? `<span style="font-size:11px;background:var(--lavender-soft);color:var(--ink-soft);padding:2px 7px;border-radius:6px;">${escapeHtml(t.category)}</span>` : "";
+    return `
+    <div class="task-row prio-${t.priority} ${t.done ? "done" : ""}">
+      <div class="task-checkbox" onclick="toggleDomesticTask('${t.id}')"></div>
+      <div class="task-body">
+        <div class="task-meta">
+          <span class="task-priority">${prioIcon[t.priority] || "⚪"}</span>
+          ${catHtml}
+          ${dlText ? `<span class="task-deadline ${dlClass}">${dlText}</span>` : ""}
+        </div>
+        <span class="task-name">${escapeHtml(t.name)}</span>
+      </div>
+      <button onclick="deleteDomesticTask('${t.id}')" title="Supprimer"
+        style="flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--ink-softer);font-size:15px;padding:4px 6px;border-radius:6px;transition:color 0.15s;"
+        onmouseover="this.style.color='#c75b4d'" onmouseout="this.style.color='var(--ink-softer)'">✕</button>
+    </div>`;
+  }).join("");
+}
+
+function addDomesticTask() {
+  const nameEl = document.getElementById("newDomTaskName");
+  const name = nameEl?.value.trim();
+  if (!name) return;
+  if (!state.domestique.tasks) state.domestique.tasks = [];
+  state.domestique.tasks.unshift({
+    id:       "dt" + Date.now(),
+    name,
+    category: document.getElementById("newDomTaskCat")?.value || "",
+    priority: document.getElementById("newDomTaskPrio")?.value || "medium",
+    deadline: document.getElementById("newDomTaskDeadline")?.value || "",
+    done:     false,
+    createdAt: new Date().toISOString(),
+  });
+  nameEl.value = "";
+  saveState(); renderDomesticTasks();
+}
+
+function toggleDomesticTask(id) {
+  const t = (state.domestique.tasks || []).find(x => x.id === id);
+  if (!t) return;
+  t.done = !t.done;
+  if (t.done) t.doneAt = new Date().toISOString();
+  saveState(); renderDomesticTasks();
+}
+
+function deleteDomesticTask(id) {
+  if (!confirm("Supprimer cette tâche ?")) return;
+  state.domestique.tasks = (state.domestique.tasks || []).filter(t => t.id !== id);
+  saveState(); renderDomesticTasks();
+}
 
 /* ========= PLANNING DE REPAS ========= */
 let _mealWeekOffset = 0; // 0 = semaine courante, +1 = semaine suivante, etc.
