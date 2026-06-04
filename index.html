@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v215</title>
+<title>Mon Tableau de Vie 🌿 · v216</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -10705,6 +10705,10 @@ async function syncZotero() {
   const statusEl = document.getElementById("zoteroStatus");
   if (!uid || !key) { if(statusEl) statusEl.textContent = "❌ Renseigne ton User ID et ta clé API d'abord."; return; }
   if (statusEl) statusEl.innerHTML = "⏳ Récupération des bibliothèques…";
+
+  // Réinitialiser les refs Zotero (garder seulement les manuelles) et les collections
+  b.refs = (b.refs||[]).filter(r => !r.zoteroKey);
+  b.collections = [];
 
   // Fonction utilitaire : récupère tous les items d'une URL paginée
   async function fetchAll(baseUrl) {
