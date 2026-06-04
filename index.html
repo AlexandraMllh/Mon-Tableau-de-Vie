@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v233</title>
+<title>Mon Tableau de Vie 🌿 · v234</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2137,7 +2137,7 @@
             onmousedown="startBiblioResize(event)"
             onmouseover="document.getElementById('biblioResizeLine').style.background='var(--lavender)'"
             onmouseout="document.getElementById('biblioResizeLine').style.background='var(--line)'">
-            <div id="biblioResizeLine" style="width:4px;height:100%;background:var(--line);border-radius:4px;transition:background 0.15s;pointer-events:none;"></div>
+            <div id="biblioResizeLine" style="width:3px;height:40px;background:var(--line);border-radius:4px;transition:background 0.15s;pointer-events:none;"></div>
           </div>
           <!-- Liste refs -->
           <div class="card">
@@ -10573,8 +10573,7 @@ function renderBiblioRefs() {
   if (filterStatus) refs = refs.filter(r => r.status === filterStatus);
   if (filterType)   refs = refs.filter(r => r.type   === filterType);
   if (filterColl) {
-    const biblio2 = _getActiveBiblio() || _biblioDef();
-    const descKeys = getAllDescendantKeys(filterColl, biblio2.collections || []);
+    const descKeys = getAllDescendantKeys(filterColl, _getGlobalBiblio().collections || []);
     refs = refs.filter(r => (r.zoteroCollections||[]).some(k => descKeys.has(k)));
   }
   const countEl = document.getElementById("biblioRefCount");
