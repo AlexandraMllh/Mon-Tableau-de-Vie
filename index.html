@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v232</title>
+<title>Mon Tableau de Vie 🌿 · v233</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2106,7 +2106,7 @@
   <!-- Sub: Bibliographie -->
     <div class="sub-view" data-sub="biblio">
       <!-- Sélecteur de projet -->
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <div id="biblioProjectRow" style="display:none;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
         <select id="biblioProjectSelect" onchange="switchBiblioProject(this.value)"
           style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid var(--lavender);border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink);background:var(--lavender-soft);">
         </select>
@@ -10431,25 +10431,35 @@ function renderBiblioCollectionTree() {
       const collapsed = _biblioCollapsed.has(c.key);
       const hasChildren = cols.some(x => x.parentKey === c.key);
       const descKeys = getAllDescendantKeys(c.key, cols);
+      const directRefs = (biblio.refs||[]).filter(r => (r.zoteroCollections||[]).includes(c.key));
       const refCount  = (biblio.refs||[]).filter(r => (r.zoteroCollections||[]).some(k => descKeys.has(k))).length;
       const bg = active ? "var(--lavender-soft)" : "transparent";
       const dragAttrs = depth === 0
         ? `draggable="true" ondragstart="biblioDragStart(event,'${c.key}')" ondragover="biblioDragOver(event)" ondragleave="biblioDragLeave(event)" ondragend="biblioDragEnd(event)" ondrop="biblioDrop(event,'${c.key}')" data-biblio-drag="1" style="padding-left:0;cursor:grab;"`
         : `style="padding-left:${depth*14}px;"`;
+      // Refs inline (pour les collections non-collapsées)
+      const inlineRefs = (!collapsed && directRefs.length > 0)
+        ? directRefs.map(r => `
+          <div onclick="openRefModal('${r.id}')" title="${escapeHtml(r.title||'')}"
+            style="padding:3px 8px 3px ${depth*14+36}px;font-size:12px;color:var(--ink);cursor:pointer;border-radius:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+            onmouseover="this.style.background='var(--lavender-soft)'"
+            onmouseout="this.style.background='transparent'">
+            📄 ${escapeHtml(r.title||"Sans titre")}
+            ${r.year?`<span style="color:var(--ink-softer);font-size:10px;"> (${r.year})</span>`:""}
+          </div>`).join("")
+        : "";
       return `<div ${dragAttrs}>
         <div style="display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:8px;cursor:pointer;font-size:13px;background:${bg};"
           onclick="filterBiblioCollection('${c.key}')"
           onmouseover="this.style.background='var(--lavender-soft)'"
           onmouseout="this.style.background='${bg}'">
-          ${hasChildren
-            ? `<span onclick="toggleBiblioCollapse('${c.key}',event)" style="flex-shrink:0;width:14px;font-size:10px;color:var(--ink-soft);">${collapsed?"▶":"▼"}</span>`
-            : `<span style="flex-shrink:0;width:14px;"></span>`}
+          <span onclick="toggleBiblioCollapse('${c.key}',event)" style="flex-shrink:0;width:14px;font-size:10px;color:var(--ink-soft);">${collapsed?"▶":"▼"}</span>
           <span style="flex-shrink:0;font-size:13px;">${c.isGroupRoot ? "🗂️" : hasChildren ? (collapsed?"📁":"📂") : "📄"}</span>
           <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:${active?600:400};">${escapeHtml(c.name)}</span>
           ${refCount ? `<span style="font-size:10px;color:var(--ink-softer);flex-shrink:0;">${refCount}</span>` : ""}
           ${depth===0 ? `<span onclick="event.stopPropagation();hideBiblioCollection('${c.key}')" title="Masquer" style="font-size:10px;color:var(--ink-softer);cursor:pointer;flex-shrink:0;padding:0 4px;opacity:0.5;">✕</span>` : ""}
         </div>
-        ${collapsed ? "" : renderNode(c.key, depth+1)}
+        ${collapsed ? "" : renderNode(c.key, depth+1) + inlineRefs}
       </div>`;
     }).join("");
   }
@@ -10520,6 +10530,9 @@ function filterBiblioCollection(key) {
 
 function switchBiblioPanel(panel) {
   _biblioPanel = panel;
+  // Sélecteur projet : visible seulement sur codes/extraits/bycode
+  const projRow = document.getElementById("biblioProjectRow");
+  if (projRow) projRow.style.display = ["codes","extracts","bycode"].includes(panel) ? "flex" : "none";
   renderBiblioProjectSelect();
   // Guard : s'il n'y a pas de projet, afficher message dans le liste (sans détruire le HTML)
   const projects = _getBiblioProjects();
