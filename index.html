@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v235</title>
+<title>Mon Tableau de Vie 🌿 · v236</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1590,6 +1590,7 @@
   .note-item:hover { background: var(--lavender-soft); }
   .note-item.active { background: var(--lavender-soft); font-weight: 600; }
   #noteContentInput:empty:before { content: attr(data-placeholder); color: var(--ink-softer); pointer-events: none; }
+  #refNoteContent:empty:before { content: attr(data-placeholder); color: var(--ink-softer); pointer-events: none; }
   #noteContentInput h2 { font-size: 16px; font-weight: 700; margin: 14px 0 4px; }
   #noteContentInput h3 { font-size: 14px; font-weight: 600; margin: 10px 0 3px; }
   #noteContentInput ul, #noteContentInput ol { padding-left: 20px; margin: 4px 0; }
@@ -2945,45 +2946,89 @@
 <!-- ===== BIBLIO MODALS ===== -->
 <!-- Modal référence -->
 <div class="modal-bg" id="refModal" onclick="if(event.target===this)closeRefModal()">
-  <div class="modal" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">
-    <h2 id="refModalTitle">Nouvelle référence</h2>
+  <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto;" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <h2 id="refModalTitle" style="margin:0;">Nouvelle référence</h2>
+      <div style="display:flex;gap:6px;">
+        <button class="biblio-tab active" id="refTabInfos" onclick="switchRefTab('infos')">📋 Infos</button>
+        <button class="biblio-tab" id="refTabFiche" onclick="switchRefTab('fiche')">📝 Fiche de lecture</button>
+      </div>
+    </div>
     <input type="hidden" id="refModalId" />
-    <div class="grid-2">
-      <div>
-        <label>Type</label>
-        <select id="refModalType" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;">
-          <option value="book">📗 Livre</option>
-          <option value="article">📄 Article</option>
-          <option value="chapter">📑 Chapitre</option>
-          <option value="report">📋 Rapport</option>
-          <option value="thesis">🎓 Thèse</option>
-          <option value="other">📎 Autre</option>
-        </select>
+
+    <!-- Onglet Infos -->
+    <div id="refPanelInfos">
+      <div class="grid-2">
+        <div>
+          <label>Type</label>
+          <select id="refModalType" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;">
+            <option value="book">📗 Livre</option>
+            <option value="article">📄 Article</option>
+            <option value="chapter">📑 Chapitre</option>
+            <option value="report">📋 Rapport</option>
+            <option value="thesis">🎓 Thèse</option>
+            <option value="other">📎 Autre</option>
+          </select>
+        </div>
+        <div>
+          <label>Statut</label>
+          <select id="refModalStatus" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;">
+            <option value="to-read">📌 À lire</option>
+            <option value="reading">📖 En cours</option>
+            <option value="read">✅ Lu</option>
+          </select>
+        </div>
       </div>
-      <div>
-        <label>Statut</label>
-        <select id="refModalStatus" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;">
-          <option value="to-read">📌 À lire</option>
-          <option value="reading">📖 En cours</option>
-          <option value="read">✅ Lu</option>
-        </select>
+      <label>Titre *</label>
+      <input type="text" id="refModalTitle2" placeholder="Titre de l'ouvrage ou de l'article" />
+      <label>Auteur(s)</label>
+      <input type="text" id="refModalAuthors" placeholder="Nom, Prénom ; Nom2, Prénom2" />
+      <div class="grid-2">
+        <div><label>Année</label><input type="text" id="refModalYear" placeholder="2024" /></div>
+        <div><label>Pages / Volume</label><input type="text" id="refModalPages" placeholder="ex: 234 p. ou vol. 3(2)" /></div>
       </div>
+      <label>Éditeur / Revue</label>
+      <input type="text" id="refModalPublisher" placeholder="Maison d'édition ou nom de la revue" />
+      <label>DOI / URL</label>
+      <input type="text" id="refModalDoi" placeholder="https://..." />
     </div>
-    <label>Titre *</label>
-    <input type="text" id="refModalTitle2" placeholder="Titre de l'ouvrage ou de l'article" />
-    <label>Auteur(s)</label>
-    <input type="text" id="refModalAuthors" placeholder="Nom, Prénom ; Nom2, Prénom2" />
-    <div class="grid-2">
-      <div><label>Année</label><input type="text" id="refModalYear" placeholder="2024" /></div>
-      <div><label>Pages / Volume</label><input type="text" id="refModalPages" placeholder="ex: 234 p. ou vol. 3(2)" /></div>
+
+    <!-- Onglet Fiche de lecture -->
+    <div id="refPanelFiche" style="display:none;">
+      <label>Résumé</label>
+      <textarea id="refModalSummary" rows="4"
+        style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;resize:vertical;box-sizing:border-box;margin-bottom:12px;"
+        placeholder="Résumé de l'ouvrage, thèse principale, arguments clés…"
+        oninput="scheduleRefNoteSave()"></textarea>
+      <label style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Notes de lecture</span>
+        <span style="font-size:11px;color:var(--ink-softer);" id="refNoteAutoSave"></span>
+      </label>
+      <!-- Toolbar WYSIWYG -->
+      <div style="display:flex;gap:4px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:8px;">
+        <button onmousedown="event.preventDefault();refNoteCmd('bold')" class="note-tb-btn"><b>B</b></button>
+        <button onmousedown="event.preventDefault();refNoteCmd('italic')" class="note-tb-btn"><i>I</i></button>
+        <button onmousedown="event.preventDefault();refNoteCmd('underline')" class="note-tb-btn"><u>U</u></button>
+        <div style="width:1px;background:var(--line);margin:0 2px;"></div>
+        <button onmousedown="event.preventDefault();refNoteCmd('h2')" class="note-tb-btn" style="font-weight:700;">H2</button>
+        <button onmousedown="event.preventDefault();refNoteCmd('h3')" class="note-tb-btn" style="font-weight:600;font-size:11px;">H3</button>
+        <div style="width:1px;background:var(--line);margin:0 2px;"></div>
+        <button onmousedown="event.preventDefault();refNoteCmd('ul')" class="note-tb-btn">• —</button>
+        <button onmousedown="event.preventDefault();refNoteCmd('ol')" class="note-tb-btn">1.</button>
+        <button onmousedown="event.preventDefault();refNoteCmd('quote')" class="note-tb-btn">❝</button>
+        <button onmousedown="event.preventDefault();refNoteCmd('removeFormat')" class="note-tb-btn" style="color:var(--ink-soft);">✕</button>
+      </div>
+      <div id="refNoteContent" contenteditable="true"
+        style="min-height:180px;outline:none;font-family:inherit;font-size:13px;color:var(--ink);line-height:1.8;overflow-y:auto;cursor:text;padding:4px 0;"
+        oninput="scheduleRefNoteSave()"
+        onmouseup="_saveRefNoteSelection()"
+        onkeyup="_saveRefNoteSelection()"
+        data-placeholder="Tes notes, réflexions, passages importants…"></div>
+      <!-- Codes utilisés -->
+      <div id="refModalCodes" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line);"></div>
     </div>
-    <label>Éditeur / Revue</label>
-    <input type="text" id="refModalPublisher" placeholder="Maison d'édition ou nom de la revue" />
-    <label>DOI / URL</label>
-    <input type="text" id="refModalDoi" placeholder="https://..." />
-    <label>Notes personnelles</label>
-    <textarea id="refModalNotes" rows="3" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;resize:vertical;box-sizing:border-box;" placeholder="Pourquoi ce texte est pertinent, résumé…"></textarea>
-    <div class="actions">
+
+    <div class="actions" style="margin-top:14px;">
       <button class="danger" id="refModalDeleteBtn" onclick="deleteRef()" style="display:none;">Supprimer</button>
       <div class="spacer"></div>
       <button class="secondary" onclick="closeRefModal()">Annuler</button>
@@ -10603,8 +10648,94 @@ function renderBiblioRefs() {
   }).join("");
 }
 
+/* ── Onglets modal référence ── */
+let _refActiveTab = "infos";
+function switchRefTab(tab) {
+  _refActiveTab = tab;
+  document.getElementById("refPanelInfos").style.display  = tab === "infos"  ? "" : "none";
+  document.getElementById("refPanelFiche").style.display  = tab === "fiche"  ? "" : "none";
+  document.getElementById("refTabInfos").classList.toggle("active", tab === "infos");
+  document.getElementById("refTabFiche").classList.toggle("active", tab === "fiche");
+  if (tab === "fiche") renderRefModalCodes();
+}
+
+/* ── WYSIWYG fiche de lecture ── */
+let _refNoteSelRange = null, _refNoteSaveTimer = null;
+function _saveRefNoteSelection() {
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) _refNoteSelRange = sel.getRangeAt(0).cloneRange();
+}
+function _restoreRefNoteSelection() {
+  const ed = document.getElementById("refNoteContent");
+  if (!ed) return;
+  ed.focus();
+  if (_refNoteSelRange) { const s = window.getSelection(); s.removeAllRanges(); s.addRange(_refNoteSelRange); }
+}
+function refNoteCmd(cmd) {
+  _restoreRefNoteSelection();
+  if (cmd === "h2") document.execCommand("formatBlock", false, "h2");
+  else if (cmd === "h3") document.execCommand("formatBlock", false, "h3");
+  else if (cmd === "ul") document.execCommand("insertUnorderedList");
+  else if (cmd === "ol") document.execCommand("insertOrderedList");
+  else if (cmd === "quote") document.execCommand("formatBlock", false, "blockquote");
+  else if (cmd === "removeFormat") { document.execCommand("removeFormat"); document.execCommand("formatBlock", false, "p"); }
+  else document.execCommand(cmd);
+  scheduleRefNoteSave();
+}
+function scheduleRefNoteSave() {
+  clearTimeout(_refNoteSaveTimer);
+  _refNoteSaveTimer = setTimeout(saveRefNoteNow, 1000);
+}
+function saveRefNoteNow() {
+  const id = document.getElementById("refModalId").value;
+  if (!id) return;
+  const b = _getGlobalBiblio();
+  const r = (b.refs||[]).find(x => x.id === id);
+  if (!r) return;
+  r.summary     = document.getElementById("refModalSummary").value;
+  r.noteContent = document.getElementById("refNoteContent").innerHTML;
+  r.noteUpdatedAt = new Date().toISOString();
+  saveState();
+  const lbl = document.getElementById("refNoteAutoSave");
+  if (lbl) lbl.textContent = "Sauvegardé à " + new Date().toLocaleTimeString("fr-FR");
+}
+
+function renderRefModalCodes() {
+  const id = document.getElementById("refModalId").value;
+  const el = document.getElementById("refModalCodes");
+  if (!el || !id) return;
+  // Chercher les extraits de cette ref dans tous les projets
+  const allProjects = _getBiblioProjects();
+  const allCodes = new Map(); // codeId → { code, count }
+  allProjects.forEach(p => {
+    const pb = p.biblio || {};
+    const projExts = (pb.extracts||[]).filter(e => e.refId === id);
+    projExts.forEach(e => {
+      (e.codes||[]).forEach(cid => {
+        const code = (pb.codes||[]).find(c => c.id === cid);
+        if (code) {
+          if (!allCodes.has(cid)) allCodes.set(cid, { code, count: 0, project: p.name });
+          allCodes.get(cid).count++;
+        }
+      });
+    });
+  });
+  if (!allCodes.size) {
+    el.innerHTML = '<p style="font-size:12px;color:var(--ink-softer);">Aucun extrait codé pour cette référence.</p>';
+    return;
+  }
+  el.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Codes utilisés</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${Array.from(allCodes.values()).map(({code, count, project}) =>
+        `<span style="font-size:12px;background:${code.color}33;border:1.5px solid ${code.color};border-radius:20px;padding:3px 10px;font-weight:600;">
+          ${escapeHtml(code.label)} <span style="font-size:10px;opacity:0.7;">${count}×</span>
+        </span>`
+      ).join("")}
+    </div>`;
+}
+
 function openRefModal(id) {
-  const biblio = state.work.biblio || _biblioDef();
+  const biblio = _getGlobalBiblio();
   const r = id ? (biblio.refs||[]).find(x => x.id === id) : null;
   document.getElementById("refModalTitle").textContent = r ? "Modifier la référence" : "Nouvelle référence";
   document.getElementById("refModalId").value = id || "";
@@ -10616,30 +10747,47 @@ function openRefModal(id) {
   document.getElementById("refModalPages").value = r?.pages || "";
   document.getElementById("refModalPublisher").value = r?.publisher || "";
   document.getElementById("refModalDoi").value = r?.doi || "";
-  document.getElementById("refModalNotes").value = r?.notes || "";
+  // Fiche
+  document.getElementById("refModalSummary").value = r?.summary || "";
+  document.getElementById("refNoteContent").innerHTML = r?.noteContent || "";
+  const lbl = document.getElementById("refNoteAutoSave");
+  if (lbl) lbl.textContent = r?.noteUpdatedAt ? "Sauvegardé " + new Date(r.noteUpdatedAt).toLocaleString("fr-FR") : "";
   const delBtn = document.getElementById("refModalDeleteBtn");
   if (delBtn) delBtn.style.display = r ? "inline-block" : "none";
+  // Toujours ouvrir sur Infos
+  switchRefTab("infos");
   document.getElementById("refModal").classList.add("open");
   setTimeout(() => document.getElementById("refModalTitle2").focus(), 50);
 }
-function closeRefModal() { document.getElementById("refModal").classList.remove("open"); }
+function closeRefModal() {
+  clearTimeout(_refNoteSaveTimer);
+  saveRefNoteNow();
+  document.getElementById("refModal").classList.remove("open");
+}
 function saveRef() {
-  const b = _getActiveBiblio() || _biblioDef(); _setActiveBiblio(b);
+  const b = _getGlobalBiblio();
   const id = document.getElementById("refModalId").value;
   const title = document.getElementById("refModalTitle2").value.trim();
   if (!title) { alert("Le titre est obligatoire."); return; }
+  const existing = id ? (b.refs||[]).find(r=>r.id===id) : null;
   const data = {
     id: id || "ref" + Date.now(),
-    type:      document.getElementById("refModalType").value,
-    status:    document.getElementById("refModalStatus").value,
+    type:        document.getElementById("refModalType").value,
+    status:      document.getElementById("refModalStatus").value,
     title,
-    authors:   document.getElementById("refModalAuthors").value.trim(),
-    year:      document.getElementById("refModalYear").value.trim(),
-    pages:     document.getElementById("refModalPages").value.trim(),
-    publisher: document.getElementById("refModalPublisher").value.trim(),
-    doi:       document.getElementById("refModalDoi").value.trim(),
-    notes:     document.getElementById("refModalNotes").value.trim(),
-    createdAt: id ? ((b.refs||[]).find(r=>r.id===id)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
+    authors:     document.getElementById("refModalAuthors").value.trim(),
+    year:        document.getElementById("refModalYear").value.trim(),
+    pages:       document.getElementById("refModalPages").value.trim(),
+    publisher:   document.getElementById("refModalPublisher").value.trim(),
+    doi:         document.getElementById("refModalDoi").value.trim(),
+    notes:       existing?.notes || "",
+    summary:     document.getElementById("refModalSummary").value.trim(),
+    noteContent: document.getElementById("refNoteContent").innerHTML,
+    noteUpdatedAt: new Date().toISOString(),
+    createdAt:   existing?.createdAt || new Date().toISOString(),
+    zoteroKey:   existing?.zoteroKey || "",
+    zoteroSource: existing?.zoteroSource || "",
+    zoteroCollections: existing?.zoteroCollections || [],
   };
   if (id) { const i = (b.refs||[]).findIndex(r=>r.id===id); if(i>=0) b.refs[i]={...b.refs[i],...data}; }
   else    { if(!b.refs) b.refs=[]; b.refs.unshift(data); }
