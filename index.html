@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v225</title>
+<title>Mon Tableau de Vie 🌿 · v226</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -10659,14 +10659,22 @@ function renderBiblioExtracts() {
   el.innerHTML = exts.map(e => {
     const ref = (biblio.refs||[]).find(r => r.id === e.refId);
     const codes = (e.codes||[]).map(cid => (biblio.codes||[]).find(c=>c.id===cid)).filter(Boolean);
-    return `<div style="padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;" onclick="openExtractModal('${e.id}')">
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;cursor:pointer;">
-        ${codes.map(c=>`<span style="font-size:11px;background:${c.color}33;color:var(--ink);border:1.5px solid ${c.color};border-radius:20px;padding:2px 9px;font-weight:600;">${escapeHtml(c.label)}</span>`).join("")}
-        ${e.page?`<span style="font-size:11px;color:var(--ink-softer);padding:2px 6px;">p.${e.page}</span>`:""}
+    return `<div style="padding:12px 14px;border-bottom:1px solid var(--line);">
+      <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1;">
+          ${codes.map(c=>`<span style="font-size:11px;background:${c.color}33;color:var(--ink);border:1.5px solid ${c.color};border-radius:20px;padding:2px 9px;font-weight:600;">${escapeHtml(c.label)}</span>`).join("")}
+          ${e.page?`<span style="font-size:11px;color:var(--ink-softer);padding:2px 6px;">p.${e.page}</span>`:""}
+        </div>
+        <button onclick="openExtractModal('${e.id}')" title="Modifier" style="flex-shrink:0;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:white;font-size:11px;cursor:pointer;color:var(--ink-soft);">✎</button>
       </div>
-      <div style="font-size:13px;color:var(--ink);line-height:1.6;background:#faf8fd;border-left:3px solid var(--lavender);padding:8px 12px;border-radius:0 8px 8px 0;cursor:pointer;">"${escapeHtml((e.text||"").slice(0,300))}${e.text&&e.text.length>300?"…":""}"</div>
-      ${ref?`<div style="font-size:11px;color:var(--ink-softer);margin-top:5px;">— ${escapeHtml(ref.authors||ref.title||"")}${ref.year?" ("+ref.year+")":""}</div>`:""}
+      <div style="font-size:13px;color:var(--ink);line-height:1.6;background:#faf8fd;border-left:3px solid var(--lavender);padding:8px 12px;border-radius:0 8px 8px 0;cursor:default;">"${escapeHtml((e.text||"").slice(0,300))}${e.text&&e.text.length>300?"…":""}"</div>
       ${e.note?`<div style="font-size:12px;color:var(--ink-soft);margin-top:4px;font-style:italic;">💬 ${escapeHtml(e.note)}</div>`:""}
+      ${ref?`<div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+        <span style="font-size:11px;color:var(--ink-softer);">📖</span>
+        <button onclick="openRefModal('${ref.id}')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--lilac);text-decoration:underline;padding:0;font-family:inherit;text-align:left;">
+          ${escapeHtml(ref.title||"")}${ref.authors?" — "+escapeHtml(ref.authors):""}${ref.year?" ("+ref.year+")":""}
+        </button>
+      </div>`:""}
     </div>`;
   }).join("");
 }
