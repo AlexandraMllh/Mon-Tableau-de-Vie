@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v221</title>
+<title>Mon Tableau de Vie 🌿 · v222</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -10911,6 +10911,21 @@ async function syncZotero() {
     statusLines.push(`⚠️ Groupes : erreur (${err.message})`);
     hasError = true;
   }
+
+  // Dédupliquer les collections par clé — priorité au placement dans un groupe
+  const colByKey = new Map();
+  for (const c of b.collections) {
+    if (!colByKey.has(c.key)) {
+      colByKey.set(c.key, c);
+    } else {
+      const existing = colByKey.get(c.key);
+      // Si la version existante est à la racine ("") mais la nouvelle est dans un groupe → préférer le groupe
+      if ((!existing.parentKey || existing.parentKey === "") && c.parentKey && c.parentKey !== "") {
+        colByKey.set(c.key, c);
+      }
+    }
+  }
+  b.collections = Array.from(colByKey.values());
 
   _setActiveBiblio(b);
   saveState();
