@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v211</title>
+<title>Mon Tableau de Vie 🌿 · v212</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -55,7 +55,7 @@
 
   * { box-sizing: border-box; }
   html { color-scheme: light; background: #fdf6f0; } /* fond clair immédiat avant CSS vars */
-  html, body { margin: 0; padding: 0; overflow-x: hidden; }
+  html, body { margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
     color: var(--ink);
@@ -64,7 +64,7 @@
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
-  .container { max-width: 1180px; margin: 0 auto; padding: 28px 28px 80px; }
+  .container { max-width: 1180px; margin: 0 auto; padding: 28px 28px 80px; overflow-x: clip; }
 
   /* ========= HEADER ========= */
   header.top {
@@ -2125,12 +2125,18 @@
 
       <!-- Panel : Références -->
       <div id="biblioPanel-refs">
-        <div style="display:grid;grid-template-columns:minmax(160px,220px) 1fr;gap:14px;align-items:start;">
+        <div id="biblioGrid" style="display:grid;grid-template-columns:200px 6px 1fr;align-items:start;">
           <!-- Arbre collections -->
-          <div class="card" style="padding:12px;">
+          <div class="card" style="padding:12px;overflow-y:auto;max-height:75vh;">
             <div style="font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Collections</div>
             <div id="biblioCollectionTree"></div>
           </div>
+          <!-- Handle de redimensionnement -->
+          <div id="biblioResizeHandle"
+            style="cursor:col-resize;background:var(--line);border-radius:3px;align-self:stretch;margin:0 4px;transition:background 0.15s;"
+            onmousedown="startBiblioResize(event)"
+            onmouseover="this.style.background='var(--lavender)'"
+            onmouseout="this.style.background='var(--line)'"></div>
           <!-- Liste refs -->
           <div class="card">
           <div class="work-header">
@@ -10285,6 +10291,30 @@ function renderBiblioCollectionTree() {
     <span>📚</span><span>Toutes (${(biblio.refs||[]).length})</span>
   </div>`;
   el.innerHTML = allBtn + renderNode("", 0);
+}
+
+function startBiblioResize(e) {
+  e.preventDefault();
+  const grid = document.getElementById("biblioGrid");
+  if (!grid) return;
+  const startX = e.clientX;
+  const startW = grid.getBoundingClientRect().width;
+  const cols   = grid.style.gridTemplateColumns.split(" ");
+  const startColW = parseInt(cols[0]) || 200;
+
+  function onMove(e) {
+    const delta = e.clientX - startX;
+    const newW  = Math.max(120, Math.min(400, startColW + delta));
+    grid.style.gridTemplateColumns = `${newW}px 6px 1fr`;
+  }
+  function onUp() {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup",   onUp);
+    document.getElementById("biblioResizeHandle").style.background = "var(--line)";
+  }
+  document.getElementById("biblioResizeHandle").style.background = "var(--lavender)";
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup",   onUp);
 }
 
 function filterBiblioCollection(key) {
