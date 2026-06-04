@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v249</title>
+<title>Mon Tableau de Vie 🌿 · v250</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -13516,12 +13516,16 @@ function _fbQueueSave() {
 
 function signInWithGoogle() {
   if (!_fbAuth) {
-    showToast("⚠️ Firebase non chargé — recharge avec ⌘+Shift+R");
+    alert("Firebase non chargé (erreur technique).
+Tape OK puis essaie ⌘+Shift+R");
     return;
   }
   const provider = new firebase.auth.GoogleAuthProvider();
-  showToast("↗️ Redirection vers Google…");
-  _fbAuth.signInWithRedirect(provider);
+  try {
+    _fbAuth.signInWithRedirect(provider);
+  } catch(e) {
+    alert("Erreur Firebase : " + e.message);
+  }
 }
 
 function showSyncMenu() {
