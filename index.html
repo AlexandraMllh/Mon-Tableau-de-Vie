@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v260</title>
+<title>Mon Tableau de Vie 🌿 · v261</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1697,6 +1697,7 @@
           <span id="weatherDesc" style="font-size:13px;color:var(--ink-soft);text-transform:capitalize;">Chargement…</span>
           <span id="weatherCity" style="font-size:12px;color:var(--ink-softer);margin-left:auto;">📍 —</span>
         </div>
+        ${r.category?`<span style="font-size:11px;background:var(--lavender-soft);color:var(--lilac);border-radius:6px;padding:2px 7px;font-weight:600;">${escapeHtml(r.category)}</span>`:""}
         <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;">
           <span id="weatherFeels">Ressenti : —</span> · <span id="weatherHumidity">Humidité : —</span> · <span id="weatherWind">Vent : —</span>
         </div>
@@ -2733,8 +2734,13 @@
       <div class="card">
         <div class="work-header">
           <h2 style="margin:0;">🍳 Mes recettes <span class="count" id="recipeCount"></span></h2>
-          <button class="btn-primary" onclick="openRecipeModal()">+ Recette</button>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-soft" onclick="manageRecipeCategories()" style="font-size:12px;">⚙️ Catégories</button>
+            <button class="btn-primary" onclick="openRecipeModal()">+ Recette</button>
+          </div>
         </div>
+        <!-- Onglets catégories -->
+        <div id="recipeCategoryTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;"></div>
         <div style="display:flex;gap:8px;margin-bottom:14px;">
           <input type="text" id="recipeSearch" placeholder="🔍 Chercher une recette…" oninput="renderRecipes()"
             style="flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;" />
@@ -3158,7 +3164,11 @@
         <input type="number" id="recipeModalServings" min="1" value="4"
           style="width:80px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;" /></div>
     </div>
-    <label>Ingrédients</label>
+    <label>Catégorie</label>
+    <select id="recipeModalCategory" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;margin-bottom:0;" id="recipeModalCategory">
+      <option value="">— Toutes —</option>
+    </select>
+    <label style="margin-top:8px;">Ingrédients</label>
     <div id="recipeIngredientsList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
     <button onclick="addRecipeIngredient()"
       style="width:100%;padding:8px;border:1.5px dashed var(--line);background:transparent;border-radius:10px;font-family:inherit;font-size:13px;cursor:pointer;color:var(--ink-soft);">+ Ajouter un ingrédient</button>
@@ -3894,7 +3904,8 @@ function migrate(s) {
   s.domestique.chores = s.domestique.chores || [];
   s.domestique.plants = s.domestique.plants || [];
   s.domestique.tasks    = s.domestique.tasks    || [];
-  s.domestique.recipes  = s.domestique.recipes  || [];
+  s.domestique.recipes           = s.domestique.recipes           || [];
+  s.domestique.recipeCategories  = s.domestique.recipeCategories  || [];
   s.domestique.mealPlan = s.domestique.mealPlan || {};
   s.domestique.mealEvents = s.domestique.mealEvents || [];
   // Migration : convertit les anciens plats (strings) en objets { id, name, ingredients }
@@ -10359,15 +10370,61 @@ function deleteTodoItem(id) {
 function renderDomestique() { renderTodo(); renderDomesticTasks(); renderMealPlan(); renderGroceries(); renderPlants(); renderRecipes(); }
 
 /* ========= CUISINE — RECETTES ========= */
+let _recipeCategoryFilter = "";
+
+function renderRecipeCategoryTabs() {
+  if (!state.domestique.recipeCategories) state.domestique.recipeCategories = [];
+  const cats = state.domestique.recipeCategories;
+  const el = document.getElementById("recipeCategoryTabs");
+  if (!el) return;
+  const allActive = !_recipeCategoryFilter;
+  let html = `<button onclick="filterRecipeCategory('')" class="biblio-tab${allActive?" active":""}" style="font-size:12px;">Toutes (${(state.domestique.recipes||[]).length})</button>`;
+  cats.forEach(cat => {
+    const n = (state.domestique.recipes||[]).filter(r => r.category === cat).length;
+    const active = _recipeCategoryFilter === cat;
+    html += `<button onclick="filterRecipeCategory('${escapeHtml(cat)}')" class="biblio-tab${active?" active":""}" style="font-size:12px;">${escapeHtml(cat)} (${n})</button>`;
+  });
+  el.innerHTML = html;
+  // Mettre à jour le select dans la modal
+  const sel = document.getElementById("recipeModalCategory");
+  if (sel) {
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— Toutes —</option>' + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+    if (prev) sel.value = prev;
+  }
+}
+
+function filterRecipeCategory(cat) {
+  _recipeCategoryFilter = cat;
+  renderRecipeCategoryTabs();
+  renderRecipes();
+}
+
+function manageRecipeCategories() {
+  if (!state.domestique.recipeCategories) state.domestique.recipeCategories = [];
+  const current = state.domestique.recipeCategories.join(", ");
+  const input = prompt("Catégories de recettes (séparées par des virgules) :\nEx: Desserts, Salades, Apéros, Plats", current);
+  if (input === null) return;
+  state.domestique.recipeCategories = input.split(",").map(s => s.trim()).filter(Boolean);
+  saveState();
+  renderRecipeCategoryTabs();
+  renderRecipes();
+}
+
 function renderRecipes() {
   if (!state.domestique.recipes) state.domestique.recipes = [];
+  if (!state.domestique.recipeCategories) state.domestique.recipeCategories = [];
   const recipes = state.domestique.recipes;
   const search = (document.getElementById("recipeSearch")?.value || "").toLowerCase();
   const countEl = document.getElementById("recipeCount");
   if (countEl) countEl.textContent = `(${recipes.length})`;
+  renderRecipeCategoryTabs();
   const el = document.getElementById("recipeList");
   if (!el) return;
-  const filtered = search ? recipes.filter(r => r.name.toLowerCase().includes(search) || (r.notes||"").toLowerCase().includes(search)) : recipes;
+  let filtered = _recipeCategoryFilter
+    ? recipes.filter(r => r.category === _recipeCategoryFilter)
+    : recipes;
+  filtered = search ? filtered.filter(r => r.name.toLowerCase().includes(search) || (r.notes||"").toLowerCase().includes(search)) : filtered;
   if (!filtered.length) {
     el.innerHTML = `<p style="color:var(--ink-soft);font-size:14px;text-align:center;padding:20px;">${recipes.length ? "Aucun résultat." : "Aucune recette — clique sur + Recette !"}</p>`;
     return;
@@ -10391,6 +10448,9 @@ function openRecipeModal(id) {
   document.getElementById("recipeModalName").value = r?.name || "";
   document.getElementById("recipeModalServings").value = r?.servings || 4;
   document.getElementById("recipeModalNotes").value = r?.notes || "";
+  renderRecipeCategoryTabs();
+  const catSel = document.getElementById("recipeModalCategory");
+  if (catSel && r?.category) catSel.value = r.category;
   const delBtn = document.getElementById("recipeModalDeleteBtn");
   if (delBtn) delBtn.style.display = r ? "inline-block" : "none";
   // Ingrédients
@@ -10424,6 +10484,7 @@ function saveRecipe() {
   if (!name) { alert("Le nom est obligatoire."); return; }
   const servings = parseInt(document.getElementById("recipeModalServings").value) || 4;
   const notes = document.getElementById("recipeModalNotes").value.trim();
+  const category = document.getElementById("recipeModalCategory")?.value || "";
   const ingredients = [];
   document.querySelectorAll("#recipeIngredientsList > div").forEach(row => {
     const qty  = row.querySelector(".rec-ing-qty")?.value.trim();
@@ -10431,7 +10492,7 @@ function saveRecipe() {
     const name2= row.querySelector(".rec-ing-name")?.value.trim();
     if (name2) ingredients.push({ id: "ing"+Date.now()+Math.random().toString(36).slice(2,5), quantity: qty||"", unit: unit||"", name: name2 });
   });
-  const data = { id: id||"rec"+Date.now(), name, servings, ingredients, notes, createdAt: new Date().toISOString() };
+  const data = { id: id||"rec"+Date.now(), name, servings, category, ingredients, notes, createdAt: new Date().toISOString() };
   if (id) { const i = state.domestique.recipes.findIndex(r=>r.id===id); if(i>=0) state.domestique.recipes[i]=data; }
   else     state.domestique.recipes.unshift(data);
   saveState(); closeRecipeModal(); renderRecipes();
