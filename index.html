@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v263</title>
+<title>Mon Tableau de Vie 🌿 · v264</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1697,7 +1697,6 @@
           <span id="weatherDesc" style="font-size:13px;color:var(--ink-soft);text-transform:capitalize;">Chargement…</span>
           <span id="weatherCity" style="font-size:12px;color:var(--ink-softer);margin-left:auto;">📍 —</span>
         </div>
-        ${r.category?`<span style="font-size:11px;background:var(--lavender-soft);color:var(--lilac);border-radius:6px;padding:2px 7px;font-weight:600;">${escapeHtml(r.category)}</span>`:""}
         <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;">
           <span id="weatherFeels">Ressenti : —</span> · <span id="weatherHumidity">Humidité : —</span> · <span id="weatherWind">Vent : —</span>
         </div>
