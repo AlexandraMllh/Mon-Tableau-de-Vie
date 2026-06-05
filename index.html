@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v276</title>
+<title>Mon Tableau de Vie 🌿 · v277</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2516,11 +2516,11 @@
         <h2>Ce mois par catégorie</h2>
         <div class="money-charts-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;">
           <div>
-            <p style="text-align:center;font-size:12px;color:var(--ink-soft);margin:0 0 4px;font-weight:600;">− Dépenses</p>
+            <p style="text-align:center;font-size:12px;color:var(--ink-soft);margin:0 0 4px;font-weight:600;">− Dépenses <span id="catChartDepTotal" style="color:#c75b4d;"></span></p>
             <div class="chart-wrap" style="height:200px;"><canvas id="moneyCatChart"></canvas></div>
           </div>
           <div>
-            <p style="text-align:center;font-size:12px;color:var(--ink-soft);margin:0 0 4px;font-weight:600;">+ Revenus</p>
+            <p style="text-align:center;font-size:12px;color:var(--ink-soft);margin:0 0 4px;font-weight:600;">+ Revenus <span id="catChartIncTotal" style="color:#4d9c7e;"></span></p>
             <div class="chart-wrap" style="height:200px;"><canvas id="moneyIncomeCatChart"></canvas></div>
           </div>
         </div>
@@ -8578,6 +8578,9 @@ function renderMoneyCatChart() {
     if (d >= start && d < end && tx.type === "expense" && !tx.reimbursable) totals[tx.category] = (totals[tx.category] || 0) + tx.amount;
   }
   const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+  const depTotal = entries.reduce((s,[,v]) => s+v, 0);
+  const depEl = document.getElementById("catChartDepTotal");
+  if (depEl) depEl.textContent = depTotal > 0 ? "— " + depTotal.toFixed(0) + " €" : "";
   if (!entries.length) { _emptyDonutPlaceholder(wrap, "Aucune dépense<br>ce mois"); return; }
 
   moneyCatChart = new Chart(document.getElementById("moneyCatChart"), {
@@ -8953,6 +8956,9 @@ function renderMoneyIncomeCatChart() {
     if (d >= start && d < end && tx.type === "income") totals[tx.category] = (totals[tx.category] || 0) + tx.amount;
   }
   const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+  const incTotal = entries.reduce((s,[,v]) => s+v, 0);
+  const incEl = document.getElementById("catChartIncTotal");
+  if (incEl) incEl.textContent = incTotal > 0 ? "— " + incTotal.toFixed(0) + " €" : "";
   if (!entries.length) { _emptyDonutPlaceholder(wrap, "Aucun revenu<br>ce mois"); return; }
 
   moneyIncomeCatChart = new Chart(document.getElementById("moneyIncomeCatChart"), {
