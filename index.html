@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v284</title>
+<title>Mon Tableau de Vie 🌿 · v285</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -3086,9 +3086,22 @@
       <div id="refModalCodes" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line);"></div>
     </div>
 
+    <!-- Génération de référence bibliographique -->
+    <div id="refCitePanel" style="display:none;margin-top:12px;background:#faf8fd;border-radius:12px;padding:12px 14px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        <button onclick="generateCite('apa')" class="biblio-tab" style="font-size:12px;">APA</button>
+        <button onclick="generateCite('chicago')" class="biblio-tab" style="font-size:12px;">Chicago</button>
+        <button onclick="generateCite('mla')" class="biblio-tab" style="font-size:12px;">MLA</button>
+        <button onclick="generateCite('iso')" class="biblio-tab" style="font-size:12px;">ISO 690</button>
+      </div>
+      <div id="refCiteOutput" style="font-size:13px;color:var(--ink);line-height:1.6;padding:8px 10px;background:white;border-radius:8px;border:1px solid var(--line);min-height:40px;"></div>
+      <button id="refCiteCopyBtn" onclick="copyCite()" style="margin-top:8px;padding:5px 12px;border-radius:8px;border:none;background:var(--lilac);color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">📋 Copier</button>
+    </div>
+
     <div class="actions" style="margin-top:14px;">
       <button class="danger" id="refModalDeleteBtn" onclick="deleteRef()" style="display:none;">Supprimer</button>
       <div class="spacer"></div>
+      <button class="btn-soft" onclick="toggleCitePanel()" style="font-size:13px;">📖 Citer</button>
       <button class="secondary" onclick="closeRefModal()">Annuler</button>
       <button class="primary" onclick="saveRef()">Enregistrer</button>
     </div>
@@ -11226,6 +11239,102 @@ function openRefModal(id) {
   document.getElementById("refModal").classList.add("open");
   setTimeout(() => document.getElementById("refModalTitle2").focus(), 50);
 }
+function toggleCitePanel() {
+  const panel = document.getElementById("refCitePanel");
+  if (!panel) return;
+  if (panel.style.display === "none") {
+    panel.style.display = "block";
+    generateCite("apa");
+  } else {
+    panel.style.display = "none";
+  }
+}
+
+function _getRefModalData() {
+  return {
+    title:     document.getElementById("refModalTitle2")?.value.trim() || "",
+    authors:   document.getElementById("refModalAuthors")?.value.trim() || "",
+    year:      document.getElementById("refModalYear")?.value.trim() || "",
+    publisher: document.getElementById("refModalPublisher")?.value.trim() || "",
+    doi:       document.getElementById("refModalDoi")?.value.trim() || "",
+    pages:     document.getElementById("refModalPages")?.value.trim() || "",
+    type:      document.getElementById("refModalType")?.value || "other",
+  };
+}
+
+function _formatAuthors(raw, style) {
+  if (!raw) return "";
+  const parts = raw.split(";").map(s => s.trim()).filter(Boolean);
+  if (style === "apa") {
+    return parts.map(p => {
+      const [last, first] = p.includes(",") ? p.split(",").map(s=>s.trim()) : [p, ""];
+      return first ? last + ", " + first.split(" ").map(n=>n[0]+".").join(" ") : last;
+    }).join(", ");
+  }
+  if (style === "mla") {
+    if (parts.length === 1) {
+      const [last, first] = parts[0].includes(",") ? parts[0].split(",").map(s=>s.trim()) : [parts[0], ""];
+      return first ? last + ", " + first : last;
+    }
+    const [last0, first0] = parts[0].includes(",") ? parts[0].split(",").map(s=>s.trim()) : [parts[0], ""];
+    const rest = parts.slice(1).map(p => { const [l,f] = p.includes(",") ? p.split(",").map(s=>s.trim()) : [p,""]; return f ? f+" "+l : l; });
+    return (first0 ? last0+", "+first0 : last0) + (rest.length ? ", and " + rest.join(", and ") : "");
+  }
+  // chicago / iso : Prénom NOM
+  return parts.map(p => {
+    const [last, first] = p.includes(",") ? p.split(",").map(s=>s.trim()) : [p, ""];
+    return first ? first + " " + last : last;
+  }).join(", ");
+}
+
+function generateCite(style) {
+  const r = _getRefModalData();
+  const authors = _formatAuthors(r.authors, style);
+  const year = r.year || "s.d.";
+  const title = r.title || "Sans titre";
+  const pub = r.publisher || "";
+  const doi = r.doi ? " DOI : " + r.doi : "";
+  const pages = r.pages ? ", " + r.pages : "";
+  let cite = "";
+
+  if (style === "apa") {
+    if (r.type === "article") cite = `${authors} (${year}). ${title}. <em>${pub}</em>${pages}.${doi}`;
+    else if (r.type === "chapter") cite = `${authors} (${year}). ${title}. In <em>${pub}</em>${pages}.`;
+    else cite = `${authors} (${year}). <em>${title}</em>${pub ? ". " + pub : ""}.${doi}`;
+  } else if (style === "chicago") {
+    if (r.type === "article") cite = `${authors}. "${title}." <em>${pub}</em> (${year})${pages}.${doi}`;
+    else cite = `${authors}. <em>${title}</em>. ${pub}${pub ? "," : ""} ${year}.${doi}`;
+  } else if (style === "mla") {
+    if (r.type === "article") cite = `${authors}. "${title}." <em>${pub}</em>, ${year}${pages}.`;
+    else cite = `${authors}. <em>${title}</em>. ${pub}, ${year}.`;
+  } else if (style === "iso") {
+    cite = `${authors || "Auteur inconnu"}. <em>${title}</em>. ${pub ? pub + ", " : ""}${year}.${doi}`;
+  }
+
+  const out = document.getElementById("refCiteOutput");
+  if (out) out.innerHTML = cite || "Remplis les champs de la référence pour générer la citation.";
+  // Highlight le bouton actif
+  document.querySelectorAll("#refCitePanel .biblio-tab").forEach(b => b.classList.remove("active"));
+  const activeBtn = [...document.querySelectorAll("#refCitePanel .biblio-tab")].find(b => b.textContent.toLowerCase().includes(style));
+  if (activeBtn) activeBtn.classList.add("active");
+}
+
+function copyCite() {
+  const out = document.getElementById("refCiteOutput");
+  if (!out) return;
+  const text = out.innerText || out.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById("refCiteCopyBtn");
+    if (btn) { btn.textContent = "✅ Copié !"; setTimeout(() => btn.textContent = "📋 Copier", 2000); }
+  }).catch(() => {
+    const range = document.createRange(); range.selectNode(out);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand("copy");
+    window.getSelection().removeAllRanges();
+  });
+}
+
 function closeRefModal() {
   clearTimeout(_refNoteSaveTimer);
   saveRefNoteNow();
