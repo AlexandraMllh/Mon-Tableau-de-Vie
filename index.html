@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v282</title>
+<title>Mon Tableau de Vie 🌿 · v283</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2217,13 +2217,16 @@
 
       <!-- Panel : Vue par code -->
       <div id="biblioPanel-bycode" style="display:none;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-          <select id="biblioByCodeSelect" onchange="renderBiblioByCode()"
-            style="flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;background:white;">
-            <option value="">Sélectionne un code…</option>
-          </select>
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:14px;align-items:start;">
+          <!-- Arbre codes -->
+          <div class="card" style="padding:12px;max-height:70vh;overflow-y:auto;">
+            <div style="font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Codes</div>
+            <div id="biblioByCodeTree"></div>
+          </div>
+          <!-- Extraits du code sélectionné -->
+          <div id="biblioByCodeContent" style="max-height:70vh;overflow-y:auto;"></div>
         </div>
-        <div id="biblioByCodeContent"></div>
+        <input type="hidden" id="biblioByCodeSelect" value="" />
       </div>
 
       <!-- Panel : Zotero -->
@@ -3111,7 +3114,7 @@
 
 <!-- Modal extrait -->
 <div class="modal-bg" id="extractModal" onclick="if(event.target===this)closeExtractModal()">
-  <div class="modal" style="max-width:600px;" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">
+  <div class="modal" style="max-width:600px;width:min(95vw,600px);resize:horizontal;overflow:auto;" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">
     <h2 id="extractModalTitle">Nouvel extrait</h2>
     <input type="hidden" id="extractModalId" />
     <label>Référence *</label>
@@ -11034,7 +11037,7 @@ function switchBiblioPanel(panel) {
   if (panel === "refs")     { renderBiblioCollectionTree(); renderBiblioRefs(); }
   if (panel === "extracts") { populateBiblioExtractFilters(); renderBiblioExtracts(); }
   if (panel === "codes")    renderBiblioCodes();
-  if (panel === "bycode")   { populateBiblioByCodeSelect(); renderBiblioByCode(); }
+  if (panel === "bycode")   { populateBiblioByCodeSelect(); }
   if (panel === "zotero")   loadZoteroConfig();
 }
 
@@ -11752,17 +11755,52 @@ function deleteExtract() {
 }
 
 // ── Vue par code ──────────────────────────────────────────────
-function populateBiblioByCodeSelect() {
-  const biblio = _getActiveBiblio() || _biblioDef();
-  const sel = document.getElementById("biblioByCodeSelect");
-  if (!sel) return;
-  const prev = sel.value;
-  sel.innerHTML = '<option value="">Sélectionne un code…</option>' +
-    (biblio.codes||[]).map(c => {
-      const n = (biblio.extracts||[]).filter(e=>(e.codes||[]).includes(c.id)).length;
-      return `<option value="${c.id}">${escapeHtml(c.label)} (${n})`;
+function populateBiblioByCodeSelect() { renderBiblioByCodeTree(); }
+
+function renderBiblioByCodeTree() {
+  const el = document.getElementById("biblioByCodeTree");
+  if (!el) return;
+  const projectBiblio = _getActiveBiblio() || _biblioDef();
+  const allCodes = projectBiblio.codes || [];
+  const exts = projectBiblio.extracts || [];
+  const selectedId = document.getElementById("biblioByCodeSelect")?.value || "";
+
+  function countCode(id) {
+    const ids = new Set([id]);
+    let changed = true;
+    while (changed) { changed = false; allCodes.forEach(c => { if (ids.has(c.parentId||"") && !ids.has(c.id)) { ids.add(c.id); changed = true; } }); }
+    return exts.filter(e => (e.codes||[]).some(cid => ids.has(cid))).length;
+  }
+
+  function node(parentId, depth) {
+    return allCodes.filter(c => (c.parentId||"") === (parentId||"")).map(c => {
+      const n = countCode(c.id);
+      const hasSub = allCodes.some(x => x.parentId === c.id);
+      const active = selectedId === c.id;
+      const bg = active ? "var(--lavender-soft)" : "transparent";
+      return `<div style="padding-left:${depth*14}px;">
+        <div onclick="selectBiblioCode('${c.id}')"
+          style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:13px;background:${bg};font-weight:${active?600:400};"
+          onmouseover="this.style.background='var(--lavender-soft)'" onmouseout="this.style.background='${bg}'">
+          <span style="width:12px;height:12px;border-radius:50%;background:${c.color||"#c9b6f0"};flex-shrink:0;"></span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(c.label)}</span>
+          <span style="font-size:11px;color:var(--ink-softer);flex-shrink:0;">${n}</span>
+        </div>
+        ${hasSub ? node(c.id, depth+1) : ""}
+      </div>`;
     }).join("");
-  sel.value = prev;
+  }
+
+  el.innerHTML = allCodes.length
+    ? node("", 0) || '<p style="font-size:13px;color:var(--ink-softer);padding:4px;">Aucun code.</p>'
+    : '<p style="font-size:13px;color:var(--ink-softer);padding:4px;">Crée des codes dans l\'onglet Codes.</p>';
+}
+
+function selectBiblioCode(id) {
+  const sel = document.getElementById("biblioByCodeSelect");
+  if (sel) sel.value = id;
+  renderBiblioByCodeTree();
+  renderBiblioByCode();
 }
 function renderBiblioByCode() {
   const biblio = _getGlobalBiblio();              // refs
