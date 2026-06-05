@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v275</title>
+<title>Mon Tableau de Vie 🌿 · v276</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2545,9 +2545,11 @@
       <div id="reimbursableList"></div>
     </div>
     <div class="card" id="txCard" style="margin-top:18px;">
-      <div class="card-row">
-        <h2>Transactions récentes</h2>
+      <div class="card-row" style="flex-wrap:wrap;gap:8px;">
+        <h2 style="margin:0;">Transactions récentes</h2>
         <span style="color:var(--ink-soft);font-size:13px;" id="txCount"></span>
+        <input type="text" id="txSearch" placeholder="🔍 Chercher…" oninput="renderTxList()"
+          style="flex:1;min-width:160px;padding:7px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;" />
       </div>
       <div class="tx-list" id="txList"></div>
     </div>
@@ -8172,10 +8174,27 @@ function catColor(cat) {
   return CAT_PALETTE[Math.abs(h) % CAT_PALETTE.length];
 }
 function renderTxList() {
-  const list = state.transactions.slice(0, 50);
-  document.getElementById("txCount").textContent = state.transactions.length + " au total";
-  if (!list.length) {
+  const search = (document.getElementById("txSearch")?.value || "").toLowerCase().trim();
+  let list = state.transactions;
+  if (search) {
+    list = list.filter(tx =>
+      (tx.category||"").toLowerCase().includes(search) ||
+      (tx.note||"").toLowerCase().includes(search) ||
+      (tx.mission||"").toLowerCase().includes(search) ||
+      String(tx.amount).includes(search)
+    );
+  }
+  const total = list.length;
+  list = list.slice(0, search ? 200 : 50);
+  document.getElementById("txCount").textContent = search
+    ? `${total} résultat${total>1?"s":""} (${state.transactions.length} total)`
+    : state.transactions.length + " au total";
+  if (!state.transactions.length) {
     document.getElementById("txList").innerHTML = `<p style="color:var(--ink-soft);font-size:14px;text-align:center;padding:20px;">Aucune transaction pour l'instant.</p>`;
+    return;
+  }
+  if (!list.length) {
+    document.getElementById("txList").innerHTML = `<p style="color:var(--ink-soft);font-size:14px;text-align:center;padding:20px;">Aucun résultat pour "${escapeHtml(search)}".</p>`;
     return;
   }
   document.getElementById("txList").innerHTML = list.map(tx => {
