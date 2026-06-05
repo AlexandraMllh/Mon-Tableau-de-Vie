@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v311</title>
+<title>Mon Tableau de Vie 🌿 · v312</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -4277,6 +4277,16 @@ function migrate(s) {
   } catch(migErr) { console.warn("[migration biblio]", migErr); }
   return s;
 }
+// Restaurer les raccourcis depuis leur sauvegarde dédiée si nécessaire
+function _restoreShortcutsBackup() {
+  try {
+    const backup = localStorage.getItem("tableau_shortcuts");
+    if (backup && (!state.shortcuts || !state.shortcuts.length)) {
+      state.shortcuts = JSON.parse(backup);
+    }
+  } catch(e) {}
+}
+
 function saveState() {
   state.lastModified = Date.now();
   window._lastLocalSave = Date.now(); // protection anti-écrasement Firebase
@@ -4284,6 +4294,7 @@ function saveState() {
   _fbQueueSave();
 }
 let state = loadState();
+_restoreShortcutsBackup(); // récupérer les raccourcis si écrasés
 
 /* ========= UTILS ========= */
 function todayKey(d = new Date()) {
@@ -14555,6 +14566,8 @@ function toggleShortcut(id, on) {
   if (!state.shortcuts) state.shortcuts = [];
   if (on) { if (!state.shortcuts.find(s=>s.id===id)) state.shortcuts.push({id}); }
   else state.shortcuts = state.shortcuts.filter(s => s.id !== id);
+  // Sauvegarder aussi dans une clé séparée pour survie aux rechargements SW
+  try { localStorage.setItem("tableau_shortcuts", JSON.stringify(state.shortcuts)); } catch(e) {}
   saveState();
   _fbSaveNow().catch(()=>{}); // sauvegarde immédiate
   renderShortcutsBar();
@@ -14680,10 +14693,11 @@ async function _fbLoad() {
       const localTs  = state.lastModified || 0;
       const remoteTs = remote.lastModified || 0;
       if (remoteTs > localTs) {
-        // Préserver les raccourcis locaux si le remote n'en a pas
-        const savedShortcuts = state.shortcuts?.length ? state.shortcuts : null;
+        // Toujours préserver les raccourcis locaux (priorité au local)
+        const savedShortcuts = state.shortcuts?.length ? [...state.shortcuts] : null;
         state = migrate({ ...DEFAULT_STATE, ...remote });
-        if (savedShortcuts && !state.shortcuts?.length) state.shortcuts = savedShortcuts;
+        // Les raccourcis locaux ont toujours la priorité sur Firebase
+        if (savedShortcuts?.length) state.shortcuts = savedShortcuts;
         localStorage.setItem(STORE_KEY, JSON.stringify(state));
         renderAll();
         // Re-rendre la biblio et les raccourcis
@@ -14723,9 +14737,12 @@ function _fbListen() {
     }
     // Ne met à jour que si les données distantes sont vraiment plus récentes
     if (remoteTs > localTs + 3000) {
+      const savedSC = state.shortcuts?.length ? [...state.shortcuts] : null;
       state = migrate({ ...DEFAULT_STATE, ...remote });
+      if (savedSC?.length) state.shortcuts = savedSC; // préserver les raccourcis locaux
       localStorage.setItem(STORE_KEY, JSON.stringify(state));
       renderAll();
+      renderShortcutsBar();
       showToast("🔄 Données mises à jour depuis un autre appareil");
     }
     _fbSetStatus("ok");
