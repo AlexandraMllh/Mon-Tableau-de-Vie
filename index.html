@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v298</title>
+<title>Mon Tableau de Vie 🌿 · v299</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -7209,19 +7209,13 @@ function renderFoodIngredients() {
   if (!list) return;
   list.innerHTML = _foodIngredients.map((ing, i) => `
     <div style="display:flex;gap:6px;align-items:center;">
-      <input type="text" value="${escapeHtml(ing.name)}" placeholder="Ingrédient…"
-        oninput="_foodIngredients[${i}].name=this.value;searchIngCalories(${i},this.value+''+_foodIngredients[${i}].qty+_foodIngredients[${i}].unit)"
-        style="flex:2;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
-      <input type="number" value="${ing.qty||''}" placeholder="Qté" min="0"
-        oninput="_foodIngredients[${i}].qty=this.value;updateIngTotal()"
-        style="width:60px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
-      <select onchange="_foodIngredients[${i}].unit=this.value;updateIngTotal()"
-        style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;background:white;">
-        <option value="g"${ing.unit==='g'?' selected':''}>g</option>
-        <option value="ml"${ing.unit==='ml'?' selected':''}>ml</option>
-        <option value="cl"${ing.unit==='cl'?' selected':''}>cl</option>
-      </select>
-      <span style="font-size:11px;color:var(--orange);font-weight:600;min-width:50px;" id="ingCal_${i}">${ing.kcal>0?ing.kcal+' kcal':''}</span>
+      <input type="text" value="${escapeHtml(ing.name)}" placeholder="ex : lait, poulet…"
+        oninput="_foodIngredients[${i}].name=this.value;searchIngCalories(${i},this.value+' '+(_foodIngredients[${i}].portion||''))"
+        style="flex:3;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+      <input type="text" value="${escapeHtml(ing.portion||'')}" placeholder="400ml"
+        oninput="_foodIngredients[${i}].portion=this.value;searchIngCalories(${i},_foodIngredients[${i}].name+' '+this.value)"
+        style="width:70px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;text-align:center;" />
+      <span style="font-size:11px;color:var(--orange);font-weight:600;min-width:48px;text-align:right;" id="ingCal_${i}">${ing.kcal>0?ing.kcal+' kcal':''}</span>
       <button onclick="_foodIngredients.splice(${i},1);renderFoodIngredients();updateIngTotal()"
         style="padding:4px 8px;border-radius:7px;border:1px solid var(--line);background:white;cursor:pointer;color:var(--ink-softer);">✕</button>
     </div>`).join("");
@@ -7242,10 +7236,13 @@ async function searchIngCalories(idx, query) {
       const kcal100 = p.nutriments["energy-kcal_100g"];
       const ing = _foodIngredients[idx];
       if (!ing) return;
-      const qty = parseFloat(ing.qty) || (grams||100);
-      const mult = ing.unit === 'cl' ? 10 : 1;
+      // Extraire la quantité depuis ing.portion ('400ml', '200g', etc.)
+      const portionParsed = _parseFoodQuery(ing.portion||'');
+      const grams2 = portionParsed.grams || grams || 100;
+      const portionUnit = (ing.portion||'').match(/cl/i) ? 'cl' : 'ml';
+      const mult = portionUnit === 'cl' ? 10 : 1;
       ing.kcal100g = kcal100;
-      ing.kcal = Math.round(kcal100 * qty * mult / 100);
+      ing.kcal = Math.round(kcal100 * grams2 * mult / 100);
       const el = document.getElementById('ingCal_'+idx);
       if (el) el.textContent = ing.kcal + ' kcal';
       updateIngTotal();
