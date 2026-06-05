@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v271</title>
+<title>Mon Tableau de Vie 🌿 · v272</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -3062,6 +3062,23 @@
       <div class="spacer"></div>
       <button class="secondary" onclick="closeRefModal()">Annuler</button>
       <button class="primary" onclick="saveRef()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal détail plante -->
+<div class="modal-bg" id="plantDetailModal" onclick="if(event.target===this)closePlantDetail()">
+  <div class="modal" style="max-width:420px;" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">
+    <div style="text-align:center;margin-bottom:16px;">
+      <div id="plantDetailEmoji" style="font-size:48px;line-height:1;margin-bottom:8px;">🪴</div>
+      <h2 id="plantDetailName" style="margin:0;font-size:20px;"></h2>
+      <div id="plantDetailFreq" style="font-size:13px;color:var(--ink-soft);margin-top:4px;"></div>
+    </div>
+    <div id="plantDetailStatus" style="text-align:center;margin-bottom:16px;"></div>
+    <div id="plantDetailNotes" style="background:#faf8fd;border-radius:12px;padding:14px 16px;font-size:14px;color:var(--ink);line-height:1.7;white-space:pre-wrap;min-height:60px;"></div>
+    <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button class="btn-primary" onclick="waterPlantFromDetail()" id="plantDetailWaterBtn">💧 Arroser maintenant</button>
+      <button class="secondary" onclick="closePlantDetail()" style="padding:9px 18px;border-radius:10px;border:1px solid var(--line);background:white;font-family:inherit;font-size:14px;cursor:pointer;">Fermer</button>
     </div>
   </div>
 </div>
@@ -12797,16 +12814,12 @@ function renderPlants() {
   const sorted = [...statuses].sort((a, b) => orderStates[a.s.state] - orderStates[b.s.state]);
   target.innerHTML = sorted.map(({ p, s }) => `
       <div class="dom-row plant-row">
-        <div class="plant-row-info">
+        <div class="plant-row-info" onclick="openPlantDetail('${p.id}')" style="cursor:pointer;flex:1;">
           <div class="dom-emoji">${p.emoji || "🪴"}</div>
           <div class="dom-name">
             <strong>${escapeHtml(p.name)}</strong>
             <div class="dom-meta">${frequencyLabel(p.wateringDays)}</div>
-            <textarea class="plant-notes-input" placeholder="💡 Conseils d'arrosage…"
-              onchange="updatePlantNotes('${p.id}', this.value)"
-              oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
-              onkeydown="if(event.key==='Escape')this.blur()"
-              rows="1">${escapeHtml(p.notes || "")}</textarea>
+            ${p.notes ? `<div style="font-size:12px;color:var(--ink-soft);margin-top:2px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;">${escapeHtml(p.notes)}</div>` : ""}
           </div>
         </div>
         <div class="plant-row-actions">
@@ -12823,6 +12836,42 @@ function renderPlants() {
     });
   });
 }
+let _plantDetailId = null;
+function openPlantDetail(id) {
+  const p = (state.domestique.plants||[]).find(x => x.id === id);
+  if (!p) return;
+  _plantDetailId = id;
+  document.getElementById("plantDetailEmoji").textContent = p.emoji || "🪴";
+  document.getElementById("plantDetailName").textContent = p.name;
+  document.getElementById("plantDetailFreq").textContent = "Arrosage : " + frequencyLabel(p.wateringDays);
+  // Statut
+  const s = choreStatus ? null : null;
+  const lastW = p.lastWatered;
+  let statusHtml = "";
+  if (lastW) {
+    const days = Math.floor((Date.now() - new Date(lastW)) / 86400000);
+    const next = p.wateringDays - days;
+    if (next <= 0) statusHtml = `<span style="background:#fee2e2;color:#dc2626;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:600;">🔴 A soif ! (${Math.abs(next)} j de retard)</span>`;
+    else if (next <= 2) statusHtml = `<span style="background:#fef3c7;color:#d97706;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:600;">🟠 À arroser dans ${next} j</span>`;
+    else statusHtml = `<span style="background:#dcfce7;color:#16a34a;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:600;">🟢 Arrosée il y a ${days} j</span>`;
+    statusHtml += `<div style="font-size:12px;color:var(--ink-softer);margin-top:6px;">Dernière fois : ${new Date(lastW).toLocaleDateString("fr-FR", {day:"numeric",month:"long"})}</div>`;
+  } else {
+    statusHtml = `<span style="background:#fef3c7;color:#d97706;padding:5px 12px;border-radius:20px;font-size:13px;">Jamais arrosée</span>`;
+  }
+  document.getElementById("plantDetailStatus").innerHTML = statusHtml;
+  document.getElementById("plantDetailNotes").textContent = p.notes || "Aucune note d'arrosage.";
+  document.getElementById("plantDetailModal").classList.add("open");
+}
+function closePlantDetail() {
+  document.getElementById("plantDetailModal").classList.remove("open");
+  _plantDetailId = null;
+}
+function waterPlantFromDetail() {
+  if (!_plantDetailId) return;
+  waterPlant(_plantDetailId);
+  closePlantDetail();
+}
+
 function addPlant() {
   const name = document.getElementById("newPlantName").value.trim();
   const emoji = document.getElementById("newPlantEmoji").value.trim() || "🪴";
