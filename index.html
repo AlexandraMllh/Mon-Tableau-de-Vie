@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v290</title>
+<title>Mon Tableau de Vie 🌿 · v291</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11084,6 +11084,16 @@ function hideBiblioCollection(key) {
   _biblioHidden.add(key);
   renderBiblioCollectionTree();
 }
+function expandAllBiblioCollections() {
+  _biblioCollapsed.clear();
+  _biblioHidden.clear();
+  renderBiblioCollectionTree();
+}
+function collapseAllBiblioCollections() {
+  const biblio = _getGlobalBiblio();
+  (biblio.collections||[]).forEach(c => _biblioCollapsed.add(c.key));
+  renderBiblioCollectionTree();
+}
 function showAllBiblioCollections() {
   _biblioHidden.clear();
   renderBiblioCollectionTree();
@@ -11173,7 +11183,8 @@ function renderBiblioCollectionTree() {
   const hiddenBtn = _biblioHidden.size > 0
     ? `<div onclick="showAllBiblioCollections()" style="font-size:11px;color:var(--lilac);cursor:pointer;padding:6px 8px;text-align:center;">↩ Tout réafficher (${_biblioHidden.size} masquée${_biblioHidden.size>1?'s':''})</div>`
     : "";
-  el.innerHTML = allBtn + renderNode("", 0) + hiddenBtn;
+  const xBtn = '<div style="display:flex;gap:6px;margin-bottom:8px;"><button onclick="expandAllBiblioCollections()" class="biblio-tab" style="font-size:11px;flex:1;">▼ Tout déplier</button><button onclick="collapseAllBiblioCollections()" class="biblio-tab" style="font-size:11px;flex:1;">▶ Tout replier</button></div>';
+  el.innerHTML = xBtn + allBtn + renderNode("", 0) + hiddenBtn;
 }
 
 function startBiblioResize(e) {
