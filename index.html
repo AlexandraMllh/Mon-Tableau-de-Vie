@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v278</title>
+<title>Mon Tableau de Vie 🌿 · v279</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11427,7 +11427,7 @@ function renderBiblioExtracts() {
           ${codes.map(c=>`<span style="font-size:11px;background:${c.color}33;color:var(--ink);border:1.5px solid ${c.color};border-radius:20px;padding:2px 9px;font-weight:600;">${escapeHtml(c.label)}</span>`).join("")}
           ${e.page?`<span style="font-size:11px;color:var(--ink-softer);padding:2px 6px;">p.${e.page}</span>`:""}
         </div>
-        <button onclick="openExtractModal('${e.id}')" title="Modifier" style="flex-shrink:0;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:white;font-size:11px;cursor:pointer;color:var(--ink-soft);">✎</button>
+        <button onclick="openExtractModal('${e.id}')" title="Modifier" class="note-tb-btn" style="flex-shrink:0;font-size:13px;">✎</button>
       </div>
       <div style="font-size:13px;color:var(--ink);line-height:1.6;background:#faf8fd;border-left:3px solid var(--lavender);padding:8px 12px;border-radius:0 8px 8px 0;cursor:default;">"${escapeHtml((e.text||"").slice(0,300))}${e.text&&e.text.length>300?"…":""}"</div>
       ${e.note?`<div style="font-size:12px;color:var(--ink-soft);margin-top:4px;font-style:italic;">💬 ${escapeHtml(e.note)}</div>`:""}
@@ -11445,9 +11445,10 @@ function openExtractModal(id) {
   const e = id ? (biblio.extracts||[]).find(x => x.id === id) : null;
   document.getElementById("extractModalTitle").textContent = e ? "Modifier l'extrait" : "Nouvel extrait";
   document.getElementById("extractModalId").value = id || "";
-  // Picker référence
+  // Picker référence — rendu différé pour ne pas bloquer l'ouverture
   document.getElementById("extractRefSearch").value = "";
-  renderExtractRefPicker();
+  document.getElementById("extractRefPickerTree").innerHTML = "<p style='padding:8px;font-size:13px;color:var(--ink-softer);'>Tape un nom pour chercher une référence…</p>";
+  setTimeout(renderExtractRefPicker, 50); // léger délai pour afficher la modal d'abord
   const selId = e?.refId || "";
   const selRef = selId ? (biblio.refs||[]).find(r => r.id === selId) : null;
   document.getElementById("extractModalRef").value = selId;
