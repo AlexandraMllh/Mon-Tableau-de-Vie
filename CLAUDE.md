@@ -4,6 +4,22 @@ Fichier de contexte complet pour reprendre le projet sans aucune explication sup
 
 ---
 
+## 🚨 RÈGLE ABSOLUE — CONSOLE D'ABORD, CODE ENSUITE
+
+**Quand quelque chose ne fonctionne pas, demander la console DevTools AVANT de toucher au code.**
+
+- ❌ Ne jamais "fixer à l'aveugle" avec plusieurs commits successifs sans diagnostic
+- ❌ Ne jamais supposer la cause d'un bug sans preuve
+- ✅ Dès le premier "ça ne marche pas" → demander : **"Ouvre DevTools (⌥+⌘+I) → Console → copie le premier message rouge"**
+- ✅ Le message d'erreur donne la cause exacte en 30 secondes
+- ✅ Une fois la cause identifiée → UN seul fix ciblé
+
+**Exemple de ce qu'il ne faut PAS faire :** déployer 10 commits de fixes différents pour un bug qui était un `RangeError: Maximum call stack size exceeded` visible immédiatement dans la console.
+
+Cette règle existe parce que fixer à l'aveugle a causé des heures de perte de temps à l'utilisatrice.
+
+---
+
 ## ⚠️ RÈGLE ABSOLUE — MOBILE FIRST
 
 **Toute nouvelle fonctionnalité doit être adaptée à l'interface téléphone (Samsung, iOS).**
