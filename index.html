@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v288</title>
+<title>Mon Tableau de Vie 🌿 · v289</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1789,6 +1789,55 @@
       </div>
     </div>
 
+    <!-- 🍽️ Journal alimentaire du jour -->
+    <div class="card" style="margin-top:14px;" id="foodLogCard">
+      <div class="work-header" style="margin-bottom:10px;">
+        <h2 style="margin:0;">🍽️ Alimentation du jour</h2>
+        <button onclick="openFoodEntry()" class="btn-primary" style="font-size:12px;">+ Ajouter</button>
+      </div>
+      <!-- Météo alimentaire -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+        <span style="font-size:13px;color:var(--ink-soft);">Bilan du jour :</span>
+        <div style="display:flex;gap:6px;">
+          <button onclick="setFoodMood('😊')" id="foodMood1" class="note-tb-btn" style="font-size:18px;" title="J'ai bien mangé">😊</button>
+          <button onclick="setFoodMood('😐')" id="foodMood2" class="note-tb-btn" style="font-size:18px;" title="Bof">😐</button>
+          <button onclick="setFoodMood('😔')" id="foodMood3" class="note-tb-btn" style="font-size:18px;" title="Pas top">😔</button>
+        </div>
+        <span id="foodMoodLabel" style="font-size:12px;color:var(--ink-softer);"></span>
+      </div>
+      <div id="foodLogList" style="max-height:200px;overflow-y:auto;"></div>
+    </div>
+
+    <!-- Modal journal alimentaire -->
+    <div class="modal-bg" id="foodEntryModal" onclick="if(event.target===this)closeFoodEntry()">
+      <div class="modal" style="max-width:440px;" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">
+        <h2 style="margin:0 0 14px;">🍽️ Qu'est-ce que tu as mangé ?</h2>
+        <input type="hidden" id="foodEntryId" />
+        <label>Aliment / repas</label>
+        <input type="text" id="foodEntryName" placeholder="ex : salade, chocolat, repas complet…" />
+        <label style="margin-top:8px;">Heure</label>
+        <input type="time" id="foodEntryTime" style="padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;width:100%;box-sizing:border-box;" />
+        <label style="margin-top:10px;">Pourquoi tu as mangé ?</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;" id="foodReasonPicker">
+          <button onclick="selectFoodReason('🤤 Vraie faim')" class="note-tb-btn" data-r="🤤 Vraie faim">🤤 Vraie faim</button>
+          <button onclick="selectFoodReason('😰 Stress')" class="note-tb-btn" data-r="😰 Stress">😰 Stress</button>
+          <button onclick="selectFoodReason('😴 Ennui')" class="note-tb-btn" data-r="😴 Ennui">😴 Ennui</button>
+          <button onclick="selectFoodReason('🎉 Social')" class="note-tb-btn" data-r="🎉 Social">🎉 Social</button>
+          <button onclick="selectFoodReason('😋 Plaisir')" class="note-tb-btn" data-r="😋 Plaisir">😋 Plaisir</button>
+          <button onclick="selectFoodReason('🤖 Automatique')" class="note-tb-btn" data-r="🤖 Automatique">🤖 Automatique</button>
+        </div>
+        <input type="hidden" id="foodEntryReason" />
+        <label style="margin-top:8px;">Note rapide (optionnel)</label>
+        <input type="text" id="foodEntryNote" placeholder="Comment tu te sens après ?" />
+        <div class="actions" style="margin-top:14px;">
+          <button class="danger" id="foodEntryDeleteBtn" onclick="deleteFoodEntry()" style="display:none;">Supprimer</button>
+          <div class="spacer"></div>
+          <button class="secondary" onclick="closeFoodEntry()">Annuler</button>
+          <button class="primary" onclick="saveFoodEntry()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
     <!-- To-do du jour (widget partagé avec Domestique) -->
     <div class="card" style="margin-top:14px;">
       <div class="work-header" style="margin-bottom:14px;">
@@ -2301,6 +2350,15 @@
     <div class="grid-two">
       <div class="card">
         <h2>💪 Composition corporelle</h2>
+        <!-- Objectif poids -->
+        <div style="display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--mint-soft),var(--sky-soft));border-radius:12px;padding:10px 14px;margin-bottom:12px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:600;">🎯 Objectif poids :</span>
+          <input type="number" id="weightGoalInput" placeholder="ex: 62" step="0.1" min="30" max="200"
+            onchange="saveWeightGoal()"
+            style="width:80px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;" />
+          <span style="font-size:13px;color:var(--ink-soft);">kg</span>
+          <span id="weightGoalStatus" style="font-size:13px;font-weight:600;margin-left:auto;"></span>
+        </div>
         <div style="background:#faf8fd;padding:12px;border-radius:14px;margin-bottom:14px;">
           <div class="health-inputs-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
             <input type="number" id="weightInput" placeholder="Poids (kg)" step="0.1" style="padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;color:var(--ink);" />
@@ -4201,6 +4259,8 @@ function getToday() {
     if (d.gratitude === undefined) d.gratitude = "";
     if (d.highlight === undefined) d.highlight = "";
     if (d.pillTaken === undefined) d.pillTaken = false;
+    if (!d.foodLog) d.foodLog = [];
+    if (d.foodMood === undefined) d.foodMood = "";
   }
   return state.history[k];
 }
@@ -4709,7 +4769,7 @@ function navToToday() {
   renderTodayNav();
   renderTodayView();
 }
-function renderTodayView() { renderTodayNav(); renderRings(); renderHabits(); renderWellbeing(); renderTodoToday(); renderSkincare(); renderJournal(); }
+function renderTodayView() { renderTodayNav(); renderRings(); renderHabits(); renderWellbeing(); renderTodoToday(); renderSkincare(); renderJournal(); renderFoodLog(); }
 
 /* ========= WORK :: POSTDOC PROJECTS ========= */
 // Filtres pour identifier les projets "majeurs" qui ont leur propre sous-onglet
@@ -6917,6 +6977,7 @@ function findRecentMetric(metric, daysAgo) {
   return null;
 }
 function renderHealth() {
+  renderWeightGoalStatus();
   const today = getToday();
   const renderMetric = (key, suffix, unit) => {
     const elToday = document.getElementById(key + "Today");
@@ -7074,6 +7135,135 @@ function togglePill() {
   saveState();
   renderPill();
   renderPillSante();
+}
+
+/* ========= JOURNAL ALIMENTAIRE ========= */
+function openFoodEntry(id) {
+  const d = getToday();
+  if (!d.foodLog) d.foodLog = [];
+  const e = id ? d.foodLog.find(x => x.id === id) : null;
+  document.getElementById("foodEntryId").value = id || "";
+  document.getElementById("foodEntryName").value = e?.name || "";
+  document.getElementById("foodEntryNote").value = e?.note || "";
+  document.getElementById("foodEntryReason").value = e?.reason || "";
+  // Heure par défaut = maintenant
+  const now = new Date();
+  document.getElementById("foodEntryTime").value = e?.time ||
+    String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  // Highlight raison sélectionnée
+  document.querySelectorAll("#foodReasonPicker button").forEach(b => {
+    b.style.background = b.dataset.r === (e?.reason||"") ? "var(--mint-soft)" : "white";
+    b.style.borderColor = b.dataset.r === (e?.reason||"") ? "var(--mint)" : "var(--line)";
+  });
+  const del = document.getElementById("foodEntryDeleteBtn");
+  if (del) del.style.display = e ? "inline-block" : "none";
+  document.getElementById("foodEntryModal").classList.add("open");
+  setTimeout(() => document.getElementById("foodEntryName").focus(), 50);
+}
+
+function closeFoodEntry() { document.getElementById("foodEntryModal").classList.remove("open"); }
+
+function selectFoodReason(r) {
+  document.getElementById("foodEntryReason").value = r;
+  document.querySelectorAll("#foodReasonPicker button").forEach(b => {
+    b.style.background = b.dataset.r === r ? "var(--mint-soft)" : "white";
+    b.style.borderColor = b.dataset.r === r ? "var(--mint)" : "var(--line)";
+  });
+}
+
+function saveFoodEntry() {
+  const name = document.getElementById("foodEntryName").value.trim();
+  if (!name) { alert("Indique ce que tu as mangé."); return; }
+  const d = getToday();
+  if (!d.foodLog) d.foodLog = [];
+  const id = document.getElementById("foodEntryId").value;
+  const entry = {
+    id: id || "fl"+Date.now(),
+    name,
+    time: document.getElementById("foodEntryTime").value,
+    reason: document.getElementById("foodEntryReason").value,
+    note: document.getElementById("foodEntryNote").value.trim(),
+  };
+  if (id) {
+    const i = d.foodLog.findIndex(x => x.id === id);
+    if (i >= 0) d.foodLog[i] = entry; else d.foodLog.push(entry);
+  } else {
+    d.foodLog.push(entry);
+  }
+  saveState();
+  closeFoodEntry();
+  renderFoodLog();
+}
+
+function deleteFoodEntry() {
+  const id = document.getElementById("foodEntryId").value;
+  if (!id || !confirm("Supprimer cette entrée ?")) return;
+  const d = getToday();
+  if (d.foodLog) d.foodLog = d.foodLog.filter(x => x.id !== id);
+  saveState(); closeFoodEntry(); renderFoodLog();
+}
+
+function setFoodMood(emoji) {
+  const d = getToday();
+  d.foodMood = d.foodMood === emoji ? "" : emoji;
+  saveState(); renderFoodLog();
+}
+
+function renderFoodLog() {
+  const d = getToday();
+  const list = d.foodLog || [];
+  const mood = d.foodMood || "";
+  // Météo
+  ["1","2","3"].forEach(n => {
+    const btn = document.getElementById("foodMood"+n);
+    if (btn) btn.style.background = btn.textContent.trim() === mood ? "var(--mint-soft)" : "white";
+  });
+  const lbl = document.getElementById("foodMoodLabel");
+  if (lbl) lbl.textContent = mood === "😊" ? "Bonne journée alimentaire !" : mood === "😐" ? "Journée moyenne" : mood === "😔" ? "Journée difficile — c'est ok 🤍" : "";
+
+  const el = document.getElementById("foodLogList");
+  if (!el) return;
+  if (!list.length) {
+    el.innerHTML = '<p style="color:var(--ink-softer);font-size:13px;text-align:center;padding:10px;">Aucune entrée — clique + Ajouter pour commencer</p>';
+    return;
+  }
+  const sorted = [...list].sort((a,b) => (a.time||"").localeCompare(b.time||""));
+  el.innerHTML = sorted.map(e => `
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;" onclick="openFoodEntry('${e.id}')">
+      <span style="font-size:11px;color:var(--ink-softer);white-space:nowrap;margin-top:2px;">${e.time||"--:--"}</span>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;">${escapeHtml(e.name)}</div>
+        ${e.reason ? `<span style="font-size:11px;background:var(--mint-soft);border-radius:10px;padding:1px 7px;">${escapeHtml(e.reason)}</span>` : ""}
+        ${e.note ? `<div style="font-size:12px;color:var(--ink-softer);margin-top:2px;font-style:italic;">${escapeHtml(e.note)}</div>` : ""}
+      </div>
+    </div>`).join("");
+}
+
+function saveWeightGoal() {
+  const v = parseFloat(document.getElementById("weightGoalInput")?.value);
+  if (!isNaN(v) && v > 0) {
+    if (!state.health) state.health = {};
+    state.health.weightGoal = v;
+    saveState();
+    renderWeightGoalStatus();
+  }
+}
+
+function renderWeightGoalStatus() {
+  const goal = state.health?.weightGoal;
+  const el = document.getElementById("weightGoalStatus");
+  const inp = document.getElementById("weightGoalInput");
+  if (inp && goal) inp.value = goal;
+  if (!el || !goal) return;
+  // Trouver le dernier poids enregistré
+  const entries = Object.entries(state.history||{})
+    .filter(([,d]) => d.weight).sort((a,b) => b[0].localeCompare(a[0]));
+  if (!entries.length) { el.textContent = "Objectif : "+goal+" kg"; return; }
+  const current = entries[0][1].weight;
+  const diff = current - goal;
+  if (Math.abs(diff) < 0.5) el.textContent = "🎉 Objectif atteint !";
+  else if (diff > 0) el.textContent = `📉 ${current} kg · encore ${diff.toFixed(1)} kg`;
+  else el.textContent = `✅ ${current} kg · objectif dépassé de ${Math.abs(diff).toFixed(1)} kg`;
 }
 
 function renderPill() {
