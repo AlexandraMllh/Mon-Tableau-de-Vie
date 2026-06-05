@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v299</title>
+<title>Mon Tableau de Vie 🌿 · v300</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11164,7 +11164,18 @@ function deleteBiblioProject() {
 let _biblioPanel = "refs";
 let _biblioActiveCollection = "";
 const _biblioCollapsed = new Set(); // collections repliées
-const _biblioHidden = new Set(); // collections masquées de l'arbre
+// collections masquées — chargées/sauvegardées dans state.work.biblio
+function _loadBiblioHidden() {
+  const keys = (state.work.biblio || {}).hiddenCollections || [];
+  _biblioHidden.clear();
+  keys.forEach(k => _biblioHidden.add(k));
+}
+function _saveBiblioHidden() {
+  if (!state.work.biblio) state.work.biblio = {};
+  state.work.biblio.hiddenCollections = Array.from(_biblioHidden);
+  saveState();
+}
+const _biblioHidden = new Set();
 
 // ── Drag & drop pour réordonner les collections racine ──────────
 let _biblioDragKey = null;
@@ -11242,11 +11253,13 @@ function biblioDrop(e, targetKey) {
 
 function hideBiblioCollection(key) {
   _biblioHidden.add(key);
+  _saveBiblioHidden();
   renderBiblioCollectionTree();
 }
 function expandAllBiblioCollections() {
   _biblioCollapsed.clear();
   _biblioHidden.clear();
+  _saveBiblioHidden();
   renderBiblioCollectionTree();
 }
 function collapseAllBiblioCollections() {
@@ -11256,6 +11269,7 @@ function collapseAllBiblioCollections() {
 }
 function showAllBiblioCollections() {
   _biblioHidden.clear();
+  _saveBiblioHidden();
   renderBiblioCollectionTree();
 }
 
@@ -11411,7 +11425,7 @@ function switchBiblioPanel(panel) {
     const btn = document.querySelector(`.biblio-tab[data-biblio="${p}"]`);
     if (btn) btn.classList.toggle("active", p === panel);
   });
-  if (panel === "refs")     { renderBiblioCollectionTree(); renderBiblioRefs(); }
+  if (panel === "refs")     { _loadBiblioHidden(); renderBiblioCollectionTree(); renderBiblioRefs(); }
   if (panel === "extracts") { populateBiblioExtractFilters(); renderBiblioExtracts(); }
   if (panel === "codes")    renderBiblioCodes();
   if (panel === "bycode")   { populateBiblioByCodeSelect(); }
