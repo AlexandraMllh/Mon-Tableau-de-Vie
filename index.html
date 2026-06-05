@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v265</title>
+<title>Mon Tableau de Vie 🌿 · v266</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2150,6 +2150,7 @@
           <div class="card">
           <div class="work-header">
             <h2 style="margin:0;">📚 Mes références <span class="count" id="biblioRefCount"></span></h2>
+            <div id="biblioDebug" style="font-size:11px;color:var(--ink-softer);"></div>
             <button class="btn-primary" onclick="openRefModal()">+ Ajouter</button>
           </div>
           <!-- Filtres -->
@@ -10957,8 +10958,12 @@ function renderBiblioRefs() {
       });
     }
   }
+  const totalRefs = (state.work.biblio||{}).refs?.length || 0;
   const countEl = document.getElementById("biblioRefCount");
-  if (countEl) countEl.textContent = `(${refs.length}/${biblio.refs.length})`;
+  if (countEl) countEl.textContent = `(${refs.length}/${totalRefs})`;
+  // Debug temporaire
+  const dbg = document.getElementById("biblioDebug");
+  if (dbg) dbg.textContent = "Refs en mémoire : " + totalRefs;
   const el = document.getElementById("biblioRefList");
   if (!el) return;
   if (!refs.length) {
@@ -13615,6 +13620,8 @@ function renderAll() {
   renderCalendar();
   renderPillars();
   renderJournal();
+  // Toujours re-rendre la biblio (refs globales)
+  try { renderBiblioCollectionTree(); renderBiblioRefs(); } catch(e) {}
 }
 
 try {
