@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v286</title>
+<title>Mon Tableau de Vie 🌿 · v287</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -4172,6 +4172,7 @@ function migrate(s) {
 }
 function saveState() {
   state.lastModified = Date.now();
+  window._lastLocalSave = Date.now(); // protection anti-écrasement Firebase
   localStorage.setItem(STORE_KEY, JSON.stringify(state));
   _fbQueueSave();
 }
@@ -14098,8 +14099,12 @@ function _fbListen() {
     const remote = snap.data().state;
     const localTs  = state.lastModified || 0;
     const remoteTs = remote.lastModified || 0;
+    // Protection : ignorer Firebase si on vient de sauvegarder localement (<15s)
+    const secsSinceLocalSave = (Date.now() - (window._lastLocalSave||0)) / 1000;
+    if (secsSinceLocalSave < 15) {
+      _fbSetStatus("ok"); return; // données locales trop récentes, ne pas écraser
+    }
     // Ne met à jour que si les données distantes sont vraiment plus récentes
-    // (délai de 3s pour éviter les boucles écriture→lecture)
     if (remoteTs > localTs + 3000) {
       state = migrate({ ...DEFAULT_STATE, ...remote });
       localStorage.setItem(STORE_KEY, JSON.stringify(state));
@@ -14128,7 +14133,7 @@ function _fbQueueSave() {
   if (!_fbUser || !_fbDb) return;
   _fbSetStatus("syncing");
   clearTimeout(_fbSaveTimer);
-  _fbSaveTimer = setTimeout(_fbSaveNow, 2500);
+  _fbSaveTimer = setTimeout(_fbSaveNow, 800); // réduit de 2500ms à 800ms
 }
 
 function signInWithGoogle() {
