@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v306</title>
+<title>Mon Tableau de Vie 🌿 · v307</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -12218,7 +12218,17 @@ function selectExtractCode(cid) {
   const srch = document.getElementById("extractCodeSearch"); if (srch) srch.value = "";
 }
 
-// Fermer dropdown codes si clic n'importe où hors du dropdown
+// Fermer dropdown codes — mousedown + touchstart pour mobile
+function _closeCodeDropdownIfOutside(target) {
+  const dropdown = document.getElementById("extractCodeDropdown");
+  if (!dropdown || dropdown.style.display === "none") return;
+  const search = document.getElementById("extractCodeSearch");
+  if (!dropdown.contains(target) && !(search && search.contains(target))) {
+    dropdown.style.display = "none";
+  }
+}
+document.addEventListener("mousedown", e => _closeCodeDropdownIfOutside(e.target));
+document.addEventListener("touchstart", e => _closeCodeDropdownIfOutside(e.touches[0]?.target), { passive: true });
 document.addEventListener("click", e => {
   const dropdown = document.getElementById("extractCodeDropdown");
   if (!dropdown) return;
@@ -12227,8 +12237,6 @@ document.addEventListener("click", e => {
   const isInsideSearch = search && search.contains(e.target);
   if (!isInsideDropdown && !isInsideSearch) {
     dropdown.style.display = "none";
-    // Vider la recherche si on clique ailleurs (optionnel, plus naturel)
-    // if (search) search.value = "";
   }
 });
 
