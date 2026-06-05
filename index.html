@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v314</title>
+<title>Mon Tableau de Vie 🌿 · v315</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -14508,8 +14508,7 @@ function renderShortcutsBar() {
   const bar = document.getElementById("shortcutsBar");
   if (!bar) return;
   if (!state.shortcuts.length) { bar.style.display = "none"; return; }
-  bar.style.display = "flex";
-  bar.innerHTML = state.shortcuts.map((sc, i) => {
+  const scHtml = state.shortcuts.map((sc, i) => {
     const cat = SHORTCUT_CATALOG.find(c => c.id === sc.id);
     if (!cat) return "";
     return `<button onclick="runShortcut('${sc.id}')"
@@ -14522,6 +14521,17 @@ function renderShortcutsBar() {
       <span onclick="event.stopPropagation();removeShortcut('${sc.id}')" style="opacity:0.5;margin-left:2px;font-size:11px;">✕</span>
     </button>`;
   }).join("");
+  if (scHtml) {
+    // Bon HTML généré → on le cache ET on l'affiche
+    try { localStorage.setItem("tableau_shortcuts_html", scHtml); } catch(e) {}
+    bar.innerHTML = scHtml;
+    bar.style.display = "flex";
+  } else {
+    // Fallback : utiliser le HTML mis en cache
+    const cached = localStorage.getItem("tableau_shortcuts_html");
+    if (cached) { bar.innerHTML = cached; bar.style.display = "flex"; }
+    else { bar.style.display = "none"; }
+  }
 }
 
 let _scDragIdx = null;
