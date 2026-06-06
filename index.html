@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v325</title>
+<title>Mon Tableau de Vie 🌿 · v326</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1889,8 +1889,9 @@
       <div class="modal" style="max-width:420px;" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">
         <h2 style="margin:0 0 14px;">🍳 Ajouter une recette</h2>
         <label>Recette</label>
-        <select id="recipePickSelect" onchange="updateRecipePickPreview()"
-          style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;margin-bottom:10px;"></select>
+        <input type="text" id="recipePickSearch" placeholder="🔍 Chercher une recette…" oninput="renderRecipePickList()"
+          style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;margin-bottom:6px;box-sizing:border-box;" />
+        <div id="recipePickList" style="max-height:190px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px;"></div>
         <label>Portions mangées</label>
         <input type="number" id="recipePickPortions" min="0.25" step="0.25" value="1" oninput="updateRecipePickPreview()"
           style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;" />
@@ -7240,7 +7241,7 @@ function openFoodEntry(id) {
   renderFoodIngredients();
   // Recalculer les calories avec les données corrigées
   _foodIngredients.forEach((ing,i) => {
-    if (ing.name && ing.portion) searchIngCalories(i, ing.name+" "+ing.portion);
+    if (ing.name && ing.portion && !ing.fromRecipe) searchIngCalories(i, ing.name+" "+ing.portion);
   });
   document.getElementById("foodEntryReason").value = e?.reason || "";
   // Heure par défaut = maintenant
@@ -7438,43 +7439,65 @@ function setFoodMood(emoji) {
 
 /* ── Ajouter une recette à l'alimentation du jour ── */
 let _rpBdDown = false;
+let _rpSelectedId = "";
 function openRecipePick() {
   const recipes = state.domestique?.recipes || [];
   if (!recipes.length) { alert("Aucune recette — crée-en une dans l'onglet 🍳 Cuisine."); return; }
-  const sel = document.getElementById("recipePickSelect");
-  sel.innerHTML = recipes.map(r => {
-    const k = recipeKcal(r);
-    return `<option value="${r.id}">${escapeHtml(r.name)}${k.total > 0 ? ` — ${k.per} kcal/portion` : " — kcal non renseignées"}</option>`;
-  }).join("");
+  _rpSelectedId = recipes[0].id;
+  const s = document.getElementById("recipePickSearch"); if (s) s.value = "";
   document.getElementById("recipePickPortions").value = "1";
+  renderRecipePickList();
   updateRecipePickPreview();
   document.getElementById("recipePickModal").classList.add("open");
 }
 function closeRecipePick() { document.getElementById("recipePickModal").classList.remove("open"); }
-function _rpCurrentRecipe() {
-  const recipes = state.domestique?.recipes || [];
-  return recipes.find(r => r.id === document.getElementById("recipePickSelect").value);
+function renderRecipePickList() {
+  const el = document.getElementById("recipePickList");
+  if (!el) return;
+  const q = (document.getElementById("recipePickSearch")?.value || "").toLowerCase();
+  const recipes = (state.domestique?.recipes || []).filter(r => !q || r.name.toLowerCase().includes(q));
+  if (!recipes.length) { el.innerHTML = `<div style="padding:12px;text-align:center;color:var(--ink-softer);font-size:13px;">Aucune recette trouvée</div>`; return; }
+  el.innerHTML = recipes.map(r => {
+    const k = recipeKcal(r);
+    const sel = r.id === _rpSelectedId;
+    return `<div onclick="selectRecipePick('${r.id}')" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center;background:${sel?'var(--lavender-soft)':'transparent'};">
+      <span style="font-size:13px;font-weight:${sel?'700':'500'};color:var(--ink);">${escapeHtml(r.name)}</span>
+      <span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${k.total>0?k.per+' kcal/port.':'— kcal'}</span>
+    </div>`;
+  }).join("");
 }
+function selectRecipePick(id) { _rpSelectedId = id; renderRecipePickList(); updateRecipePickPreview(); }
+function _rpCurrentRecipe() { return (state.domestique?.recipes || []).find(r => r.id === _rpSelectedId); }
 function updateRecipePickPreview() {
   const el = document.getElementById("recipePickPreview");
   const rec = _rpCurrentRecipe();
   if (!rec) { el.textContent = ""; return; }
   const per = recipeKcal(rec).per;
   const portions = parseFloat(document.getElementById("recipePickPortions").value) || 0;
-  if (per <= 0) { el.innerHTML = "⚠️ Cette recette n'a pas de calories renseignées."; return; }
-  el.innerHTML = `${per} kcal/portion × ${portions} = 🔥 <strong>${Math.round(per * portions)} kcal</strong>`;
+  if (per <= 0) { el.innerHTML = `<strong>${escapeHtml(rec.name)}</strong> — ⚠️ calories non renseignées dans la recette.`; return; }
+  el.innerHTML = `<strong>${escapeHtml(rec.name)}</strong><br>${per} kcal/portion × ${portions} = 🔥 <strong>${Math.round(per * portions)} kcal</strong>`;
 }
 function addRecipeToFood() {
   const rec = _rpCurrentRecipe();
   if (!rec) return;
   const portions = parseFloat(document.getElementById("recipePickPortions").value) || 1;
+  const servings = rec.servings > 0 ? rec.servings : 1;
+  const factor = portions / servings; // fraction de la recette réellement mangée
   const cal = Math.round(recipeKcal(rec).per * portions);
+  // Ingrédients de la recette copiés automatiquement (kcal ajusté aux portions mangées)
+  const ingredients = (rec.ingredients || []).map(i => ({
+    id: "fi" + Date.now() + Math.random().toString(36).slice(2, 5),
+    name: i.name || "",
+    portion: [i.quantity, i.unit].filter(Boolean).join(" "),
+    kcal: Math.round((Number(i.kcal) || 0) * factor),
+    fromRecipe: true
+  }));
   const d = getToday();
   if (!d.foodLog) d.foodLog = [];
   const now = new Date();
   const time = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
   const label = rec.name + (portions !== 1 ? ` (${portions} portion${portions > 1 ? "s" : ""})` : "");
-  d.foodLog.push({ id: "fl" + Date.now(), name: label, time, reason: "", note: "", calories: cal, ingredients: [], recipeId: rec.id, portions });
+  d.foodLog.push({ id: "fl" + Date.now(), name: label, time, reason: "", note: "", calories: cal, ingredients, recipeId: rec.id, portions });
   saveState(); closeRecipePick(); renderFoodLog();
 }
 
@@ -11016,18 +11039,34 @@ function renderDomestique() { renderTodo(); renderDomesticTasks(); renderMealPla
 
 /* ========= CUISINE — RECETTES ========= */
 let _recipeCategoryFilter = "";
-let _recipeKcalFilter = ""; // "" = toutes, "300"/"500"/"700" = ≤ X, "700+" = > 700
+let _recipeKcalMin = null; // null = pas de borne min
+let _recipeKcalMax = null; // null = pas de borne max
 
 function renderRecipeKcalChips() {
   const el = document.getElementById("recipeKcalChips");
   if (!el) return;
-  const opts = [["","🔥 Toutes"],["300","≤ 300 kcal"],["500","≤ 500 kcal"],["700","≤ 700 kcal"],["700+","> 700 kcal"]];
-  el.innerHTML = `<span style="font-size:12px;color:var(--ink-soft);margin-right:2px;">Calories / portion :</span>` + opts.map(([v,l]) => {
-    const active = _recipeKcalFilter === v;
-    return `<button onclick="filterRecipeKcal('${v}')" style="font-size:12px;padding:5px 12px;border-radius:20px;border:1.5px solid ${active?'var(--lavender)':'var(--line)'};background:${active?'var(--lavender-soft)':'white'};color:var(--ink);cursor:pointer;font-family:inherit;font-weight:${active?'700':'500'};">${l}</button>`;
+  const presets = [["Toutes",null,null],["≤ 300",null,300],["≤ 500",null,500],["≤ 700",null,700],["> 700",701,null]];
+  const chips = presets.map(([l,mn,mx]) => {
+    const active = _recipeKcalMin===mn && _recipeKcalMax===mx;
+    return `<button onclick="setRecipeKcalRange(${mn},${mx})" style="font-size:12px;padding:5px 12px;border-radius:20px;border:1.5px solid ${active?'var(--lavender)':'var(--line)'};background:${active?'var(--lavender-soft)':'white'};color:var(--ink);cursor:pointer;font-family:inherit;font-weight:${active?'700':'500'};">${l}</button>`;
   }).join("");
+  const inpStyle = "width:60px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:12px;";
+  const lbl = "font-size:12px;color:var(--ink-soft);";
+  el.innerHTML = `<span style="${lbl}margin-right:2px;">Calories / portion :</span>${chips}`
+    + `<span style="${lbl}margin-left:4px;">ou de</span>`
+    + `<input type="number" id="recipeKcalMinInput" min="0" placeholder="min" value="${_recipeKcalMin??''}" oninput="applyRecipeKcalCustom()" style="${inpStyle}" />`
+    + `<span style="${lbl}">à</span>`
+    + `<input type="number" id="recipeKcalMaxInput" min="0" placeholder="max" value="${_recipeKcalMax??''}" oninput="applyRecipeKcalCustom()" style="${inpStyle}" />`
+    + `<span style="${lbl}">kcal</span>`;
 }
-function filterRecipeKcal(v) { _recipeKcalFilter = v; renderRecipes(); }
+function setRecipeKcalRange(mn, mx) { _recipeKcalMin = mn; _recipeKcalMax = mx; renderRecipes(); }
+function applyRecipeKcalCustom() {
+  const mn = document.getElementById("recipeKcalMinInput")?.value;
+  const mx = document.getElementById("recipeKcalMaxInput")?.value;
+  _recipeKcalMin = (mn !== "" && mn != null && !isNaN(parseInt(mn))) ? parseInt(mn) : null;
+  _recipeKcalMax = (mx !== "" && mx != null && !isNaN(parseInt(mx))) ? parseInt(mx) : null;
+  _renderRecipeList(); // liste seule → garde le focus dans les champs min/max
+}
 
 function renderRecipeCategoryTabs() {
   if (!state.domestique.recipeCategories) state.domestique.recipeCategories = [];
@@ -11102,12 +11141,16 @@ function deleteRecipeCategory(cat) {
 function renderRecipes() {
   if (!state.domestique.recipes) state.domestique.recipes = [];
   if (!state.domestique.recipeCategories) state.domestique.recipeCategories = [];
-  const recipes = state.domestique.recipes;
-  const search = (document.getElementById("recipeSearch")?.value || "").toLowerCase();
   const countEl = document.getElementById("recipeCount");
-  if (countEl) countEl.textContent = `(${recipes.length})`;
+  if (countEl) countEl.textContent = `(${state.domestique.recipes.length})`;
   renderRecipeCategoryTabs();
   renderRecipeKcalChips();
+  _renderRecipeList();
+}
+
+function _renderRecipeList() {
+  const recipes = state.domestique.recipes || [];
+  const search = (document.getElementById("recipeSearch")?.value || "").toLowerCase();
   const el = document.getElementById("recipeList");
   if (!el) return;
   let filtered = _recipeCategoryFilter
@@ -11115,11 +11158,13 @@ function renderRecipes() {
     : recipes;
   filtered = search ? filtered.filter(r => r.name.toLowerCase().includes(search) || (r.notes||"").toLowerCase().includes(search)) : filtered;
   // Filtre par calories / portion (exclut les recettes sans kcal renseignées)
-  if (_recipeKcalFilter) {
+  if (_recipeKcalMin != null || _recipeKcalMax != null) {
     filtered = filtered.filter(r => {
       const per = recipeKcal(r).per;
       if (per <= 0) return false;
-      return _recipeKcalFilter === "700+" ? per > 700 : per <= parseInt(_recipeKcalFilter);
+      if (_recipeKcalMin != null && per < _recipeKcalMin) return false;
+      if (_recipeKcalMax != null && per > _recipeKcalMax) return false;
+      return true;
     });
   }
   if (!filtered.length) {
