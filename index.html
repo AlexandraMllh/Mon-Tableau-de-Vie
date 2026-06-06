@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v323</title>
+<title>Mon Tableau de Vie 🌿 · v324</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11022,19 +11022,21 @@ function renderRecipeCategoryTabs() {
   const el = document.getElementById("recipeCategoryTabs");
   if (!el) return;
   const allActive = !_recipeCategoryFilter;
-  let html = `<button onclick="filterRecipeCategory('')" class="biblio-tab${allActive?" active":""}" style="font-size:12px;">Toutes (${(state.domestique.recipes||[]).length})</button>`;
-  cats.forEach(cat => {
-    const n = (state.domestique.recipes||[]).filter(r => r.category === cat).length;
-    const active = _recipeCategoryFilter === cat;
-    html += `<span style="display:inline-flex;align-items:center;gap:3px;">
-      <button onclick="filterRecipeCategory('${escapeHtml(cat)}')" class="biblio-tab${active?" active":""}" style="font-size:12px;">${escapeHtml(cat)} (${n})</button>
-      <button onclick="deleteRecipeCategory('${escapeHtml(cat)}')" title="Supprimer cette catégorie"
-        style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--ink-softer);padding:0 2px;opacity:0.6;">✕</button>
-    </span>`;
+  const recipes = state.domestique.recipes || [];
+  const PASTELS = ["#e7dcff","#d6f3e4","#ffe3d3","#ffd9e6","#d6ecff","#fff3c4","#e6e0f8","#d9f0ec"];
+  const card = (label, count, active, onclick, bg, delCat) => `
+    <div onclick="${onclick}" style="position:relative;background:${bg};border:2px solid ${active?'rgba(74,68,88,.55)':'transparent'};border-radius:16px;padding:14px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:74px;box-shadow:var(--shadow);text-align:center;">
+      <div style="font-weight:700;font-size:13px;color:var(--ink);line-height:1.2;">${label}</div>
+      <div style="font-size:11px;color:var(--ink-soft);">${count} recette${count>1?'s':''}</div>
+      ${delCat!=null?`<button onclick="event.stopPropagation();deleteRecipeCategory('${delCat}')" title="Supprimer cette catégorie" style="position:absolute;top:3px;right:5px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--ink-softer);opacity:.55;padding:0 2px;">✕</button>`:''}
+    </div>`;
+  let cards = card("Toutes", recipes.length, allActive, "filterRecipeCategory('')", "#efeaf8", null);
+  cats.forEach((cat, i) => {
+    const n = recipes.filter(r => r.category === cat).length;
+    cards += card(escapeHtml(cat), n, _recipeCategoryFilter === cat, `filterRecipeCategory('${escapeHtml(cat)}')`, PASTELS[i % PASTELS.length], escapeHtml(cat));
   });
-  // Bouton + pour ajouter
-  html += `<button onclick="manageRecipeCategories()" class="biblio-tab" style="font-size:12px;">+ Catégorie</button>`;
-  el.innerHTML = html;
+  cards += `<div onclick="manageRecipeCategories()" style="border:2px dashed var(--line);border-radius:16px;padding:14px 10px;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:74px;color:var(--ink-soft);font-size:13px;font-weight:600;">+ Catégorie</div>`;
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:10px;width:100%;">${cards}</div>`;
   // Mettre à jour le select dans la modal
   const sel = document.getElementById("recipeModalCategory");
   if (sel) {
