@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v322</title>
+<title>Mon Tableau de Vie 🌿 · v323</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1808,7 +1808,10 @@
     <div class="card" style="margin-top:14px;" id="foodLogCard">
       <div class="work-header" style="margin-bottom:10px;">
         <h2 style="margin:0;">🍽️ Alimentation du jour <span id="foodCalDayTotal" style="font-size:13px;font-weight:400;color:var(--ink-soft);"></span></h2>
-        <button onclick="openFoodEntry()" class="btn-primary" style="font-size:12px;">+ Ajouter</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button onclick="openRecipePick()" class="btn-soft" style="font-size:12px;">🍳 Recette</button>
+          <button onclick="openFoodEntry()" class="btn-primary" style="font-size:12px;">+ Ajouter</button>
+        </div>
       </div>
       <div id="foodCalAlert" style="display:none;"></div>
       <!-- Météo alimentaire -->
@@ -1877,6 +1880,25 @@
           <div class="spacer"></div>
           <button class="secondary" onclick="closeFoodEntry()">Annuler</button>
           <button class="primary" onclick="saveFoodEntry()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal : ajouter une recette à l'alimentation du jour -->
+    <div class="modal-bg" id="recipePickModal" onmousedown="_rpBdDown=event.target===this" onclick="if(event.target===this&&_rpBdDown)closeRecipePick()">
+      <div class="modal" style="max-width:420px;" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">
+        <h2 style="margin:0 0 14px;">🍳 Ajouter une recette</h2>
+        <label>Recette</label>
+        <select id="recipePickSelect" onchange="updateRecipePickPreview()"
+          style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;margin-bottom:10px;"></select>
+        <label>Portions mangées</label>
+        <input type="number" id="recipePickPortions" min="0.25" step="0.25" value="1" oninput="updateRecipePickPreview()"
+          style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;" />
+        <div id="recipePickPreview" style="margin-top:12px;font-size:14px;text-align:center;background:var(--butter-soft);border-radius:10px;padding:10px;"></div>
+        <div class="actions" style="margin-top:14px;">
+          <div class="spacer"></div>
+          <button class="secondary" onclick="closeRecipePick()">Annuler</button>
+          <button class="primary" onclick="addRecipeToFood()">Ajouter</button>
         </div>
       </div>
     </div>
@@ -7411,6 +7433,48 @@ function setFoodMood(emoji) {
   const d = getToday();
   d.foodMood = d.foodMood === emoji ? "" : emoji;
   saveState(); renderFoodLog();
+}
+
+/* ── Ajouter une recette à l'alimentation du jour ── */
+let _rpBdDown = false;
+function openRecipePick() {
+  const recipes = state.domestique?.recipes || [];
+  if (!recipes.length) { alert("Aucune recette — crée-en une dans l'onglet 🍳 Cuisine."); return; }
+  const sel = document.getElementById("recipePickSelect");
+  sel.innerHTML = recipes.map(r => {
+    const k = recipeKcal(r);
+    return `<option value="${r.id}">${escapeHtml(r.name)}${k.total > 0 ? ` — ${k.per} kcal/portion` : " — kcal non renseignées"}</option>`;
+  }).join("");
+  document.getElementById("recipePickPortions").value = "1";
+  updateRecipePickPreview();
+  document.getElementById("recipePickModal").classList.add("open");
+}
+function closeRecipePick() { document.getElementById("recipePickModal").classList.remove("open"); }
+function _rpCurrentRecipe() {
+  const recipes = state.domestique?.recipes || [];
+  return recipes.find(r => r.id === document.getElementById("recipePickSelect").value);
+}
+function updateRecipePickPreview() {
+  const el = document.getElementById("recipePickPreview");
+  const rec = _rpCurrentRecipe();
+  if (!rec) { el.textContent = ""; return; }
+  const per = recipeKcal(rec).per;
+  const portions = parseFloat(document.getElementById("recipePickPortions").value) || 0;
+  if (per <= 0) { el.innerHTML = "⚠️ Cette recette n'a pas de calories renseignées."; return; }
+  el.innerHTML = `${per} kcal/portion × ${portions} = 🔥 <strong>${Math.round(per * portions)} kcal</strong>`;
+}
+function addRecipeToFood() {
+  const rec = _rpCurrentRecipe();
+  if (!rec) return;
+  const portions = parseFloat(document.getElementById("recipePickPortions").value) || 1;
+  const cal = Math.round(recipeKcal(rec).per * portions);
+  const d = getToday();
+  if (!d.foodLog) d.foodLog = [];
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+  const label = rec.name + (portions !== 1 ? ` (${portions} portion${portions > 1 ? "s" : ""})` : "");
+  d.foodLog.push({ id: "fl" + Date.now(), name: label, time, reason: "", note: "", calories: cal, ingredients: [], recipeId: rec.id, portions });
+  saveState(); closeRecipePick(); renderFoodLog();
 }
 
 function renderFoodLog() {
