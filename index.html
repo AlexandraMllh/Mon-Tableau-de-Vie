@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v328</title>
+<title>Mon Tableau de Vie 🌿 · v329</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1917,6 +1917,18 @@
           <button class="danger" onclick="pickMealRecipe('')">Vider ce repas</button>
           <div class="spacer"></div>
           <button class="secondary" onclick="closeMealRecipePick()">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal : détail d'une métrique de pilier -->
+    <div class="modal-bg" id="pillarDetailModal" onmousedown="_pdBdDown=event.target===this" onclick="if(event.target===this&&_pdBdDown)closePillarDetail()">
+      <div class="modal" style="max-width:440px;max-height:85vh;overflow-y:auto;" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">
+        <h2 id="pillarDetailTitle" style="margin:0 0 4px;">Détail</h2>
+        <div id="pillarDetailBody"></div>
+        <div class="actions" style="margin-top:14px;">
+          <div class="spacer"></div>
+          <button class="secondary" onclick="closePillarDetail()">Fermer</button>
         </div>
       </div>
     </div>
@@ -10062,6 +10074,78 @@ function computeMetric(m) {
   }
   return { score: 0, value: "—", label: m.label };
 }
+
+// Détail des éléments qui ont compté dans une métrique de pilier
+function _fmtDayFr(d) { return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "short" }); }
+function computeMetricDetails(m) {
+  const lines = [];
+  const days = _last7Days();
+  const sevenAgo = new Date(); sevenAgo.setDate(sevenAgo.getDate() - 7);
+  const k7 = todayKey(sevenAgo);
+  if (m.type === "activity-sum" || m.type === "activity-sessions") {
+    const re = new RegExp(m.regex, "i");
+    const matchActs = state.activities.filter(a => re.test(a.name));
+    for (const d of days) { const acts = state.history[todayKey(d)]?.activities || {};
+      for (const a of matchActs) if (acts[a.id]) lines.push(`${_fmtDayFr(d)} — ${a.name}`); }
+  } else if (m.type === "any-activity-sessions") {
+    for (const d of days) { const acts = state.history[todayKey(d)]?.activities || {};
+      for (const a of state.activities) if (acts[a.id]) lines.push(`${_fmtDayFr(d)} — ${a.name}`); }
+  } else if (m.type === "wellbeing-avg") {
+    for (const d of days) { const v = state.history[todayKey(d)]?.[m.field]; if (v != null) lines.push(`${_fmtDayFr(d)} — ${v}/5`); }
+  } else if (m.type === "wellbeing-quality") {
+    const lbl = { peaceful: "😴 paisible", restless: "😫 agité", fragmented: "👁️ fragmenté" };
+    for (const d of days) { const q = state.history[todayKey(d)]?.sleepQuality; if (q) lines.push(`${_fmtDayFr(d)} — ${lbl[q] || q}`); }
+  } else if (m.type === "habit-avg") {
+    for (const d of days) { const v = Number(state.history[todayKey(d)]?.habits?.[m.habitId]) || 0; if (v) lines.push(`${_fmtDayFr(d)} — ${v}`); }
+  } else if (m.type === "journal-pct") {
+    for (const d of days) { if ((state.history[todayKey(d)]?.journal || "").trim()) lines.push(`${_fmtDayFr(d)} — ✍️ journal écrit`); }
+  } else if (m.type === "tasks-done") {
+    state.work.postdocTasks.filter(t => t.done && t.completedAt && t.completedAt >= k7).forEach(t => lines.push(`✓ ${t.title || "tâche"} (${t.completedAt})`));
+  } else if (m.type === "worktime-sum") {
+    for (const d of days) { const wt = state.history[todayKey(d)]?.workTime || {}; const tot = Object.values(wt).reduce((s, v) => s + (Number(v) || 0), 0); if (tot) lines.push(`${_fmtDayFr(d)} — ${tot.toFixed(1)} h`); }
+  } else if (m.type === "tx-tracked") {
+    state.transactions.filter(t => new Date(t.date) >= sevenAgo).forEach(t => lines.push(`${t.date} — ${t.label || t.category || t.note || "transaction"} : ${t.amount} €`));
+  } else if (m.type === "savings-month") {
+    const [start, end] = currentMonthRange();
+    state.transactions.filter(t => { const d = new Date(t.date); return d >= start && d < end && (t.type === "savings" || t.type === "savings-out"); })
+      .forEach(t => lines.push(`${t.date} — ${t.type === "savings" ? "➕" : "➖"} ${t.amount} € ${t.label || t.category || ""}`));
+  } else if (m.type === "meal-events-count") {
+    (state.domestique?.mealEvents || []).filter(e => (e.date || "") >= k7).forEach(e => lines.push(`${e.date} — ${e.title || e.name || "repas"}`));
+  } else if (m.type === "cal-keywords-count") {
+    const re = new RegExp((m.keywords || []).join("|"), "i");
+    state.calEvents.filter(e => (e.date || "") >= k7 && re.test(e.title || "")).forEach(e => lines.push(`${e.date} — ${e.title || "événement"}`));
+  } else if (m.type === "groceries-done" || m.type === "groceries-active") {
+    const open = (state.domestique?.groceries || []).filter(g => !g.checked);
+    if (!open.length) lines.push("Liste de courses à jour ✓");
+    else open.forEach(g => lines.push(`• ${g.name || g.text || g.label || g.item || "article"}`));
+  } else if (m.type === "plants-uptodate") {
+    (state.domestique?.plants || []).forEach(p => lines.push(`${p.name || "plante"} — ${plantStatus(p).state === "late" ? "💧 à arroser" : "✓ ok"}`));
+  } else if (m.type === "meal-plan-active") {
+    const now = new Date(); now.setHours(0,0,0,0);
+    for (let i = 0; i < 7; i++) { const d = new Date(now); d.setDate(d.getDate() + i); const plan = state.domestique?.mealPlan?.[todayKey(d)] || {};
+      if (plan.midi || plan.soir) lines.push(`${_fmtDayFr(d)} — ${[plan.midi, plan.soir].filter(Boolean).join(" / ")}`); }
+  }
+  return lines;
+}
+
+function showPillarDetail(pillarId, idx) {
+  const pillar = PILLAR_DEFS.find(p => p.id === pillarId);
+  if (!pillar) return;
+  const mdef = pillar.metrics[idx];
+  if (!mdef) return;
+  const computed = computeMetric(mdef);
+  const lines = computeMetricDetails(mdef);
+  document.getElementById("pillarDetailTitle").textContent = `${pillar.emoji} ${pillar.name}`;
+  document.getElementById("pillarDetailBody").innerHTML =
+    `<div style="font-size:14px;margin-bottom:12px;">${escapeHtml(computed.label)} — <strong style="color:${pillar.color};">${escapeHtml(computed.value)}</strong></div>`
+    + (lines.length
+      ? lines.map(l => `<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink);">${escapeHtml(l)}</div>`).join("")
+      : `<div style="color:var(--ink-softer);font-size:13px;padding:8px 0;">Aucun élément compté cette semaine.</div>`);
+  document.getElementById("pillarDetailModal").classList.add("open");
+}
+let _pdBdDown = false;
+function closePillarDetail() { document.getElementById("pillarDetailModal").classList.remove("open"); }
+
 function computePillarScore(pillar) {
   const metrics = pillar.metrics.map(m => computeMetric(m));
   const avg = metrics.reduce((s, m) => s + m.score, 0) / metrics.length;
@@ -10086,8 +10170,8 @@ function renderPillars() {
 
   // Cartes
   cardsEl.innerHTML = computed.map(p => {
-    const metricsHtml = p.metrics.map(m => `
-      <span class="pillar-metric ${metricClass(m.score)}">${escapeHtml(m.label)} : ${escapeHtml(m.value)}</span>`).join("");
+    const metricsHtml = p.metrics.map((m, i) => `
+      <span class="pillar-metric ${metricClass(m.score)}" style="cursor:pointer;" onclick="showPillarDetail('${p.id}',${i})" title="Voir le détail">${escapeHtml(m.label)} : ${escapeHtml(m.value)} ›</span>`).join("");
     return `
       <div class="pillar-card">
         <div class="pillar-emoji" style="background:${p.bg};">${p.emoji}</div>
