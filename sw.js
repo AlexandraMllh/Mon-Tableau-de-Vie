@@ -1,5 +1,5 @@
 // Service Worker — Mon Tableau de Vie
-const CACHE = "mon-tableau-v1780771000";
+const CACHE = "mon-tableau-v1780776382";
 const ASSETS = [
   "/Mon-Tableau-de-Vie/",
   "/Mon-Tableau-de-Vie/index.html",
@@ -37,10 +37,11 @@ self.addEventListener("fetch", e => {
     fetch(e.request, isHtml ? { cache: "no-cache" } : {})
       .then(res => {
         if (res.ok && !isHtml) {
-          // Mettre en cache uniquement les assets statiques (icônes, manifest…)
+          // Cloner TOUT DE SUITE (avant return), sinon le corps est déjà consommé
+          const copy = res.clone();
           const cacheUrl = new URL(e.request.url);
           cacheUrl.search = "";
-          caches.open(CACHE).then(c => c.put(new Request(cacheUrl.toString()), res.clone()));
+          caches.open(CACHE).then(c => c.put(new Request(cacheUrl.toString()), copy));
         }
         return res;
       })
