@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v330</title>
+<title>Mon Tableau de Vie 🌿 · v331</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2501,6 +2501,9 @@
         <div style="height:18px;"></div>
         <h2>Bien-être 30 jours</h2>
         <div class="chart-wrap tall"><canvas id="wellbeingChart"></canvas></div>
+        <div style="height:18px;"></div>
+        <h2>🔥 Apport calorique 30 jours</h2>
+        <div class="chart-wrap tall"><canvas id="calorieChart"></canvas></div>
       </div>
     </div>
     <div class="card" style="margin-top:18px;">
@@ -4546,7 +4549,7 @@ function onViewChange(view) {
   if (view === "today") maybeLoadWeather();
   if (view === "work") updateWorkTabBadges();
   if (view === "activities") { renderActivityChart(); renderSportPlanning(); }
-  if (view === "health") { renderBodyChart(currentBodyMetric); renderWellbeingChart(); renderStepsChart(); renderTrendPrediction(); renderSkincare(); renderPillSante(); }
+  if (view === "health") { renderBodyChart(currentBodyMetric); renderWellbeingChart(); renderCalorieChart(); renderStepsChart(); renderTrendPrediction(); renderSkincare(); renderPillSante(); }
   if (view === "money") { initTxDate(); renderBudgetGauge(); renderDailyExpenseChart(); renderBalanceEvolutionChart(); renderMonthComparison(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast(); }
   if (view === "calendar") { renderCalendar(); autoSyncCalIfNeeded(); }
   if (view === "pillars") renderPillars();
@@ -7181,7 +7184,7 @@ function setWater(n) {
   renderTodayView(); // synchronise l'habitude "1 L d'eau" dans Aujourd'hui
   renderRings();
 }
-let bodyChart, wellbeingChart, stepsChart;
+let bodyChart, wellbeingChart, stepsChart, calorieChart;
 function getStepsHabit() {
   return state.habits.find(h => h.type === "numeric" && /pas/i.test(h.name));
 }
@@ -7940,6 +7943,38 @@ function renderWellbeingChart() {
         x: { grid: { display: false }, ticks: { color: "#8a8499", maxTicksLimit: 6 } },
         y5: { position: "left", min: 0, max: 5, grid: { color: "#f3eef9" }, ticks: { color: "#8a8499", stepSize: 1 } },
         y12: { position: "right", min: 0, max: 24, grid: { display: false }, ticks: { color: "#8a8499", stepSize: 4, callback: v => v + "h" } },
+      },
+    },
+  });
+}
+
+function renderCalorieChart() {
+  const el = document.getElementById("calorieChart");
+  if (!el) return;
+  const dates = lastDates(30);
+  const labels = dates.map(d => d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }));
+  const limit = state.health?.dailyCalLimit || 1500;
+  const data = dates.map(d => {
+    const log = state.history[todayKey(d)]?.foodLog || [];
+    const tot = log.reduce((s, e) => s + (e.calories || 0), 0);
+    return tot > 0 ? tot : null;
+  });
+  const colors = data.map(v => v == null ? "rgba(0,0,0,0)" : (v > limit ? "#f3a6a6" : "#aee0c8"));
+  if (calorieChart) calorieChart.destroy();
+  calorieChart = new Chart(el, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        { label: "Calories", data, backgroundColor: colors, borderRadius: 6, barPercentage: 0.7, categoryPercentage: 0.85 },
+        { label: `Objectif (${limit})`, type: "line", data: dates.map(() => limit), borderColor: "#c9b6f0", borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, fill: false },
+      ],
+    },
+    options: {
+      ...baseChartOpts(),
+      scales: {
+        x: { grid: { display: false }, ticks: { color: "#8a8499", maxTicksLimit: 6 } },
+        y: { min: 0, grid: { color: "#f3eef9" }, ticks: { color: "#8a8499", callback: v => v + " kcal" } },
       },
     },
   });
