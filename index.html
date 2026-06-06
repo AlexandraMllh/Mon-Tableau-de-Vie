@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v321</title>
+<title>Mon Tableau de Vie 🌿 · v322</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -3326,7 +3326,7 @@
       <div><label>Nom de la recette *</label>
         <input type="text" id="recipeModalName" placeholder="ex : Poulet rôti" /></div>
       <div><label>Portions</label>
-        <input type="number" id="recipeModalServings" min="1" value="4"
+        <input type="number" id="recipeModalServings" min="1" value="4" oninput="updateRecipeTotals()"
           style="width:80px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;" /></div>
     </div>
     <label>Catégorie</label>
@@ -3337,6 +3337,7 @@
     <div id="recipeIngredientsList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
     <button onclick="addRecipeIngredient()"
       style="width:100%;padding:8px;border:1.5px dashed var(--line);background:transparent;border-radius:10px;font-family:inherit;font-size:13px;cursor:pointer;color:var(--ink-soft);">+ Ajouter un ingrédient</button>
+    <div id="recipeTotals" style="margin-top:10px;font-size:13px;color:var(--ink);background:var(--butter-soft);border-radius:10px;padding:8px 12px;text-align:center;"></div>
     <label style="margin-top:10px;">Notes (optionnel)</label>
     <textarea id="recipeModalNotes" rows="2"
       style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;resize:vertical;box-sizing:border-box;"
@@ -11042,7 +11043,7 @@ function renderRecipes() {
       <div style="flex:1;min-width:0;">
         <div style="font-weight:600;font-size:14px;">${escapeHtml(r.name)}</div>
         <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;">
-          👥 ${r.servings} portion${r.servings>1?"s":""} · ${(r.ingredients||[]).length} ingrédient${(r.ingredients||[]).length>1?"s":""}
+          👥 ${r.servings} portion${r.servings>1?"s":""} · ${(r.ingredients||[]).length} ingrédient${(r.ingredients||[]).length>1?"s":""}${recipeKcal(r).total>0?` · 🔥 ${recipeKcal(r).per} kcal/portion`:""}
         </div>
         ${r.ingredients&&r.ingredients.length ? `<div style="font-size:12px;color:var(--ink-softer);margin-top:3px;">${r.ingredients.slice(0,4).map(i=>escapeHtml(i.quantity+" "+i.unit+" "+i.name)).join(", ")}${r.ingredients.length>4?"…":""}</div>` : ""}
       </div>
@@ -11065,24 +11066,46 @@ function openRecipeModal(id) {
   const list = document.getElementById("recipeIngredientsList");
   list.innerHTML = "";
   (r?.ingredients||[{quantity:"",unit:"",name:""}]).forEach(ing => addRecipeIngredient(ing));
+  updateRecipeTotals();
   document.getElementById("recipeModal").classList.add("open");
 }
 function closeRecipeModal() { document.getElementById("recipeModal").classList.remove("open"); }
 
 function addRecipeIngredient(ing) {
-  ing = ing || {quantity:"",unit:"",name:""};
+  ing = ing || {quantity:"",unit:"",name:"",kcal:""};
   const list = document.getElementById("recipeIngredientsList");
   const row = document.createElement("div");
-  row.style.cssText = "display:flex;gap:6px;align-items:center;";
+  row.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap;";
   row.innerHTML = `
     <input type="text" value="${escapeHtml(String(ing.quantity||""))}" placeholder="Qté" class="rec-ing-qty"
-      style="width:60px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+      style="width:54px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
     <input type="text" value="${escapeHtml(ing.unit||"")}" placeholder="Unité" class="rec-ing-unit"
-      style="width:80px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+      style="width:66px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
     <input type="text" value="${escapeHtml(ing.name||"")}" placeholder="Ingrédient" class="rec-ing-name"
-      style="flex:1;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
-    <button onclick="this.parentElement.remove()" style="padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:white;cursor:pointer;color:var(--ink-softer);">✕</button>`;
+      style="flex:1;min-width:90px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+    <input type="number" min="0" value="${ing.kcal>0?ing.kcal:""}" placeholder="kcal" class="rec-ing-kcal" oninput="updateRecipeTotals()"
+      style="width:64px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+    <button onclick="this.parentElement.remove();updateRecipeTotals()" style="padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:white;cursor:pointer;color:var(--ink-softer);">✕</button>`;
   list.appendChild(row);
+}
+
+// Calories d'une recette : total (somme des ingrédients) + par portion
+function recipeKcal(r) {
+  const total = (r.ingredients||[]).reduce((s,i) => s + (Number(i.kcal)||0), 0);
+  const per = (r.servings > 0) ? Math.round(total / r.servings) : total;
+  return { total, per };
+}
+
+// Met à jour l'affichage "Total recette · par portion" dans la modale recette
+function updateRecipeTotals() {
+  const el = document.getElementById("recipeTotals");
+  if (!el) return;
+  let total = 0;
+  document.querySelectorAll("#recipeIngredientsList .rec-ing-kcal").forEach(inp => { total += parseInt(inp.value) || 0; });
+  const servings = parseInt(document.getElementById("recipeModalServings").value) || 1;
+  if (total <= 0) { el.textContent = ""; return; }
+  const per = Math.round(total / servings);
+  el.innerHTML = `🔥 <strong>${total} kcal</strong> au total · <strong>${per} kcal / portion</strong> (${servings} portion${servings>1?"s":""})`;
 }
 
 function saveRecipe() {
@@ -11098,7 +11121,8 @@ function saveRecipe() {
     const qty  = row.querySelector(".rec-ing-qty")?.value.trim();
     const unit = row.querySelector(".rec-ing-unit")?.value.trim();
     const name2= row.querySelector(".rec-ing-name")?.value.trim();
-    if (name2) ingredients.push({ id: "ing"+Date.now()+Math.random().toString(36).slice(2,5), quantity: qty||"", unit: unit||"", name: name2 });
+    const kcal = parseInt(row.querySelector(".rec-ing-kcal")?.value) || 0;
+    if (name2) ingredients.push({ id: "ing"+Date.now()+Math.random().toString(36).slice(2,5), quantity: qty||"", unit: unit||"", name: name2, kcal });
   });
   const data = { id: id||"rec"+Date.now(), name, servings, category, ingredients, notes, createdAt: new Date().toISOString() };
   if (id) { const i = state.domestique.recipes.findIndex(r=>r.id===id); if(i>=0) state.domestique.recipes[i]=data; }
