@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v339</title>
+<title>Mon Tableau de Vie 🌿 · v340</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11367,17 +11367,17 @@ function addRecipeIngredient(ing) {
   ing = ing || {quantity:"",unit:"",name:"",kcal:""};
   const list = document.getElementById("recipeIngredientsList");
   const row = document.createElement("div");
-  row.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap;";
+  row.style.cssText = "display:flex;gap:4px;align-items:center;";
   row.innerHTML = `
     <input type="text" value="${escapeHtml(String(ing.quantity||""))}" placeholder="Qté" class="rec-ing-qty"
-      style="width:54px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+      style="width:42px;flex-shrink:0;padding:7px 5px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
     <input type="text" value="${escapeHtml(ing.unit||"")}" placeholder="Unité" class="rec-ing-unit"
-      style="width:66px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+      style="width:46px;flex-shrink:0;padding:7px 5px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
     <input type="text" value="${escapeHtml(ing.name||"")}" placeholder="Ingrédient" class="rec-ing-name"
-      style="flex:1;min-width:90px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+      style="flex:1;min-width:0;padding:7px 7px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
     <input type="number" min="0" value="${ing.kcal>0?ing.kcal:""}" placeholder="kcal" class="rec-ing-kcal" oninput="updateRecipeTotals()"
-      style="width:64px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
-    <button onclick="this.parentElement.remove();updateRecipeTotals()" style="padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:white;cursor:pointer;color:var(--ink-softer);">✕</button>`;
+      style="width:50px;flex-shrink:0;padding:7px 5px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+    <button onclick="this.parentElement.remove();updateRecipeTotals()" style="flex-shrink:0;padding:6px 8px;border-radius:7px;border:1px solid var(--line);background:transparent;cursor:pointer;color:var(--ink-softer);">✕</button>`;
   list.appendChild(row);
 }
 
