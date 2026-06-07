@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v346</title>
+<title>Mon Tableau de Vie 🌿 · v347</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -14004,18 +14004,23 @@ function _runPlantDetection(result) {
         }
       }
 
-      // Exclut les plantes déjà importées
-      const existing = new Set((state.domestique.plants || []).map(p => p.name.toLowerCase()));
+      // Plantes déjà présentes : on conserve leurs notes/emoji/fréquence existants (on ne fait que recaler les dates)
+      const existingPlants = state.domestique.plants || [];
+      const findExisting = n => existingPlants.find(x => x.name.toLowerCase() === n.toLowerCase());
 
-      _pendingDetectedPlants = [...seen.values()].map(p => ({
-        name: p.name,
-        emoji: p.emoji || "🪴",
-        wateringDays: p.wateringDays || 7,
-        lastDate: p.lastDate,
-        rrule: p.rrule || null,
-        alreadyExists: existing.has(p.name.toLowerCase()),
-        notes: p.description || "",
-      }));
+      _pendingDetectedPlants = [...seen.values()].map(p => {
+        const ex = findExisting(p.name);
+        return {
+          name: p.name,
+          emoji: ex?.emoji || p.emoji || "🪴",
+          wateringDays: ex?.wateringDays || p.wateringDays || 7,
+          lastDate: p.lastDate,
+          rrule: p.rrule || null,
+          alreadyExists: !!ex,
+          // garde les notes existantes ; sinon la description Google (sauf le texte générique inutile)
+          notes: ex?.notes || (/^this is an event reminder$/i.test((p.description || "").trim()) ? "" : (p.description || "")),
+        };
+      });
 
       // Construit la liste dans la modal
       const FREQ_OPTS = [
