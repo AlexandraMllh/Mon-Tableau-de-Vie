@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v342</title>
+<title>Mon Tableau de Vie 🌿 · v343</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -10300,6 +10300,60 @@ function calNavToday() {
   calCurrentMonth = new Date(); calCurrentMonth.setDate(1);
   renderCalendar();
 }
+// Déplie un événement récurrent (RRULE) en toutes ses dates dans une fenêtre [aujourd'hui-120j ; +400j]
+function _expandEventDates(ev) {
+  if (!ev.rrule || !ev.date) return [ev.date];
+  const freq = (ev.rrule.match(/FREQ=([A-Z]+)/) || [])[1];
+  if (!freq) return [ev.date];
+  const interval = Math.max(1, parseInt((ev.rrule.match(/INTERVAL=(\d+)/) || [])[1] || "1", 10) || 1);
+  const countM = ev.rrule.match(/COUNT=(\d+)/);
+  let remaining = countM ? parseInt(countM[1], 10) : Infinity;
+  const untilM = ev.rrule.match(/UNTIL=(\d{4})(\d{2})(\d{2})/);
+  const until = untilM ? new Date(+untilM[1], +untilM[2] - 1, +untilM[3]) : null;
+  const byDayM = ev.rrule.match(/BYDAY=([A-Z,]+)/);
+  const byDays = byDayM ? byDayM[1].split(",").map(s => s.slice(-2)) : null;
+  const DOW = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+  const [sy, sm, sd] = ev.date.split("-").map(Number);
+  const start = new Date(sy, sm - 1, sd);
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const winStart = new Date(now); winStart.setDate(winStart.getDate() - 120);
+  const winEnd = new Date(now); winEnd.setDate(winEnd.getDate() + 400);
+  const hardEnd = (until && until < winEnd) ? until : winEnd;
+  const out = [];
+  let guard = 0;
+  if (freq === "WEEKLY" && byDays && byDays.length) {
+    const ordered = byDays.filter(b => DOW[b] != null).sort((a, b) => DOW[a] - DOW[b]);
+    let weekStart = new Date(start); weekStart.setDate(start.getDate() - start.getDay());
+    let week = 0;
+    while (weekStart <= hardEnd && guard++ < 6000 && remaining > 0) {
+      if (week % interval === 0) {
+        for (const bd of ordered) {
+          const occ = new Date(weekStart); occ.setDate(weekStart.getDate() + DOW[bd]);
+          if (occ >= start && occ <= hardEnd) {
+            if (remaining <= 0) break;
+            if (occ >= winStart) out.push(todayKey(occ));
+            remaining--;
+          }
+        }
+      }
+      weekStart.setDate(weekStart.getDate() + 7);
+      week++;
+    }
+  } else {
+    let cur = new Date(start);
+    while (cur <= hardEnd && guard++ < 6000 && remaining > 0) {
+      if (cur >= winStart) out.push(todayKey(cur));
+      remaining--;
+      if (freq === "DAILY") cur.setDate(cur.getDate() + interval);
+      else if (freq === "WEEKLY") cur.setDate(cur.getDate() + 7 * interval);
+      else if (freq === "MONTHLY") cur.setMonth(cur.getMonth() + interval);
+      else if (freq === "YEARLY") cur.setFullYear(cur.getFullYear() + interval);
+      else break;
+    }
+  }
+  return out.length ? [...new Set(out)] : [ev.date];
+}
+
 function getAllCalEvents() {
   const events = [];
   // Tasks deadlines + événements prévus
@@ -10344,13 +10398,11 @@ function getAllCalEvents() {
       source: "Plantes", time: "",
     });
   }
-  // ICS imported + événements manuels
+  // ICS imported + événements manuels (avec expansion des récurrences)
   for (const ev of state.calEvents) {
     const src = state.calSources.find(s => s.id === ev.sourceId);
     const isManual = ev.sourceId === "manual";
-    events.push({
-      id: ev.id,
-      date: ev.date,
+    const base = {
       type: isManual ? "manual" : "ics",
       title: ev.title,
       source: isManual ? "Manuel" : (src?.name || "Calendrier"),
@@ -10358,7 +10410,11 @@ function getAllCalEvents() {
       color: ev.color || (isManual ? "#c9b6f0" : (src?.color || "#aee0c8")),
       sourceId: ev.sourceId,
       description: ev.description || "",
-    });
+    };
+    const dates = ev.rrule ? _expandEventDates(ev) : [ev.date];
+    for (const dt of dates) {
+      events.push({ ...base, date: dt, id: dates.length > 1 ? ev.id + "@" + dt : ev.id });
+    }
   }
   return events;
 }
