@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v340</title>
+<title>Mon Tableau de Vie 🌿 · v341</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -10876,12 +10876,20 @@ function parseICS(text) {
       const key = keyRaw.split(";")[0];
       if (key === "SUMMARY") cur.title = val.replace(/\\n/g, " ").replace(/\\,/g, ",");
       else if (key === "DTSTART") {
-        const cleaned = val.replace(/[TZ].*$/, "");
-        if (cleaned.length >= 8) {
-          cur.date = `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`;
+        const m = val.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?/);
+        if (m) {
+          const [, yy, mo, dd, hh, mi, ss, z] = m;
+          if (hh != null && z) {
+            // Heure UTC → convertir en heure locale (sinon décalage d'1 jour)
+            const dt = new Date(Date.UTC(+yy, +mo - 1, +dd, +hh, +mi, +(ss || 0)));
+            cur.date = todayKey(dt);
+            cur.time = String(dt.getHours()).padStart(2, "0") + ":" + String(dt.getMinutes()).padStart(2, "0");
+          } else {
+            // Heure locale (TZID) ou journée entière → garder tel quel
+            cur.date = `${yy}-${mo}-${dd}`;
+            if (hh != null) cur.time = `${hh}:${mi}`;
+          }
         }
-        const tMatch = val.match(/T(\d{2})(\d{2})/);
-        if (tMatch) cur.time = `${tMatch[1]}:${tMatch[2]}`;
       }
       else if (key === "DESCRIPTION") cur.description = val.replace(/\\n/g, "\n").replace(/\\,/g, ",").trim();
       else if (key === "LOCATION") cur.location = val;
