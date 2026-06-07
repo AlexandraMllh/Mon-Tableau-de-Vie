@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v345</title>
+<title>Mon Tableau de Vie 🌿 · v346</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2890,7 +2890,7 @@
       <div class="card">
         <div class="work-header">
           <h2 style="margin:0;">🌱 Mes plantes <span class="count" id="plantsCount"></span></h2>
-          <button class="btn-icon" onclick="document.getElementById('icsFilePlants').click();" title="Détecter automatiquement mes plantes depuis mon Google Agenda exporté en .ics" style="background:linear-gradient(135deg,var(--mint-soft),var(--sky-soft));font-size:13px;">📲 Détecter depuis Google Agenda</button>
+          <button class="btn-icon" onclick="detectPlantsFromGoogle()" title="Détecter automatiquement mes plantes depuis mon Google Agenda connecté (ou un fichier .ics)" style="background:linear-gradient(135deg,var(--mint-soft),var(--sky-soft));font-size:13px;">📲 Détecter depuis Google Agenda</button>
           <input type="file" id="icsFilePlants" accept=".ics" style="display:none;" onchange="detectPlantsFromICS(event)" />
         </div>
         <p style="color:var(--ink-soft);font-size:13px;margin:-8px 0 12px;">🟢 récemment arrosée · 🟠 bientôt · 🔴 a soif ! · Importe ton Google Agenda (.ics) pour détecter tes plantes automatiquement.</p>
@@ -13919,14 +13919,39 @@ function extractPlantName(title) {
   return { name: clean, emoji };
 }
 
+// Détection depuis la synchro Google déjà connectée (sans fichier)
+async function detectPlantsFromGoogle() {
+  const url = state.googleCal?.url;
+  if (!url) { document.getElementById("icsFilePlants")?.click(); return; }
+  showToast("🔍 Détection des plantes depuis Google Agenda…");
+  const proxies = [
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    u => `https://thingproxy.freeboard.io/fetch/${u}`,
+  ];
+  const busted = url + (url.includes("?") ? "&" : "?") + "_cb=" + Date.now();
+  let text = null;
+  for (const proxy of proxies) {
+    try { const r = await fetch(proxy(busted), { signal: AbortSignal.timeout(15000), cache: "no-store" }); if (r.ok) { text = await r.text(); break; } } catch (_) {}
+  }
+  if (!text) { showToast("❌ Impossible de lire Google Agenda. Réessaie ou utilise un fichier .ics."); return; }
+  try { _runPlantDetection(parseICS(text)); } catch (err) { alert("Erreur de lecture : " + err.message); }
+}
+
 function detectPlantsFromICS(event) {
   const f = event.target.files[0];
   if (!f) return;
   event.target.value = "";
   const reader = new FileReader();
   reader.onload = ev => {
-    try {
-      const result = parseICS(ev.target.result);
+    try { _runPlantDetection(parseICS(ev.target.result)); }
+    catch (err) { alert("Erreur de lecture du fichier ICS : " + err.message); }
+  };
+  reader.readAsText(f);
+}
+
+function _runPlantDetection(result) {
       // Filtre uniquement les événements "Arroser …"
       const plantEvents = result.events.filter(e => /arros/i.test(e.title));
 
@@ -14021,11 +14046,6 @@ function detectPlantsFromICS(event) {
       }).join("");
       document.getElementById("plantsDetectNone").style.display = "none";
       document.getElementById("plantsDetectModal").classList.add("open");
-    } catch (err) {
-      alert("Erreur de lecture du fichier ICS : " + err.message);
-    }
-  };
-  reader.readAsText(f);
 }
 
 function closePlantsDetectModal() {
