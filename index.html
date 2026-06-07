@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v341</title>
+<title>Mon Tableau de Vie 🌿 · v342</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -10799,10 +10799,12 @@ async function syncGoogleCal(silent = false) {
     u => `https://thingproxy.freeboard.io/fetch/${u}`,
     u => `https://cors-anywhere.herokuapp.com/${u}`,
   ];
+  // Anti-cache : URL unique à chaque synchro pour éviter les copies en cache des proxies
+  const bustedUrl = url + (url.includes("?") ? "&" : "?") + "_cb=" + Date.now();
   let text = null;
   for (const proxy of proxies) {
     try {
-      const r = await fetch(proxy(url), { signal: AbortSignal.timeout(15000) });
+      const r = await fetch(proxy(bustedUrl), { signal: AbortSignal.timeout(15000), cache: "no-store" });
       if (r.ok) { text = await r.text(); break; }
     } catch (_) { /* essaie le proxy suivant */ }
   }
