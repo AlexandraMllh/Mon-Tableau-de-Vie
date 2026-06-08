@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v363</title>
+<title>Mon Tableau de Vie 🌿 · v364</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -8514,6 +8514,31 @@ function _createReimbIncomeTx(dateIso, reimbAmount, note) {
   return incTx.id;
 }
 
+// Répartit un remboursement reçu : le compte courant reçoit (reçu − part hors compte),
+// et la part hors compte revient au hors compte (ligne "retour hors compte").
+function _applyReimbursementSplit(txs, receivedTotal, dateIso, note) {
+  const externalPortion = txs.filter(t => t.type === "external").reduce((s, t) => s + t.amount, 0);
+  const courantIncome = receivedTotal - externalPortion;
+  let incomeId = null, returnId = null;
+  if (Math.abs(courantIncome) >= 0.005) {
+    incomeId = _createReimbIncomeTx(dateIso, Math.round(courantIncome * 100) / 100, note);
+  }
+  if (externalPortion >= 0.005) {
+    const retTx = {
+      id: "tx" + Date.now() + Math.random().toString(36).slice(2, 6) + "r",
+      date: dateIso,
+      type: "external",
+      amount: -externalPortion,
+      category: "↩ Retour hors compte",
+      note,
+      reimbursable: false,
+    };
+    state.transactions.unshift(retTx);
+    returnId = retTx.id;
+  }
+  return { incomeId, returnId };
+}
+
 function confirmReimbursed(id) {
   const tx = state.transactions.find(t => t.id === id);
   if (!tx) return;
@@ -8523,7 +8548,8 @@ function confirmReimbursed(id) {
   tx.reimbursedAt = dateIso;
   tx.reimbursedAmount = reimbAmt;
   const note = [tx.mission, tx.category, tx.note].filter(Boolean).join(" — ");
-  tx.reimbTxId = _createReimbIncomeTx(dateIso, reimbAmt, note);
+  const r = _applyReimbursementSplit([tx], reimbAmt, dateIso, note);
+  tx.reimbTxId = r.incomeId; tx.reimbReturnTxId = r.returnId;
   _reimbFormOpenId = null;
   saveState();
   renderMoney(); renderDailyExpenseChart(); renderBalanceEvolutionChart(); renderMonthComparison(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
@@ -8534,15 +8560,13 @@ function confirmGroupReimbursed(ids, dateInputId, mission) {
   const reimbAmt = parseFloat(document.getElementById(dateInputId + "_amt")?.value) || 0;
   const dateIso = new Date(dateVal).toISOString();
   const txs = ids.map(id => state.transactions.find(t => t.id === id)).filter(Boolean);
-  const totalSpent = txs.reduce((s, t) => s + t.amount, 0);
   for (const t of txs) {
     t.reimbursedAt = dateIso;
     t.reimbursedAmount = null; // montant individuel non défini sur le groupe
   }
   const note = mission ? `Mission : ${mission}` : "Remboursement frais pro";
-  const incId = _createReimbIncomeTx(dateIso, reimbAmt, note);
-  // Stocker la référence sur la première tx du groupe
-  if (txs[0]) txs[0].reimbTxId = incId;
+  const r = _applyReimbursementSplit(txs, reimbAmt, dateIso, note);
+  if (txs[0]) { txs[0].reimbTxId = r.incomeId; txs[0].reimbReturnTxId = r.returnId; }
   _reimbFormOpenId = null;
   saveState();
   renderMoney(); renderDailyExpenseChart(); renderBalanceEvolutionChart(); renderMonthComparison(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
@@ -8592,7 +8616,8 @@ function confirmClaimedReceived(id) {
   tx.reimbursedAt = dateIso;
   tx.reimbursedAmount = amt;
   const note = [tx.mission, tx.category, tx.note].filter(Boolean).join(" — ");
-  tx.reimbTxId = _createReimbIncomeTx(dateIso, amt, note);
+  const r = _applyReimbursementSplit([tx], amt, dateIso, note);
+  tx.reimbTxId = r.incomeId; tx.reimbReturnTxId = r.returnId;
   delete tx.reimbClaimedAt; delete tx.reimbClaimedAmount;
   saveState(); _reimbRefresh();
 }
@@ -8608,18 +8633,22 @@ function confirmGroupClaimedReceived(ids, mission) {
     delete t.reimbClaimedAt; delete t.reimbClaimedAmount;
   });
   const note = mission ? `Mission : ${mission}` : "Remboursement frais pro";
-  const incId = _createReimbIncomeTx(dateIso, total, note);
-  if (txs[0]) txs[0].reimbTxId = incId;
+  const r = _applyReimbursementSplit(txs, total, dateIso, note);
+  if (txs[0]) { txs[0].reimbTxId = r.incomeId; txs[0].reimbReturnTxId = r.returnId; }
   saveState(); _reimbRefresh();
 }
 
 function undoReimbursed(id) {
   const tx = state.transactions.find(t => t.id === id);
   if (!tx) return;
-  // Supprimer la transaction de revenu associée si elle existe
+  // Supprimer la transaction de revenu + la ligne "retour hors compte" associées
   if (tx.reimbTxId) {
     state.transactions = state.transactions.filter(t => t.id !== tx.reimbTxId);
     delete tx.reimbTxId;
+  }
+  if (tx.reimbReturnTxId) {
+    state.transactions = state.transactions.filter(t => t.id !== tx.reimbReturnTxId);
+    delete tx.reimbReturnTxId;
   }
   delete tx.reimbursedAt;
   delete tx.reimbursedAmount;
