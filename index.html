@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v371</title>
+<title>Mon Tableau de Vie 🌿 · v372</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11443,7 +11443,10 @@ function renderTimeBarChart() {
       plugins: {
         ...baseChartOpts().plugins,
         tooltip: { ...baseChartOpts().plugins.tooltip,
-          callbacks: { label: ctx => ctx.dataset.label + ": " + ctx.parsed.y.toFixed(1).replace(".", ",") + " h" },
+          callbacks: {
+            title: items => { const d = dates[items[0]?.dataIndex]; return d ? d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) : ""; },
+            label: ctx => ctx.dataset.label + ": " + ctx.parsed.y.toFixed(1).replace(".", ",") + " h",
+          },
         },
       },
       scales: {
