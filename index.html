@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v369</title>
+<title>Mon Tableau de Vie 🌿 · v370</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -12636,25 +12636,33 @@ function renderBiblioCodes() {
     return;
   }
 
-  // Rendu en arborescence
+  // Rendu en arborescence (avec réordonnancement par glisser entre les codes)
   function renderCodeNode(parentId, depth) {
     const children = codes.filter(c => (c.parentId||"") === (parentId||""));
     if (!children.length) return "";
-    return children.map(c => {
+    const ind = depth ? 22 : 0;
+    const gap = beforeId => `<div ondragover="codeGapOver(event,this)" ondragleave="codeGapLeave(this)" ondrop="codeReorderDrop(event,'${beforeId}','${parentId||""}',this)" style="height:5px;margin-left:${ind}px;border-radius:4px;transition:all .1s;"></div>`;
+    let html = "";
+    children.forEach(c => {
       const n = (biblio.extracts||[]).filter(e => (e.codes||[]).includes(c.id)).length;
       const hasSub = codes.some(x => x.parentId === c.id);
       const collapsed = _codeCollapsed.has(c.id);
-      return `<div style="padding-left:${depth*20}px;">
-        <div draggable="true" ondragstart="codeDragStart(event,'${c.id}')" ondragover="codeDragOver(event,this)" ondragleave="this.style.background=''" ondrop="codeDrop(event,'${c.id}',this)" title="Glisse ce code sur un autre pour le ranger dessous" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);cursor:grab;border-radius:6px;" onclick="openCodeModal('${c.id}')">
-          ${hasSub ? `<span onclick="event.stopPropagation();toggleCodeCollapse('${c.id}')" style="font-size:10px;color:var(--ink-soft);width:12px;flex-shrink:0;">${collapsed?"▶":"▼"}</span>` : `<span style="width:12px;flex-shrink:0;"></span>`}
-          <span style="width:16px;height:16px;border-radius:50%;background:${c.color};flex-shrink:0;"></span>
-          <span style="font-weight:600;font-size:14px;flex:1;">${escapeHtml(c.label)}</span>
+      const isRoot = depth === 0;
+      html += gap(c.id);
+      html += `<div style="margin-left:${ind}px;${depth?'border-left:2px solid var(--lavender);':''}">
+        <div draggable="true" ondragstart="codeDragStart(event,'${c.id}')" ondragover="codeDragOver(event,this)" ondragleave="this.style.background=''" ondrop="codeDrop(event,'${c.id}',this)" title="Glisser SUR un code = le ranger dessous · glisser ENTRE deux = réordonner" style="display:flex;align-items:center;gap:8px;padding:${isRoot?'10px 12px':'7px 12px'};border-bottom:1px solid var(--line);cursor:grab;border-radius:8px;${isRoot?'background:var(--lavender-soft);margin-top:6px;':''}" onclick="openCodeModal('${c.id}')">
+          ${depth?`<span style="color:var(--ink-softer);flex-shrink:0;font-size:12px;">↳</span>`:''}
+          ${hasSub ? `<span onclick="event.stopPropagation();toggleCodeCollapse('${c.id}')" style="font-size:10px;color:var(--ink-soft);width:12px;flex-shrink:0;cursor:pointer;">${collapsed?"▶":"▼"}</span>` : `<span style="width:12px;flex-shrink:0;"></span>`}
+          <span style="width:${isRoot?18:14}px;height:${isRoot?18:14}px;border-radius:50%;background:${c.color};flex-shrink:0;"></span>
+          <span style="font-weight:${isRoot?700:600};font-size:${isRoot?15:13}px;flex:1;color:var(--ink);">${escapeHtml(c.label)}</span>
           ${c.description?`<span style="font-size:12px;color:var(--ink-soft);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(c.description)}</span>`:""}
           <span style="font-size:11px;color:var(--ink-softer);flex-shrink:0;">${n} extrait${n!==1?"s":""}</span>
         </div>
         ${collapsed ? "" : renderCodeNode(c.id, depth+1)}
       </div>`;
-    }).join("");
+    });
+    html += gap(""); // insérer à la fin de ce groupe
+    return html;
   }
 
   const rootZone = `<div ondragover="event.preventDefault();this.style.background='var(--lavender-soft)'" ondragleave="this.style.background=''" ondrop="codeDropRoot(event,this)" style="padding:6px 12px;border:1.5px dashed var(--line);border-radius:9px;margin-bottom:10px;font-size:12px;color:var(--ink-softer);text-align:center;">⬆ Dépose un code ici pour en faire un code principal (racine)</div>`;
@@ -12693,6 +12701,27 @@ function _moveCode(dragId, targetId) {
 }
 function codeDrop(e, targetId, elDiv) { e.preventDefault(); e.stopPropagation(); if (elDiv) elDiv.style.background = ""; _moveCode(_codeDragId, targetId); _codeDragId = null; }
 function codeDropRoot(e, elDiv) { e.preventDefault(); if (elDiv) elDiv.style.background = ""; _moveCode(_codeDragId, ""); _codeDragId = null; }
+// Réordonnancement (glisser entre deux codes)
+function codeGapOver(e, el) { e.preventDefault(); e.stopPropagation(); if (_codeDragId) { el.style.background = "var(--lavender)"; el.style.height = "12px"; } }
+function codeGapLeave(el) { el.style.background = ""; el.style.height = "5px"; }
+function codeReorderDrop(e, beforeId, parentId, el) { e.preventDefault(); e.stopPropagation(); if (el) { el.style.background = ""; el.style.height = "5px"; } _reorderCode(_codeDragId, beforeId || null, parentId || ""); _codeDragId = null; }
+function _reorderCode(dragId, beforeId, newParentId) {
+  if (!dragId || dragId === beforeId) return;
+  const biblio = _getActiveBiblio() || _biblioDef();
+  const codes = biblio.codes || [];
+  const drag = codes.find(c => c.id === dragId);
+  if (!drag) return;
+  if (newParentId && (newParentId === dragId || _codeIsDescendant(codes, dragId, newParentId))) { showToast("⚠️ Un code ne peut pas aller dans un de ses propres sous-codes."); return; }
+  drag.parentId = newParentId || "";
+  const fromIdx = codes.indexOf(drag);
+  codes.splice(fromIdx, 1);
+  let insertIdx = beforeId ? codes.findIndex(c => c.id === beforeId) : -1;
+  if (insertIdx < 0) insertIdx = codes.length;
+  codes.splice(insertIdx, 0, drag);
+  saveState();
+  renderBiblioCodes();
+  try { renderBiblioByCodeTree(); } catch (_) {}
+}
 
 function openCodeModal(id, defaultParentId) {
   const biblio = _getActiveBiblio() || _biblioDef();
