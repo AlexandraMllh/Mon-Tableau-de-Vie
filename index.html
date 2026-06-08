@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v366</title>
+<title>Mon Tableau de Vie 🌿 · v367</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -8202,23 +8202,50 @@ function toggleMissionField(wrapId, show) {
   if (wrapId === "txMissionWrap") _refreshTxCategories(show);
   if (wrapId === "txModalMissionWrap") _refreshModalCategories(show);
 }
+// Liste de catégories modifiable selon le type de transaction (null si frais pro = liste figée)
+function _activeTxCatList() {
+  const isPro = document.getElementById("txReimbursable")?.checked && txType === "expense";
+  if (isPro) return null;
+  if (txType === "income") return state.incomeCategories;
+  if (txType === "savings" || txType === "savings-out") return state.savingsCategories;
+  return state.categories; // dépense + hors compte
+}
+function _txCatExtraOptions() {
+  return _activeTxCatList()
+    ? `<option value="__newcat__">➕ Nouvelle catégorie…</option><option value="__delcat__">🗑️ Supprimer une catégorie…</option>`
+    : "";
+}
 function _refreshTxCategories(isPro) {
   const sel = document.getElementById("txCategory");
   if (!sel) return;
   const list = isPro ? PRO_CATEGORIES : state.categories;
   const prev = sel.value;
-  sel.innerHTML = list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")
-    + (isPro ? "" : `<option value="__newcat__">➕ Nouvelle catégorie…</option>`);
+  sel.innerHTML = list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("") + _txCatExtraOptions();
   if (list.includes(prev)) sel.value = prev;
 }
-// Création d'une catégorie de dépense directement depuis le menu
+// Ajouter / supprimer une catégorie directement depuis le menu (selon la section)
 function onTxCategoryChange() {
   const sel = document.getElementById("txCategory");
-  if (!sel || sel.value !== "__newcat__") return;
-  const name = (prompt("Nom de la nouvelle catégorie de dépense :") || "").trim();
-  if (name && !state.categories.includes(name)) { state.categories.push(name); saveState(); }
-  _refreshTxCategories(false);
-  sel.value = (name && state.categories.includes(name)) ? name : state.categories[0];
+  if (!sel) return;
+  const list = _activeTxCatList();
+  if (!list) return;
+  if (sel.value === "__newcat__") {
+    const name = (prompt("Nom de la nouvelle catégorie :") || "").trim();
+    if (name && !list.includes(name)) { list.push(name); saveState(); }
+    populateTxCategories();
+    sel.value = (name && list.includes(name)) ? name : (list[0] || "");
+  } else if (sel.value === "__delcat__") {
+    if (!list.length) { populateTxCategories(); return; }
+    const menu = list.map((c, i) => `${i + 1}. ${c}`).join("\n");
+    const v = prompt("Quelle catégorie supprimer ? Tape son numéro :\n\n" + menu);
+    const idx = parseInt(v) - 1;
+    if (idx >= 0 && idx < list.length) {
+      const removed = list[idx];
+      if (confirm(`Supprimer la catégorie « ${removed} » ?\n(les transactions existantes ne changent pas)`)) { list.splice(idx, 1); saveState(); }
+    }
+    populateTxCategories();
+    sel.value = list[0] || "";
+  }
 }
 function _refreshModalCategories(isPro) {
   const sel = document.getElementById("txModalCategory");
@@ -8769,9 +8796,7 @@ function populateTxCategories() {
              : txType === "savings"     ? state.savingsCategories
              : txType === "savings-out" ? state.savingsCategories
              : state.categories;
-  const isExpenseList = (list === state.categories);
-  sel.innerHTML = list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")
-    + (isExpenseList ? `<option value="__newcat__">➕ Nouvelle catégorie…</option>` : "");
+  sel.innerHTML = list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("") + _txCatExtraOptions();
 }
 // Mois financier : du 26 du mois précédent au 25 du mois courant (cycle salaire)
 function currentMonthRange() {
