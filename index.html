@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v360</title>
+<title>Mon Tableau de Vie 🌿 · v361</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -8412,9 +8412,9 @@ function renderReimbursable() {
             <span style="font-size:11px;color:var(--ink-soft);">€ (total dépensé : ${total.toFixed(2)} €)</span>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button onclick="markGroupClaimed(${JSON.stringify(txs.map(t => t.id))}, '${missionDateId}')"
+            <button onclick='markGroupClaimed(${JSON.stringify(txs.map(t => t.id)).replace(/'/g,"&#39;")}, "${missionDateId}")'
               style="padding:5px 12px;border-radius:7px;border:1.5px solid #d97706;background:#fff7ed;color:#d97706;font-size:12px;font-weight:600;cursor:pointer;">⏳ Tout lancé</button>
-            <button onclick="confirmGroupReimbursed(${JSON.stringify(txs.map(t => t.id))}, '${missionDateId}', ${JSON.stringify(key || '')})"
+            <button onclick='confirmGroupReimbursed(${JSON.stringify(txs.map(t => t.id)).replace(/'/g,"&#39;")}, "${missionDateId}", ${JSON.stringify(key || "").replace(/'/g,"&#39;")})'
               style="padding:5px 12px;border-radius:7px;border:none;background:#10b981;color:white;font-size:12px;font-weight:600;cursor:pointer;">✅ Tout reçu</button>
             <button onclick="document.getElementById('${missionDateId}_form').style.display='none'"
               style="padding:5px 10px;border-radius:7px;border:1px solid var(--line);background:white;color:var(--ink-soft);font-size:12px;cursor:pointer;">
@@ -8434,19 +8434,21 @@ function renderReimbursable() {
   const claimedByMission = {};
   for (const tx of claimed) { const k = tx.mission?.trim() || ""; (claimedByMission[k] = claimedByMission[k] || []).push(tx); }
   const claimedHtml = claimed.length ? `
-    <div style="margin:14px 0;padding:12px 14px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:14px;">
-      <div style="font-size:13px;font-weight:700;color:#d97706;margin-bottom:8px;">⏳ En cours de remboursement · ${totalClaimed.toFixed(2)} €</div>
+    <div style="margin:14px 0;padding:12px 14px;background:#fefce8;border:1.5px solid #fde68a;border-radius:14px;">
+      <div style="font-size:13px;font-weight:700;color:#a16207;margin-bottom:8px;">⏳ En cours de remboursement · ${totalClaimed.toFixed(2)} €</div>
       ${Object.entries(claimedByMission).sort((a,b)=>a[0].localeCompare(b[0],"fr")).map(([key,txs])=>{
         const tot = txs.reduce((s,t)=>s+t.amount,0);
         return `<div style="margin-bottom:10px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
             <div style="flex:1;font-size:12px;font-weight:700;color:var(--ink-soft);">${key?escapeHtml(key):'Sans mission'} · ${tot.toFixed(2)} €</div>
-            <button onclick='confirmGroupClaimedReceived(${JSON.stringify(txs.map(t=>t.id))}, ${JSON.stringify(key||"")})' style="padding:3px 10px;border-radius:7px;border:none;background:#10b981;color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">✅ Tout reçu</button>
+            <button onclick='confirmGroupClaimedReceived(${JSON.stringify(txs.map(t=>t.id)).replace(/'/g,"&#39;")}, ${JSON.stringify(key||"").replace(/'/g,"&#39;")})' style="padding:3px 10px;border-radius:7px;border:none;background:#10b981;color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">✅ Tout reçu</button>
           </div>
           ${txs.map(tx=>`
-            <div style="display:flex;align-items:center;gap:8px;padding:6px 0 6px 8px;border-bottom:1px dashed #fde7cf;font-size:12px;">
-              <div style="flex:1;color:var(--ink);min-width:0;">${escapeHtml(tx.category)} — ${escapeHtml(tx.note||"—")} · ${fmt(tx.date)}</div>
-              <span style="color:#d97706;white-space:nowrap;font-weight:600;">${(tx.reimbClaimedAmount ?? tx.amount).toFixed(2)} €</span>
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 0 6px 8px;border-bottom:1px dashed #fef08a;font-size:12px;">
+              <div style="flex:1;color:var(--ink);min-width:0;">${escapeHtml(tx.category)} — ${escapeHtml(tx.note||"—")} · ${fmt(tx.date)}
+                <span style="display:inline-block;background:#fef08a;color:#854d0e;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:600;white-space:nowrap;margin-left:4px;">⏳ en cours de remboursement</span>
+              </div>
+              <span style="color:#ca8a04;white-space:nowrap;font-weight:600;">${(tx.reimbClaimedAmount ?? tx.amount).toFixed(2)} €</span>
               <span style="font-size:11px;color:var(--ink-softer);white-space:nowrap;">lancé ${fmt(tx.reimbClaimedAt)}</span>
               <button onclick="confirmClaimedReceived('${tx.id}')" style="padding:2px 8px;border-radius:6px;border:none;background:#10b981;color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">✅ Reçu</button>
               <button onclick="undoClaim('${tx.id}')" title="Annuler la demande" style="padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:white;color:var(--ink-softer);font-size:11px;cursor:pointer;">↩</button>
