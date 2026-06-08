@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v367</title>
+<title>Mon Tableau de Vie 🌿 · v368</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -12645,7 +12645,7 @@ function renderBiblioCodes() {
       const hasSub = codes.some(x => x.parentId === c.id);
       const collapsed = _codeCollapsed.has(c.id);
       return `<div style="padding-left:${depth*20}px;">
-        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);cursor:pointer;" onclick="openCodeModal('${c.id}')">
+        <div draggable="true" ondragstart="codeDragStart(event,'${c.id}')" ondragover="codeDragOver(event,this)" ondragleave="this.style.background=''" ondrop="codeDrop(event,'${c.id}',this)" title="Glisse ce code sur un autre pour le ranger dessous" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);cursor:grab;border-radius:6px;" onclick="openCodeModal('${c.id}')">
           ${hasSub ? `<span onclick="event.stopPropagation();toggleCodeCollapse('${c.id}')" style="font-size:10px;color:var(--ink-soft);width:12px;flex-shrink:0;">${collapsed?"▶":"▼"}</span>` : `<span style="width:12px;flex-shrink:0;"></span>`}
           <span style="width:16px;height:16px;border-radius:50%;background:${c.color};flex-shrink:0;"></span>
           <span style="font-weight:600;font-size:14px;flex:1;">${escapeHtml(c.label)}</span>
@@ -12657,7 +12657,8 @@ function renderBiblioCodes() {
     }).join("");
   }
 
-  el.innerHTML = renderCodeNode("", 0) || `<p style="color:var(--ink-soft);text-align:center;padding:20px;">Aucun code racine.</p>`;
+  const rootZone = `<div ondragover="event.preventDefault();this.style.background='var(--lavender-soft)'" ondragleave="this.style.background=''" ondrop="codeDropRoot(event,this)" style="padding:6px 12px;border:1.5px dashed var(--line);border-radius:9px;margin-bottom:10px;font-size:12px;color:var(--ink-softer);text-align:center;">⬆ Dépose un code ici pour en faire un code principal (racine)</div>`;
+  el.innerHTML = rootZone + (renderCodeNode("", 0) || `<p style="color:var(--ink-soft);text-align:center;padding:20px;">Aucun code racine.</p>`);
 }
 
 const _codeCollapsed = new Set();
@@ -12666,6 +12667,32 @@ function toggleCodeCollapse(id) {
   else _codeCollapsed.add(id);
   renderBiblioCodes();
 }
+
+/* ── Glisser-déposer des codes (réorganisation parent/enfant) ── */
+let _codeDragId = null;
+function codeDragStart(e, id) { _codeDragId = id; try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", id); } catch (_) {} e.stopPropagation(); }
+function codeDragOver(e, elDiv) { e.preventDefault(); try { e.dataTransfer.dropEffect = "move"; } catch (_) {} if (elDiv && _codeDragId) elDiv.style.background = "var(--lavender-soft)"; }
+function _codeIsDescendant(codes, ancestorId, nodeId) {
+  let c = codes.find(x => x.id === nodeId), g = 0;
+  while (c && c.parentId && g++ < 100) { if (c.parentId === ancestorId) return true; c = codes.find(x => x.id === c.parentId); }
+  return false;
+}
+function _moveCode(dragId, targetId) {
+  if (!dragId || dragId === targetId) return;
+  const biblio = _getActiveBiblio() || _biblioDef();
+  const codes = biblio.codes || [];
+  const drag = codes.find(c => c.id === dragId);
+  if (!drag) return;
+  if (targetId && _codeIsDescendant(codes, dragId, targetId)) { showToast("⚠️ Un code ne peut pas aller dans un de ses propres sous-codes."); return; }
+  if ((drag.parentId || "") === (targetId || "")) return;
+  drag.parentId = targetId || "";
+  saveState();
+  renderBiblioCodes();
+  try { renderBiblioByCodeTree(); } catch (_) {}
+  showToast("✅ Code déplacé");
+}
+function codeDrop(e, targetId, elDiv) { e.preventDefault(); e.stopPropagation(); if (elDiv) elDiv.style.background = ""; _moveCode(_codeDragId, targetId); _codeDragId = null; }
+function codeDropRoot(e, elDiv) { e.preventDefault(); if (elDiv) elDiv.style.background = ""; _moveCode(_codeDragId, ""); _codeDragId = null; }
 
 function openCodeModal(id, defaultParentId) {
   const biblio = _getActiveBiblio() || _biblioDef();
