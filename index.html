@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v364</title>
+<title>Mon Tableau de Vie 🌿 · v365</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -8449,7 +8449,8 @@ function renderReimbursable() {
         const diffStr = Math.abs(diff) >= 0.01 ? ` <span style="color:${diff>0?'#16a34a':'#dc2626'};">(${diff>0?'+':'−'}${Math.abs(diff).toFixed(2)} €)</span>` : "";
         return `<div style="margin-bottom:10px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
-            <div style="flex:1;min-width:140px;font-size:12px;font-weight:700;color:var(--ink-soft);">${key?escapeHtml(key):'Sans mission'} · attendu <span style="color:#ca8a04;">${expected.toFixed(2)} €</span> · dépensé ${spent.toFixed(2)} €${diffStr}</div>
+            <div style="flex:1;min-width:140px;font-size:12px;font-weight:700;color:var(--ink-soft);">${key?escapeHtml(key):'Sans mission'} · attendu <span onclick='editClaimedAmount(${JSON.stringify(txs.map(t=>t.id)).replace(/'/g,"&#39;")})' title="Modifier le montant remboursé" style="color:#ca8a04;cursor:pointer;text-decoration:underline dotted;">${expected.toFixed(2)} € ✎</span> · dépensé ${spent.toFixed(2)} €${diffStr}</div>
+            <button onclick='undoGroupClaim(${JSON.stringify(txs.map(t=>t.id)).replace(/'/g,"&#39;")})' title="Tout remettre en attente" style="padding:4px 10px;border-radius:7px;border:1px solid var(--line);background:white;color:var(--ink-soft);font-size:12px;cursor:pointer;white-space:nowrap;">↩ En attente</button>
             <button onclick='confirmGroupClaimedReceived(${JSON.stringify(txs.map(t=>t.id)).replace(/'/g,"&#39;")}, ${JSON.stringify(key||"").replace(/'/g,"&#39;")})' title="Marquer comme reçu sur ton compte" style="padding:4px 12px;border-radius:7px;border:none;background:#10b981;color:white;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">✅ Remboursement reçu</button>
           </div>
           ${txs.map(tx=>`
@@ -8605,6 +8606,22 @@ function undoClaim(id) {
   const tx = state.transactions.find(t => t.id === id);
   if (!tx) return;
   delete tx.reimbClaimedAt; delete tx.reimbClaimedAmount;
+  saveState(); renderMoney();
+}
+function undoGroupClaim(ids) {
+  ids.map(id => state.transactions.find(t => t.id === id)).filter(Boolean).forEach(t => { delete t.reimbClaimedAt; delete t.reimbClaimedAmount; });
+  saveState(); renderMoney();
+}
+function editClaimedAmount(ids) {
+  const txs = ids.map(id => state.transactions.find(t => t.id === id)).filter(Boolean);
+  if (!txs.length) return;
+  const fromClaims = txs.reduce((s, t) => s + (t.reimbClaimedAmount != null ? t.reimbClaimedAmount : 0), 0);
+  const current = fromClaims > 0 ? fromClaims : txs.reduce((s, t) => s + t.amount, 0);
+  const v = prompt("Montant qui va être remboursé (€) :", current.toFixed(2));
+  if (v === null) return;
+  const amt = parseFloat((v + "").replace(",", "."));
+  if (isNaN(amt)) { alert("Montant invalide."); return; }
+  txs.forEach((t, i) => { t.reimbClaimedAmount = (i === 0) ? amt : null; });
   saveState(); renderMoney();
 }
 // Un frais "lancé" est finalement reçu sur le compte
