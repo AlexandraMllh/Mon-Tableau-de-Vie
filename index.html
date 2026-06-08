@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v353</title>
+<title>Mon Tableau de Vie 🌿 · v354</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1812,10 +1812,7 @@
     <div class="card" style="margin-top:14px;" id="foodLogCard">
       <div class="work-header" style="margin-bottom:10px;">
         <h2 style="margin:0;">🍽️ Alimentation du jour <span id="foodCalDayTotal" style="font-size:13px;font-weight:400;color:var(--ink-soft);"></span></h2>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button onclick="openRecipePick()" class="btn-soft" style="font-size:12px;">🍳 Recette</button>
-          <button onclick="openFoodEntry()" class="btn-primary" style="font-size:12px;">+ Ajouter</button>
-        </div>
+        <button onclick="openFoodEntry()" class="btn-primary" style="font-size:12px;">+ Ajouter</button>
       </div>
       <div id="foodCalAlert" style="display:none;"></div>
       <!-- Météo alimentaire -->
@@ -1834,7 +1831,8 @@
     <!-- Modal journal alimentaire -->
     <div class="modal-bg" id="foodEntryModal" onmousedown="_fdBdDown=event.target===this" onclick="if(event.target===this&&_fdBdDown)closeFoodEntry()">
       <div class="modal" style="max-width:440px;" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">
-        <h2 style="margin:0 0 14px;">🍽️ Qu'est-ce que tu as mangé ?</h2>
+        <h2 style="margin:0 0 10px;">🍽️ Qu'est-ce que tu as mangé ?</h2>
+        <button id="foodFromRecipeBtn" onclick="closeFoodEntry();openRecipePick();" class="btn-soft" style="font-size:12px;width:100%;margin-bottom:14px;padding:9px;border-radius:10px;">🍳 Choisir depuis mes recettes</button>
         <input type="hidden" id="foodEntryId" />
         <div style="display:flex;gap:8px;margin-bottom:2px;">
           <div style="flex:1;">
@@ -7310,6 +7308,8 @@ function openFoodEntry(id) {
   });
   const del = document.getElementById("foodEntryDeleteBtn");
   if (del) del.style.display = e ? "inline-block" : "none";
+  const recBtn = document.getElementById("foodFromRecipeBtn");
+  if (recBtn) recBtn.style.display = e ? "none" : "block"; // seulement pour une nouvelle entrée
   document.getElementById("foodEntryModal").classList.add("open");
   setTimeout(() => document.getElementById("foodEntryName").focus(), 50);
 }
