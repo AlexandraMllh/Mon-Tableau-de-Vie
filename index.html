@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v365</title>
+<title>Mon Tableau de Vie 🌿 · v366</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -8500,14 +8500,14 @@ function toggleGroupReimb(id) {
   const form = document.getElementById(id + "_form");
   if (form) form.style.display = form.style.display === "none" ? "flex" : "none";
 }
-function _createReimbIncomeTx(dateIso, reimbAmount, note) {
+function _createReimbIncomeTx(dateIso, reimbAmount, note, category) {
   // Crée une transaction Revenu pour le remboursement reçu
   const incTx = {
     id: "tx" + Date.now() + Math.random().toString(36).slice(2, 6),
     date: dateIso,
     type: "income",
     amount: reimbAmount,
-    category: "Remboursement",
+    category: category || "Remboursement",
     note,
     reimbursable: false,
   };
@@ -8515,14 +8515,23 @@ function _createReimbIncomeTx(dateIso, reimbAmount, note) {
   return incTx.id;
 }
 
-// Répartit un remboursement reçu : le compte courant reçoit (reçu − part hors compte),
-// et la part hors compte revient au hors compte (ligne "retour hors compte").
+// Répartit un remboursement reçu : compte courant reçoit (reçu − hors compte),
+// le surplus (reçu − dépensé) part dans une catégorie de revenu dédiée,
+// et la part hors compte revient au hors compte.
 function _applyReimbursementSplit(txs, receivedTotal, dateIso, note) {
   const externalPortion = txs.filter(t => t.type === "external").reduce((s, t) => s + t.amount, 0);
-  const courantIncome = receivedTotal - externalPortion;
-  let incomeId = null, returnId = null;
-  if (Math.abs(courantIncome) >= 0.005) {
-    incomeId = _createReimbIncomeTx(dateIso, Math.round(courantIncome * 100) / 100, note);
+  const totalSpent = txs.reduce((s, t) => s + t.amount, 0);
+  const courantSpent = totalSpent - externalPortion;
+  const courantIncomeTotal = Math.round((receivedTotal - externalPortion) * 100) / 100;
+  const surplus = Math.round((receivedTotal - totalSpent) * 100) / 100;
+  let incomeId = null, surplusId = null, returnId = null;
+  if (surplus > 0.005) {
+    // remboursement de base (ce qui était avancé du courant) + surplus séparé
+    const base = Math.round(courantSpent * 100) / 100;
+    if (Math.abs(base) >= 0.005) incomeId = _createReimbIncomeTx(dateIso, base, note, "Remboursement");
+    surplusId = _createReimbIncomeTx(dateIso, surplus, note, "Surplus remboursement mission");
+  } else if (Math.abs(courantIncomeTotal) >= 0.005) {
+    incomeId = _createReimbIncomeTx(dateIso, courantIncomeTotal, note, "Remboursement");
   }
   if (externalPortion >= 0.005) {
     const retTx = {
@@ -8537,7 +8546,7 @@ function _applyReimbursementSplit(txs, receivedTotal, dateIso, note) {
     state.transactions.unshift(retTx);
     returnId = retTx.id;
   }
-  return { incomeId, returnId };
+  return { incomeId, surplusId, returnId };
 }
 
 function confirmReimbursed(id) {
@@ -8550,7 +8559,7 @@ function confirmReimbursed(id) {
   tx.reimbursedAmount = reimbAmt;
   const note = [tx.mission, tx.category, tx.note].filter(Boolean).join(" — ");
   const r = _applyReimbursementSplit([tx], reimbAmt, dateIso, note);
-  tx.reimbTxId = r.incomeId; tx.reimbReturnTxId = r.returnId;
+  tx.reimbTxId = r.incomeId; tx.reimbSurplusTxId = r.surplusId; tx.reimbReturnTxId = r.returnId;
   _reimbFormOpenId = null;
   saveState();
   renderMoney(); renderDailyExpenseChart(); renderBalanceEvolutionChart(); renderMonthComparison(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
@@ -8567,7 +8576,7 @@ function confirmGroupReimbursed(ids, dateInputId, mission) {
   }
   const note = mission ? `Mission : ${mission}` : "Remboursement frais pro";
   const r = _applyReimbursementSplit(txs, reimbAmt, dateIso, note);
-  if (txs[0]) { txs[0].reimbTxId = r.incomeId; txs[0].reimbReturnTxId = r.returnId; }
+  if (txs[0]) { txs[0].reimbTxId = r.incomeId; txs[0].reimbSurplusTxId = r.surplusId; txs[0].reimbReturnTxId = r.returnId; }
   _reimbFormOpenId = null;
   saveState();
   renderMoney(); renderDailyExpenseChart(); renderBalanceEvolutionChart(); renderMonthComparison(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
@@ -8634,7 +8643,7 @@ function confirmClaimedReceived(id) {
   tx.reimbursedAmount = amt;
   const note = [tx.mission, tx.category, tx.note].filter(Boolean).join(" — ");
   const r = _applyReimbursementSplit([tx], amt, dateIso, note);
-  tx.reimbTxId = r.incomeId; tx.reimbReturnTxId = r.returnId;
+  tx.reimbTxId = r.incomeId; tx.reimbSurplusTxId = r.surplusId; tx.reimbReturnTxId = r.returnId;
   delete tx.reimbClaimedAt; delete tx.reimbClaimedAmount;
   saveState(); _reimbRefresh();
 }
@@ -8651,7 +8660,7 @@ function confirmGroupClaimedReceived(ids, mission) {
   });
   const note = mission ? `Mission : ${mission}` : "Remboursement frais pro";
   const r = _applyReimbursementSplit(txs, total, dateIso, note);
-  if (txs[0]) { txs[0].reimbTxId = r.incomeId; txs[0].reimbReturnTxId = r.returnId; }
+  if (txs[0]) { txs[0].reimbTxId = r.incomeId; txs[0].reimbSurplusTxId = r.surplusId; txs[0].reimbReturnTxId = r.returnId; }
   saveState(); _reimbRefresh();
 }
 
@@ -8662,6 +8671,10 @@ function undoReimbursed(id) {
   if (tx.reimbTxId) {
     state.transactions = state.transactions.filter(t => t.id !== tx.reimbTxId);
     delete tx.reimbTxId;
+  }
+  if (tx.reimbSurplusTxId) {
+    state.transactions = state.transactions.filter(t => t.id !== tx.reimbSurplusTxId);
+    delete tx.reimbSurplusTxId;
   }
   if (tx.reimbReturnTxId) {
     state.transactions = state.transactions.filter(t => t.id !== tx.reimbReturnTxId);
