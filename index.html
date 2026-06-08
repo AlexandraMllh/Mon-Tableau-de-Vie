@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v362</title>
+<title>Mon Tableau de Vie 🌿 · v363</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -8318,8 +8318,16 @@ function renderReimbursable() {
   if (!all.length) { card.style.display = "none"; return; }
   card.style.display = "";
 
+  // Montant "lancé" d'un groupe : la somme des montants remboursés annoncés (peut différer du dépensé)
+  const claimedAmtOf = txs => {
+    const fromClaims = txs.reduce((s, t) => s + (t.reimbClaimedAmount != null ? t.reimbClaimedAmount : 0), 0);
+    return fromClaims > 0 ? fromClaims : txs.reduce((s, t) => s + t.amount, 0);
+  };
+  const claimedByMission0 = {};
+  for (const tx of claimed) { const k = tx.mission?.trim() || ""; (claimedByMission0[k] = claimedByMission0[k] || []).push(tx); }
+
   const totalPending = pending.reduce((s, tx) => s + tx.amount, 0);
-  const totalClaimed = claimed.reduce((s, tx) => s + tx.amount, 0);
+  const totalClaimed = Object.values(claimedByMission0).reduce((s, txs) => s + claimedAmtOf(txs), 0);
   const totalOutstanding = totalPending + totalClaimed;
   if (totalEl) totalEl.innerHTML = totalOutstanding > 0
     ? totalOutstanding.toFixed(2) + " € à récupérer" + (totalClaimed > 0 ? ` <span style="font-size:12px;color:var(--ink-soft);font-weight:400;">(dont ${totalClaimed.toFixed(2)} € en cours)</span>` : "")
@@ -8431,27 +8439,25 @@ function renderReimbursable() {
     : `<p style="font-size:13px;color:var(--ink-soft);padding:8px 0;">Aucun frais en attente 🎉</p>`;
 
   // Section EN COURS (remboursement lancé, pas encore reçu) — groupée par mission
-  const claimedByMission = {};
-  for (const tx of claimed) { const k = tx.mission?.trim() || ""; (claimedByMission[k] = claimedByMission[k] || []).push(tx); }
   const claimedHtml = claimed.length ? `
     <div style="margin:14px 0;padding:12px 14px;background:#fefce8;border:1.5px solid #fde68a;border-radius:14px;">
-      <div style="font-size:13px;font-weight:700;color:#a16207;margin-bottom:8px;">⏳ En cours de remboursement · ${totalClaimed.toFixed(2)} €</div>
-      ${Object.entries(claimedByMission).sort((a,b)=>a[0].localeCompare(b[0],"fr")).map(([key,txs])=>{
-        const tot = txs.reduce((s,t)=>s+t.amount,0);
+      <div style="font-size:13px;font-weight:700;color:#a16207;margin-bottom:8px;">⏳ En cours de remboursement · ${totalClaimed.toFixed(2)} € attendus</div>
+      ${Object.entries(claimedByMission0).sort((a,b)=>a[0].localeCompare(b[0],"fr")).map(([key,txs])=>{
+        const spent = txs.reduce((s,t)=>s+t.amount,0);
+        const expected = claimedAmtOf(txs);
+        const diff = expected - spent;
+        const diffStr = Math.abs(diff) >= 0.01 ? ` <span style="color:${diff>0?'#16a34a':'#dc2626'};">(${diff>0?'+':'−'}${Math.abs(diff).toFixed(2)} €)</span>` : "";
         return `<div style="margin-bottom:10px;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-            <div style="flex:1;font-size:12px;font-weight:700;color:var(--ink-soft);">${key?escapeHtml(key):'Sans mission'} · ${tot.toFixed(2)} €</div>
-            <button onclick='confirmGroupClaimedReceived(${JSON.stringify(txs.map(t=>t.id)).replace(/'/g,"&#39;")}, ${JSON.stringify(key||"").replace(/'/g,"&#39;")})' style="padding:3px 10px;border-radius:7px;border:none;background:#10b981;color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">✅ Remboursement reçu</button>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:140px;font-size:12px;font-weight:700;color:var(--ink-soft);">${key?escapeHtml(key):'Sans mission'} · attendu <span style="color:#ca8a04;">${expected.toFixed(2)} €</span> · dépensé ${spent.toFixed(2)} €${diffStr}</div>
+            <button onclick='confirmGroupClaimedReceived(${JSON.stringify(txs.map(t=>t.id)).replace(/'/g,"&#39;")}, ${JSON.stringify(key||"").replace(/'/g,"&#39;")})' title="Marquer comme reçu sur ton compte" style="padding:4px 12px;border-radius:7px;border:none;background:#10b981;color:white;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">✅ Remboursement reçu</button>
           </div>
           ${txs.map(tx=>`
             <div style="display:flex;align-items:center;gap:8px;padding:6px 0 6px 8px;border-bottom:1px dashed #fef08a;font-size:12px;">
-              <div style="flex:1;color:var(--ink);min-width:0;">${escapeHtml(tx.category)} — ${escapeHtml(tx.note||"—")} · ${fmt(tx.date)}
-                <span style="display:inline-block;background:#fef08a;color:#854d0e;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:600;white-space:nowrap;margin-left:4px;">⏳ en cours de remboursement</span>
-              </div>
-              <span style="color:#ca8a04;white-space:nowrap;font-weight:600;">${(tx.reimbClaimedAmount ?? tx.amount).toFixed(2)} €</span>
+              <div style="flex:1;color:var(--ink);min-width:0;">${escapeHtml(tx.category)} — ${escapeHtml(tx.note||"—")} · ${fmt(tx.date)}</div>
+              <span style="color:var(--ink-soft);white-space:nowrap;">${tx.amount.toFixed(2)} €</span>
               <span style="font-size:11px;color:var(--ink-softer);white-space:nowrap;">lancé ${fmt(tx.reimbClaimedAt)}</span>
-              <button onclick="confirmClaimedReceived('${tx.id}')" style="padding:2px 8px;border-radius:6px;border:none;background:#10b981;color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">✅ Reçu</button>
-              <button onclick="undoClaim('${tx.id}')" title="Annuler la demande" style="padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:white;color:var(--ink-softer);font-size:11px;cursor:pointer;">↩</button>
+              <button onclick="undoClaim('${tx.id}')" title="Remettre en attente" style="padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:white;color:var(--ink-softer);font-size:11px;cursor:pointer;">↩</button>
             </div>`).join("")}
         </div>`;
       }).join("")}
@@ -8565,7 +8571,10 @@ function markReimbClaimed(id) {
 function markGroupClaimed(ids, dateInputId) {
   const dateVal = document.getElementById(dateInputId)?.value || new Date().toISOString().slice(0, 10);
   const iso = new Date(dateVal).toISOString();
-  ids.map(id => state.transactions.find(t => t.id === id)).filter(Boolean).forEach(t => { t.reimbClaimedAt = iso; t.reimbClaimedAmount = null; });
+  const amt = parseFloat(document.getElementById(dateInputId + "_amt")?.value);
+  const txs = ids.map(id => state.transactions.find(t => t.id === id)).filter(Boolean);
+  // Le montant remboursé annoncé (peut être ≠ du total dépensé) est stocké sur la 1ère dépense de la mission
+  txs.forEach((t, i) => { t.reimbClaimedAt = iso; t.reimbClaimedAmount = (i === 0 && !isNaN(amt)) ? amt : null; });
   saveState(); renderMoney();
 }
 function undoClaim(id) {
@@ -8590,13 +8599,14 @@ function confirmClaimedReceived(id) {
 function confirmGroupClaimedReceived(ids, mission) {
   const dateIso = new Date().toISOString();
   const txs = ids.map(id => state.transactions.find(t => t.id === id)).filter(Boolean);
-  let total = 0;
-  for (const t of txs) {
-    total += (t.reimbClaimedAmount != null ? t.reimbClaimedAmount : t.amount);
+  // Montant reçu = montant annoncé (stocké sur la 1ère dépense) ou, à défaut, le total dépensé
+  const fromClaims = txs.reduce((s, t) => s + (t.reimbClaimedAmount != null ? t.reimbClaimedAmount : 0), 0);
+  const total = fromClaims > 0 ? fromClaims : txs.reduce((s, t) => s + t.amount, 0);
+  txs.forEach((t, i) => {
     t.reimbursedAt = dateIso;
-    t.reimbursedAmount = (t.reimbClaimedAmount != null ? t.reimbClaimedAmount : null);
+    t.reimbursedAmount = (i === 0) ? total : null; // total du remboursement porté par la 1ère
     delete t.reimbClaimedAt; delete t.reimbClaimedAmount;
-  }
+  });
   const note = mission ? `Mission : ${mission}` : "Remboursement frais pro";
   const incId = _createReimbIncomeTx(dateIso, total, note);
   if (txs[0]) txs[0].reimbTxId = incId;
