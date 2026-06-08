@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v358</title>
+<title>Mon Tableau de Vie 🌿 · v359</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2624,7 +2624,7 @@
         </div>
         <div class="tx-form-inputs">
           <input type="number" id="txAmount" placeholder="Montant (€)" step="0.01" />
-          <select id="txCategory"></select>
+          <select id="txCategory" onchange="onTxCategoryChange()"></select>
           <input type="text" id="txNote" placeholder="Note (optionnel)" />
           <input type="date" id="txDate" />
           <button class="add-btn" onclick="addTransaction()">Ajouter</button>
@@ -8207,8 +8207,18 @@ function _refreshTxCategories(isPro) {
   if (!sel) return;
   const list = isPro ? PRO_CATEGORIES : state.categories;
   const prev = sel.value;
-  sel.innerHTML = list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  sel.innerHTML = list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")
+    + (isPro ? "" : `<option value="__newcat__">➕ Nouvelle catégorie…</option>`);
   if (list.includes(prev)) sel.value = prev;
+}
+// Création d'une catégorie de dépense directement depuis le menu
+function onTxCategoryChange() {
+  const sel = document.getElementById("txCategory");
+  if (!sel || sel.value !== "__newcat__") return;
+  const name = (prompt("Nom de la nouvelle catégorie de dépense :") || "").trim();
+  if (name && !state.categories.includes(name)) { state.categories.push(name); saveState(); }
+  _refreshTxCategories(false);
+  sel.value = (name && state.categories.includes(name)) ? name : state.categories[0];
 }
 function _refreshModalCategories(isPro) {
   const sel = document.getElementById("txModalCategory");
@@ -8688,7 +8698,9 @@ function populateTxCategories() {
              : txType === "savings"     ? state.savingsCategories
              : txType === "savings-out" ? state.savingsCategories
              : state.categories;
-  sel.innerHTML = list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  const isExpenseList = (list === state.categories);
+  sel.innerHTML = list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")
+    + (isExpenseList ? `<option value="__newcat__">➕ Nouvelle catégorie…</option>` : "");
 }
 // Mois financier : du 26 du mois précédent au 25 du mois courant (cycle salaire)
 function currentMonthRange() {
