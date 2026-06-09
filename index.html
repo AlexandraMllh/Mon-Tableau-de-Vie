@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v380</title>
+<title>Mon Tableau de Vie 🌿 · v381</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -7037,7 +7037,7 @@ function renderSportPlanning() {
       } else if (d.isBlocked) {
         // Déplacement (✈️) ou soirée prise (🌙) — pas de salle possible
         bg = d.blockType === "déplacement" ? "#fde8e8" : "#ede9f4";
-        icon = d.blockType === "déplacement" ? "✈️" : "🌙";
+        icon = d.blockType === "déplacement" ? "✈️" : "🔒";
         sub = d.blockReason || (d.blockType === "déplacement" ? "déplacement" : "soirée prise");
       } else if (weekRecs.has(d.dk)) {
         // Jour recommandé — couleur selon charge
@@ -7096,7 +7096,7 @@ function renderSportPlanning() {
         <span style="white-space:nowrap;">🏃&nbsp;jour libre</span> ·
         <span style="white-space:nowrap;">💪&nbsp;possible (1-2 évén.)</span> ·
         <span style="white-space:nowrap;">😴&nbsp;journée chargée (3+)</span> ·
-        <span style="white-space:nowrap;">🌙&nbsp;soirée prise → pas de salle</span> ·
+        <span style="white-space:nowrap;">🔒&nbsp;soirée prise → pas de salle</span> ·
         <span style="white-space:nowrap;">✈️&nbsp;déplacement → pas de salle</span>
       </div>`;
 }
