@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v377</title>
+<title>Mon Tableau de Vie 🌿 · v378</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -7088,7 +7088,16 @@ function renderSportPlanning() {
     + weekProgress(weeks[1], recs[1], `Semaine suivante (${weekLabel(1)})`)
     + renderWeek(weeks[1], recs[1])
     + (noCalData ? `<p style="font-size:12px;color:var(--ink-softer);margin-top:10px;">💡 Synchronise ton Google Agenda (onglet Calendrier → Configurer) pour affiner les recommandations.</p>` : "")
-    + `<div style="font-size:11px;color:var(--ink-softer);margin-top:10px;">🎯 = créneau recommandé · 🔒 = soirée/journée prise (sport non retenu) · 😴 = journée chargée</div>`;
+    + `<div style="font-size:11px;color:var(--ink-softer);margin-top:10px;line-height:1.9;">
+        <strong>Légende :</strong>
+        ✅ séance faite ·
+        🎯 créneau conseillé pour ta salle ·
+        🏃 jour libre ·
+        💪 possible (1-2 événements) ·
+        😴 journée chargée (3 événements ou +) ·
+        🌙 soirée prise → pas de salle (semaine) ·
+        ✈️ déplacement (étranger / Valenciennes / colloque) → pas de salle
+      </div>`;
 }
 
 /* ========= HEALTH ========= */
