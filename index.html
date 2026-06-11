@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v384</title>
+<title>Mon Tableau de Vie 🌿 · v385</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -7752,6 +7752,21 @@ function _pillBestStreak() {
   return best;
 }
 
+// Petite bulle instantanée qui suit la souris (routines, pilule…)
+function _hoverTipEl() {
+  let t = document.getElementById("hoverTip");
+  if (!t) {
+    t = document.createElement("div");
+    t.id = "hoverTip";
+    t.style.cssText = "position:fixed;z-index:9999;background:var(--ink,#4a4458);color:#fff;font-size:12px;padding:4px 9px;border-radius:8px;pointer-events:none;display:none;box-shadow:0 4px 14px rgba(0,0,0,.18);white-space:nowrap;";
+    document.body.appendChild(t);
+  }
+  return t;
+}
+function showHoverTip(e, text) { const t = _hoverTipEl(); t.textContent = text; t.style.display = "block"; moveHoverTip(e); }
+function moveHoverTip(e) { const t = _hoverTipEl(); t.style.left = (e.clientX + 12) + "px"; t.style.top = (e.clientY - 32) + "px"; }
+function hideHoverTip() { const t = document.getElementById("hoverTip"); if (t) t.style.display = "none"; }
+
 function renderPillSante() {
   const calEl = document.getElementById("pillCalendar");
   const streakEl = document.getElementById("pillStreakSante");
@@ -7773,13 +7788,13 @@ function renderPillSante() {
     const taken = !!state.history[dk]?.pillTaken;
     const isToday = dk === todayK;
     const d = new Date(dk);
-    const label = d.toLocaleDateString("fr-FR", { day:"numeric", month:"short" });
+    const label = d.toLocaleDateString("fr-FR", { weekday:"short", day:"numeric", month:"short" });
     let bg, title;
-    if (isToday) { bg = taken ? "#7c5cbf" : "#b4d4f1"; title = "Aujourd'hui" + (taken ? " ✓" : ""); }
-    else if (taken) { bg = "#c9b6f0"; title = label + " ✓"; }
-    else { bg = "#ece6f5"; title = label + " —"; }
+    if (isToday) { bg = taken ? "#7c5cbf" : "#b4d4f1"; title = "Aujourd'hui · " + label + (taken ? " ✓" : ""); }
+    else if (taken) { bg = "#c9b6f0"; title = label + " ✓ prise"; }
+    else { bg = "#ece6f5"; title = label + " — oubliée"; }
     const opacity = taken || isToday ? "1" : "0.5";
-    return `<div title="${title}" style="width:18px;height:18px;border-radius:4px;background:${bg};opacity:${opacity};cursor:default;font-size:10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">${taken && !isToday ? "" : isToday ? "●" : ""}</div>`;
+    return `<div data-tip="${title}" onmouseenter="showHoverTip(event,this.dataset.tip)" onmousemove="moveHoverTip(event)" onmouseleave="hideHoverTip()" title="${title}" style="width:18px;height:18px;border-radius:4px;background:${bg};opacity:${opacity};cursor:default;font-size:10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">${taken && !isToday ? "" : isToday ? "●" : ""}</div>`;
   }).join("");
 
   // Stats
@@ -7885,8 +7900,8 @@ function renderSkincare() {
     const h = state.history[k]?.habits || {};
     const isDone  = routineComplete(h, key);
     const isToday = k === todayK;
-    const lbl = d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-    return `<div title="${lbl}${isDone ? " ✓" : ""}" style="
+    const lbl = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }) + (isDone ? " ✓" : "");
+    return `<div data-tip="${lbl}" onmouseenter="showHoverTip(event,this.dataset.tip)" onmousemove="moveHoverTip(event)" onmouseleave="hideHoverTip()" title="${lbl}" style="
       width:18px;height:18px;border-radius:50%;flex-shrink:0;
       background:${isDone ? color : "var(--line)"};
       outline:${isToday ? `2px solid ${color}` : "none"};
