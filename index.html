@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v385</title>
+<title>Mon Tableau de Vie 🌿 · v386</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -7735,7 +7735,7 @@ function _pillStreak() {
   let streak = 0;
   for (let i = 0; i < 365; i++) {
     const d = new Date(today); d.setDate(d.getDate() - i);
-    const dk = d.toISOString().slice(0,10);
+    const dk = todayKey(d);
     if (state.history[dk]?.pillTaken) streak++;
     else break;
   }
@@ -7775,19 +7775,20 @@ function renderPillSante() {
   if (!calEl) return;
 
   const today = new Date(); today.setHours(0,0,0,0);
-  const todayK = today.toISOString().slice(0,10);
+  const todayK = todayKey(today); // date LOCALE (toISOString décalerait d'un jour)
 
   // Calendrier 90 jours
   const days = [];
   for (let i = 89; i >= 0; i--) {
     const d = new Date(today); d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0,10));
+    days.push(todayKey(d));
   }
 
   calEl.innerHTML = days.map(dk => {
     const taken = !!state.history[dk]?.pillTaken;
     const isToday = dk === todayK;
-    const d = new Date(dk);
+    const [yy, mm, dd] = dk.split("-").map(Number);
+    const d = new Date(yy, mm - 1, dd);
     const label = d.toLocaleDateString("fr-FR", { weekday:"short", day:"numeric", month:"short" });
     let bg, title;
     if (isToday) { bg = taken ? "#7c5cbf" : "#b4d4f1"; title = "Aujourd'hui · " + label + (taken ? " ✓" : ""); }
@@ -7805,7 +7806,7 @@ function renderPillSante() {
 
   // % ce mois
   const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+  const firstOfMonth = todayKey(new Date(now.getFullYear(), now.getMonth(), 1));
   const daysInMonth = days.filter(dk => dk >= firstOfMonth && dk <= todayK);
   const takenInMonth = daysInMonth.filter(dk => !!state.history[dk]?.pillTaken).length;
   const pct = daysInMonth.length ? Math.round(takenInMonth / daysInMonth.length * 100) : 0;
@@ -9405,7 +9406,7 @@ function renderBalanceEvolutionChart() {
   // Trier toutes les transactions par date
   const txSorted = [...state.transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
   const balances = days.map(day => {
-    const dk = day.toISOString().slice(0,10);
+    const dk = todayKey(day);
     let bal = base;
     for (const t of txSorted) {
       if (t.date > dk) break;
@@ -10391,7 +10392,7 @@ function computeMetric(m) {
     let filled = 0;
     for (let i = 0; i < 7; i++) {
       const d = new Date(now); d.setDate(d.getDate() + i);
-      const key = d.toISOString().slice(0,10);
+      const key = todayKey(d);
       const plan = state.domestique?.mealPlan?.[key] || {};
       if (plan.midi || plan.soir) filled++;
     }
