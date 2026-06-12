@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v389</title>
+<title>Mon Tableau de Vie 🌿 · v390</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2631,6 +2631,21 @@
           <input type="text" id="txMission" list="missionList" placeholder="Mission / déplacement (ex : Conférence MHT Amsterdam)"
             style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;color:var(--ink);box-sizing:border-box;" />
           <datalist id="missionList"></datalist>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);cursor:pointer;margin-top:8px;">
+            <input type="checkbox" id="txPostdocMission" style="width:15px;height:15px;cursor:pointer;" onchange="togglePostdocMission(this.checked)" />
+            📘 Rattacher à mes missions postdoc <span style="font-size:11px;color:var(--ink-softer);">(Travail › Postdoc › Missions)</span>
+          </label>
+          <div id="txPostdocFields" style="display:none;gap:8px;margin-top:6px;">
+            <input type="text" id="txMissionLieu" placeholder="Lieu (ex : Estampuis)"
+              style="flex:1;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;color:var(--ink);box-sizing:border-box;" />
+            <select id="txMissionType" title="Type de frais (colonne de la mission)"
+              style="flex-shrink:0;padding:9px 10px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;background:white;">
+              <option value="train">🚆 Train</option>
+              <option value="repas">🍽️ Repas</option>
+              <option value="taxi">🚕 Taxi</option>
+              <option value="essence">⛽ Essence</option>
+            </select>
+          </div>
         </div>
         <div class="tx-form-inputs">
           <input type="number" id="txAmount" placeholder="Montant (€)" step="0.01" />
@@ -8390,9 +8405,36 @@ function renderTrendPrediction() {
 /* ========= MONEY ========= */
 let txType = "expense";
 const PRO_CATEGORIES = ["🚆 Transport", "🏨 Hébergement", "🍽️ Repas", "🎫 Inscription / conférence", "📦 Matériel", "🔧 Autre"];
+// Affiche/masque les champs Lieu + Type quand « Rattacher aux missions postdoc » est coché
+function togglePostdocMission(show) {
+  const f = document.getElementById("txPostdocFields");
+  if (f) f.style.display = show ? "flex" : "none";
+}
+// Crée ou complète une ligne dans Travail › Postdoc › Missions à partir d'un frais pro
+function addExpenseToPostdocMission(dateIso, lieu, type, amount) {
+  if (!state.admin) state.admin = {};
+  if (!Array.isArray(state.admin.missions)) state.admin.missions = [];
+  const dk = todayKey(new Date(dateIso)); // YYYY-MM-DD (date locale)
+  const norm = s => (s || "").toString().trim().toLowerCase();
+  // Fusion si une mission existe déjà le même jour au même lieu
+  let m = state.admin.missions.find(mm => mm.date === dk && norm(mm.lieu) === norm(lieu));
+  if (!m) {
+    m = { id: "m" + Date.now(), date: dk, lieu, train: null, repas: null, taxi: null, km: null, essence: null, remb: null, dateRemb: null, statut: "En attente" };
+    state.admin.missions.push(m);
+  }
+  m[type] = (Number(m[type]) || 0) + Number(amount);
+  if (!m.statut) m.statut = "En attente";
+  return m;
+}
 function toggleMissionField(wrapId, show) {
   const w = document.getElementById(wrapId);
   if (w) w.style.display = show ? "block" : "none";
+  // Réinitialise le rattachement postdoc quand on masque le bloc frais pro
+  if (wrapId === "txMissionWrap" && !show) {
+    const pe = document.getElementById("txPostdocMission");
+    if (pe) pe.checked = false;
+    togglePostdocMission(false);
+  }
   // Swap les catégories selon le contexte frais pro
   if (wrapId === "txMissionWrap") _refreshTxCategories(show);
   if (wrapId === "txModalMissionWrap") _refreshModalCategories(show);
@@ -9050,15 +9092,28 @@ function addTransaction() {
   const mission = reimbursable ? (document.getElementById("txMission")?.value.trim() || "") : "";
   const fixedChargeEl = document.getElementById("txFixedCharge");
   const fixedCharge = fixedChargeEl?.checked && (txType === "expense" || txType === "external") ? true : false;
-  state.transactions.unshift({ id: "tx" + Date.now(), date, type: txType, amount, category, note, reimbursable, mission, fixedCharge });
+  // Rattachement aux missions postdoc (si frais pro + case cochée)
+  const postdocEl = document.getElementById("txPostdocMission");
+  let postdocMission = false;
+  if (reimbursable && postdocEl?.checked) {
+    const lieu = (document.getElementById("txMissionLieu")?.value.trim()) || mission || "";
+    const type = document.getElementById("txMissionType")?.value || "train";
+    if (lieu) { addExpenseToPostdocMission(date, lieu, type, amount); postdocMission = true; }
+  }
+  state.transactions.unshift({ id: "tx" + Date.now(), date, type: txType, amount, category, note, reimbursable, mission, fixedCharge, postdocMission });
   document.getElementById("txAmount").value = "";
   document.getElementById("txNote").value = "";
   if (reimbursableEl) reimbursableEl.checked = false;
   const missionEl = document.getElementById("txMission");
   if (missionEl) missionEl.value = "";
+  if (postdocEl) postdocEl.checked = false;
+  const lieuEl = document.getElementById("txMissionLieu");
+  if (lieuEl) lieuEl.value = "";
+  togglePostdocMission(false);
   toggleMissionField("txMissionWrap", false);
   initTxDate(); // remet à aujourd'hui après ajout
   saveState();
+  if (postdocMission) { try { admRender(); } catch(e) {} } // rafraîchit le tableau missions
   renderMoney(); renderDailyExpenseChart(); renderBalanceEvolutionChart(); renderMonthComparison(); renderMoneyFlowChart(); renderMoneyCatChart(); renderMoneyIncomeCatChart(); renderSavingsChart(); renderBudgetFeedback(); renderForecast();
 }
 function deleteTx(id) {
