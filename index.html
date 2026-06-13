@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v393</title>
+<title>Mon Tableau de Vie 🌿 · v394</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -14009,15 +14009,15 @@ function renderMealWeekGrid() {
     html += sep + `
     <div class="meal-day-row${isToday ? " meal-today" : ""}">
       <div class="meal-day-label">${dayShort[i%7]}<span class="meal-day-num">${dayNum}</span></div>
-      <div class="meal-slot" style="position:relative;">
+      <div class="meal-slot" style="position:relative;" onclick="editMealSlot('${key}','midi',this)">
         <button onclick="event.stopPropagation();pickRecipeForMeal('${key}','midi')" title="Choisir une recette" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;font-size:12px;opacity:0.5;">📖</button>
         <span class="meal-slot-label">Midi</span>
-        <span class="meal-slot-value${plan.midi ? "" : " empty"}" onclick="editMealSlot('${key}','midi',this)">${plan.midi ? escapeHtml(plan.midi) : "—"}</span>
+        <span class="meal-slot-value${plan.midi ? "" : " empty"}">${plan.midi ? escapeHtml(plan.midi) : "—"}</span>
       </div>
-      <div class="meal-slot" style="position:relative;">
+      <div class="meal-slot" style="position:relative;" onclick="editMealSlot('${key}','soir',this)">
         <button onclick="event.stopPropagation();pickRecipeForMeal('${key}','soir')" title="Choisir une recette" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;font-size:12px;opacity:0.5;">📖</button>
         <span class="meal-slot-label">Soir</span>
-        <span class="meal-slot-value${plan.soir ? "" : " empty"}" onclick="editMealSlot('${key}','soir',this)">${plan.soir ? escapeHtml(plan.soir) : "—"}</span>
+        <span class="meal-slot-value${plan.soir ? "" : " empty"}">${plan.soir ? escapeHtml(plan.soir) : "—"}</span>
       </div>
     </div>`;
   }
