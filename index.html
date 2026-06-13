@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v392</title>
+<title>Mon Tableau de Vie 🌿 · v393</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -14025,8 +14025,11 @@ function renderMealWeekGrid() {
 }
 
 function editMealSlot(dateKey, slot, slotEl) {
-  const valueSpan = slotEl.querySelector(".meal-slot-value");
-  if (!valueSpan || slotEl.querySelector("input")) return;
+  // slotEl peut être le span de valeur (.meal-slot-value) OU son parent (.meal-slot)
+  const isValueSpan = slotEl.classList && slotEl.classList.contains("meal-slot-value");
+  const valueSpan = isValueSpan ? slotEl : slotEl.querySelector(".meal-slot-value");
+  const container = isValueSpan ? slotEl.parentElement : slotEl;
+  if (!valueSpan || (container && container.querySelector("input"))) return;
   const current = state.domestique.mealPlan?.[dateKey]?.[slot] || "";
   const currentRecipeId = state.domestique.mealPlan?.[dateKey]?.[slot+"RecipeId"] || "";
   const input = document.createElement("input");
