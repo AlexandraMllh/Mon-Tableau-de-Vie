@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v396</title>
+<title>Mon Tableau de Vie 🌿 · v397</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -16081,11 +16081,17 @@ function signInWithGoogle() {
     return;
   }
   const provider = new firebase.auth.GoogleAuthProvider();
-  try {
-    _fbAuth.signInWithRedirect(provider);
-  } catch(e) {
-    alert("Erreur Firebase : " + e.message);
-  }
+  // Connexion par pop-up (fiable malgré le blocage des cookies tiers de Chrome),
+  // avec repli sur la redirection si le pop-up est bloqué.
+  _fbAuth.signInWithPopup(provider)
+    .then(result => { if (result && result.user) showToast("✅ Connecté·e !"); })
+    .catch(e => {
+      if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment" || e.code === "auth/cancelled-popup-request") {
+        _fbAuth.signInWithRedirect(provider);
+      } else if (e.code !== "auth/popup-closed-by-user") {
+        alert("Erreur Firebase : " + (e.code || "") + " " + e.message);
+      }
+    });
 }
 
 function showSyncMenu() {
