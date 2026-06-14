@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v398</title>
+<title>Mon Tableau de Vie 🌿 · v399</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1712,8 +1712,8 @@
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
-        <button onclick="fetchWeather()" style="padding:4px 10px;border-radius:8px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.6);font-size:11px;cursor:pointer;color:var(--ink-soft);" title="Actualiser">🔄</button>
-        <div id="weatherCityInput" style="display:none;gap:4px;">
+        <button onclick="fetchWeather(true)" style="padding:4px 10px;border-radius:8px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.6);font-size:11px;cursor:pointer;color:var(--ink-soft);" title="Utiliser ma position (géolocalisation)">🔄 Ma position</button>
+        <div id="weatherCityInput" style="display:flex;gap:4px;">
           <input type="text" id="weatherManualCity" placeholder="Ville…" style="padding:4px 8px;border:1px solid var(--line);border-radius:7px;font-size:11px;width:90px;font-family:inherit;" onkeydown="if(event.key==='Enter')fetchWeatherByCity()" />
           <button onclick="fetchWeatherByCity()" style="padding:4px 8px;border-radius:7px;border:none;background:var(--lavender);color:white;font-size:11px;cursor:pointer;">OK</button>
         </div>
@@ -4595,10 +4595,15 @@ const WMO_DESC = {
   80:"Averses légères",81:"Averses modérées",82:"Averses violentes",
   95:"Orage",96:"Orage avec grêle",99:"Orage fort",
 };
-async function fetchWeather() {
+async function fetchWeather(force) {
   const widget = document.getElementById("weatherWidget");
   if (!widget) return;
   widget.style.display = "flex";
+  // Pré-remplir le champ avec la ville mémorisée
+  const inpEl = document.getElementById("weatherManualCity");
+  if (inpEl && state.weatherCity && !inpEl.value) inpEl.value = state.weatherCity;
+  // Si une ville a été choisie manuellement, on l'utilise directement (sauf clic « Ma position »)
+  if (!force && state.weatherCity) { fetchWeatherByCity(); return; }
   document.getElementById("weatherDesc").textContent = "Chargement…";
   try {
     // 1. Géolocalisation
@@ -4623,7 +4628,11 @@ async function fetchWeather() {
     document.getElementById("weatherFeels").textContent  = "Ressenti : " + Math.round(cur.apparent_temperature) + "°C";
     document.getElementById("weatherHumidity").textContent = "Humidité : " + cur.relative_humidity_2m + "%";
     document.getElementById("weatherWind").textContent   = "Vent : " + Math.round(cur.wind_speed_10m) + " km/h";
+    // Géoloc OK → on repasse en mode automatique (on oublie la ville fixée)
+    if (state.weatherCity) { state.weatherCity = ""; saveState(); }
   } catch(e) {
+    // Géoloc refusée : si une ville est mémorisée, on l'utilise plutôt que d'afficher l'erreur
+    if (state.weatherCity) { fetchWeatherByCity(); return; }
     document.getElementById("weatherDesc").textContent = "Localisation refusée";
     document.getElementById("weatherTemp").textContent = "—";
     document.getElementById("weatherCity").textContent = "📍 Autoriser la localisation ou saisir une ville →";
@@ -4657,8 +4666,8 @@ async function fetchWeatherByCity() {
     document.getElementById("weatherFeels").textContent  = "Ressenti : " + Math.round(cur.apparent_temperature) + "°C";
     document.getElementById("weatherHumidity").textContent = "Humidité : " + cur.relative_humidity_2m + "%";
     document.getElementById("weatherWind").textContent   = "Vent : " + Math.round(cur.wind_speed_10m) + " km/h";
-    const inp = document.getElementById("weatherCityInput");
-    if (inp) inp.style.display = "none";
+    // Mémorise la ville pour les prochains chargements (plus besoin de la retaper)
+    state.weatherCity = city; saveState();
   } catch(e) {
     document.getElementById("weatherDesc").textContent = "Erreur réseau";
   }
