@@ -10,18 +10,23 @@ Dashboard personnel PWA (Progressive Web App) — accessible depuis n'importe qu
 
 ### 📅 Aujourd'hui
 - Navigation jour par jour (passé / futur)
-- **Météo** en temps réel (Open-Meteo, sans clé API, géolocalisation auto)
+- **Météo** en temps réel (Open-Meteo, sans clé API) — géolocalisation auto **ou ville saisie et mémorisée**
 - Anneaux de progression des habitudes
 - Humeur, sommeil (horaires + qualité), énergie
+- **🤰 Mal de ventre** (estomac/intestins) **et 🩸 endométriose** (utérus) — deux jauges distinctes
+- **🍽️ Alimentation du jour** — repas + calories, ajout direct d'une recette (portions + ingrédients auto)
 - **💊 Suivi pilule** — bouton à cocher, streak affiché
+- **🧪 Balance des hormones** — dopamine, sérotonine, ocytocine, endorphines déduites de tes activités, repas, moments sociaux, soins et accomplissements (tâches **et jalons** terminés)
 - To-do du jour
 - Journal / routines
 
 ### 💼 Travail
-- Projets & tâches (avec jalons, priorité, avancement)
+- Projets & tâches (avec jalons pondérés, priorité, avancement, glisser-déposer)
+- **🤖 Pour Claude** — coche un jalon « pour Claude » → il s'affiche dans une liste dédiée sous le calendrier des deadlines
 - Bilan hebdo / mensuel
 - Candidatures, articles, communications
-- Gestion du temps & missions pro
+- **⏱️ Gestion du temps** — saisie par catégorie, stats **cette semaine** (navigation ◀ ▶) / ce mois (depuis le 1er), graphiques 14 j & 30 j
+- **🚆 Missions pro postdoc** — train / repas / taxi / essence / **péage**, remboursements (états), budget ; un **frais pro peut alimenter automatiquement** une ligne de mission
 - **📓 Notes** — groupes, éditeur WYSIWYG (gras, italique, titres, listes…)
 - Réseau / CRM
 
@@ -32,8 +37,10 @@ Dashboard personnel PWA (Progressive Web App) — accessible depuis n'importe qu
 
 ### 🩺 Santé
 - Composition corporelle (poids, masse grasse, masse maigre)
+- **🔥 Apport calorique 30 jours** — graphe + **moyennes de la semaine et du mois** (jours renseignés)
 - Hydratation quotidienne
 - Bien-être sur 30 jours
+- **💜 Corrélations bien-être** — réseau visuel reliant sommeil, énergie, humeur, mal de ventre et endométriose (corrélations de Pearson)
 - Routines (skincare…) — streak et calendrier 30 jours
 - **💊 Suivi pilule** — calendrier 90 jours, streak, record, % du mois
 - Pas quotidiens
@@ -42,7 +49,8 @@ Dashboard personnel PWA (Progressive Web App) — accessible depuis n'importe qu
 ### 💰 Finances
 - Comptes courant & épargne avec soldes automatiques
 - Transactions (dépenses, revenus, épargne, hors compte, frais pro)
-- Catégories personnalisées + catégories pro automatiques
+- Catégories personnalisées (**ajout / suppression** directement depuis le menu) + catégories pro automatiques
+- **💼 Frais pro & remboursements** — suivi des états (lancé / reçu), montant remboursé ≠ dépensé, répartition courant/hors compte, détection du surplus ; rattachement possible aux **missions postdoc**
 - Jauge budget mensuel
 - **📉 Évolution du solde** — courbe sur 90 jours
 - **⚖️ Comparaison mois N vs N-1** — dépenses / revenus / épargne / hors compte
@@ -52,9 +60,10 @@ Dashboard personnel PWA (Progressive Web App) — accessible depuis n'importe qu
 
 ### 🍽️ Domestique
 - To-do du jour (partagé avec Aujourd'hui)
-- Planning repas
+- **🍳 Recettes** — ingrédients avec calories, total + **par portion**, catégories pastel, filtre par kcal (préréglages + plage perso), recherche, emoji auto ou manuel
+- **Planning repas** — clic sur un créneau pour éditer, ou 📖 pour piocher une recette (par nom / catégorie / kcal)
 - Liste de courses (par événement)
-- 🌱 Plantes — fréquence d'arrosage, alertes
+- 🌱 Plantes — fréquence d'arrosage, alertes, détection depuis Google Agenda
 
 ### 📅 Calendrier
 - Vue mensuelle interactive
@@ -69,7 +78,13 @@ Dashboard personnel PWA (Progressive Web App) — accessible depuis n'importe qu
 
 ### 🧱 Piliers de vie
 - Suivi de 8 piliers (santé, travail, finances, loisirs…)
-- Score hebdomadaire avec métriques automatiques
+- Score hebdomadaire avec métriques automatiques cliquables (détail des événements pris en compte)
+
+### ⚙️ Réglages & sauvegarde
+- Prénom, habitudes, activités, catégories (dépenses / revenus / épargne), charges fixes, soldes de départ, types de candidatures
+- **💾 Exporter / Importer mes données** — sauvegarde `.json` datée (changement d'appareil, de navigateur, ou récupération si l'adresse du site change)
+
+> ⚠️ Les données vivent dans le **navigateur** (localStorage), cloisonnées par adresse du site. **Exporter régulièrement** est le meilleur filet de sécurité.
 
 ---
 
@@ -100,4 +115,4 @@ Dashboard personnel PWA (Progressive Web App) — accessible depuis n'importe qu
 
 Les mises à jour sont **automatiques** — l'app se recharge toute seule quand une nouvelle version est disponible (toast "🔄 Mise à jour — rechargement…").
 
-Le numéro de version est visible dans le titre de l'onglet (`v189`).
+Le numéro de version est visible dans le titre de l'onglet (ex. `v402`).
