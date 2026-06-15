@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v400</title>
+<title>Mon Tableau de Vie 🌿 · v401</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1792,7 +1792,7 @@
             </div>
           </div>
           <div class="wb-block">
-            <label>Ventre</label>
+            <label>🤰 Mal de ventre <span style="font-weight:400;font-size:11px;color:var(--ink-softer);">estomac / intestins</span></label>
             <div class="scale belly" id="bellyScale">
               <button data-v="0" title="Aucune douleur">😌</button>
               <button data-v="1" title="Légère gêne">😕</button>
@@ -1801,6 +1801,17 @@
               <button data-v="4" title="Très forte douleur">🤢</button>
             </div>
             <div class="sleepquality-label" id="bellyLabel"></div>
+          </div>
+          <div class="wb-block">
+            <label>🩸 Endométriose <span style="font-weight:400;font-size:11px;color:var(--ink-softer);">utérus</span></label>
+            <div class="scale belly" id="endoScale">
+              <button data-v="0" title="Aucune douleur">😌</button>
+              <button data-v="1" title="Légère gêne">😕</button>
+              <button data-v="2" title="Inconfort modéré">😣</button>
+              <button data-v="3" title="Douleur forte">😖</button>
+              <button data-v="4" title="Très forte douleur">🤢</button>
+            </div>
+            <div class="sleepquality-label" id="endoLabel"></div>
           </div>
         </div>
         <div id="journalMoodToday" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
@@ -2512,7 +2523,7 @@
     <!-- 🔗 Corrélations sommeil ↔ bien-être -->
     <div class="card" style="margin-top:18px;">
       <h2>🔗 Sommeil & bien-être</h2>
-      <p style="font-size:12px;color:var(--ink-soft);margin:-4px 0 12px;">Lien entre ce que tu dors et ton humeur, ton énergie et ton ventre (sur tes données saisies).</p>
+      <p style="font-size:12px;color:var(--ink-soft);margin:-4px 0 12px;">Lien entre ton sommeil, ton humeur, ton énergie, ton mal de ventre et tes douleurs d'endométriose (sur tes données saisies).</p>
       <div id="wellbeingCorrel"></div>
     </div>
 
@@ -4520,6 +4531,7 @@ function getToday() {
     if (d.highlight === undefined) d.highlight = "";
     if (d.pillTaken === undefined) d.pillTaken = false;
     if (d.belly === undefined) d.belly = null;
+    if (d.endo === undefined) d.endo = null;
     if (!d.foodLog) d.foodLog = [];
     if (d.foodMood === undefined) d.foodMood = "";
   }
@@ -4891,6 +4903,9 @@ function renderWellbeing() {
   const bellyLbls = ["Ventre ok 😌","Légère gêne 😕","Inconfort 😣","Douleur 😖","Très douloureux 🤢"];
   const bellyLbl = document.getElementById("bellyLabel");
   if (bellyLbl) bellyLbl.textContent = today.belly != null ? bellyLbls[today.belly] || "" : "";
+  document.querySelectorAll("#endoScale button").forEach(b => b.classList.toggle("active", Number(b.dataset.v) === (today.endo ?? -1)));
+  const endoLbl = document.getElementById("endoLabel");
+  if (endoLbl) endoLbl.textContent = today.endo != null ? bellyLbls[today.endo] || "" : "";
   const sqLbl = document.getElementById("sleepQualityLabel");
   if (sqLbl) sqLbl.textContent = today.sleepQuality ? sleepQualityLabel(today.sleepQuality) : "";
   // Émotions détectées dans le journal du jour
@@ -4943,6 +4958,14 @@ function setupWellbeing() {
       const v = Number(b.dataset.v);
       const today = getToday();
       today.belly = today.belly === v ? null : v;
+      saveState(); renderWellbeing();
+    });
+  });
+  document.querySelectorAll("#endoScale button").forEach(b => {
+    b.addEventListener("click", () => {
+      const v = Number(b.dataset.v);
+      const today = getToday();
+      today.endo = today.endo === v ? null : v;
       saveState(); renderWellbeing();
     });
   });
@@ -8171,12 +8194,13 @@ function renderWellbeingCorrelations() {
   const el = document.getElementById("wellbeingCorrel");
   if (!el) return;
   const dks = Object.keys(state.history || {});
-  // Les 4 variables (de = formulation "plus DE …" ; ventre : valeur haute = douleur)
+  // Les 5 variables disposées en pentagone (de = formulation "plus DE …" ; douleurs : valeur haute = douleur)
   const vars = [
-    { key: "sleep",  icon: "😴", name: "Sommeil", de: "de sommeil",            color: "#7bb0e0", x: 220, y: 46,  get: h => h.sleep },
-    { key: "energy", icon: "⚡", name: "Énergie", de: "d'énergie",             color: "#eab560", x: 384, y: 156, get: h => h.energy },
-    { key: "mood",   icon: "🙂", name: "Humeur",  de: "de bonne humeur",       color: "#e890b0", x: 220, y: 256, get: h => h.mood },
-    { key: "belly",  icon: "🤰", name: "Ventre",  de: "de douleur au ventre",  color: "#b29ae3", x: 56,  y: 156, get: h => h.belly },
+    { key: "sleep",  icon: "😴", name: "Sommeil",      de: "de sommeil",            color: "#7bb0e0", x: 220, y: 40,  get: h => h.sleep },
+    { key: "energy", icon: "⚡", name: "Énergie",      de: "d'énergie",             color: "#eab560", x: 334, y: 123, get: h => h.energy },
+    { key: "mood",   icon: "🙂", name: "Humeur",       de: "de bonne humeur",       color: "#e890b0", x: 291, y: 257, get: h => h.mood },
+    { key: "belly",  icon: "🤰", name: "Mal de ventre",de: "de mal de ventre",      color: "#b29ae3", x: 149, y: 257, get: h => h.belly },
+    { key: "endo",   icon: "🩸", name: "Endométriose", de: "de douleur d'endo",     color: "#d8638e", x: 106, y: 123, get: h => h.endo },
   ];
   const corr = (getA, getB) => {
     const pairs = [];
@@ -8226,7 +8250,7 @@ function renderWellbeingCorrelations() {
       + `<text x="${v.x}" y="${v.y + 43}" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">${v.name}</text>`
       + `</g>`;
   }
-  let html = `<svg viewBox="0 0 440 308" style="width:100%;max-width:430px;display:block;margin:2px auto 12px;overflow:visible;">${edges}${nodesSvg}</svg>`;
+  let html = `<svg viewBox="0 0 440 318" style="width:100%;max-width:430px;display:block;margin:2px auto 12px;overflow:visible;">${edges}${nodesSvg}</svg>`;
 
   for (const row of rows) {
     const { A, B, r, n } = row;
