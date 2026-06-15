@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v401</title>
+<title>Mon Tableau de Vie 🌿 · v402</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2023,6 +2023,10 @@
           <div class="deadline-cal-wrap">
             <div class="deadline-cal-title">📅 Deadlines · 30 jours</div>
             <div id="deadlineCalendar"></div>
+            <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px;">
+              <div style="font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:8px;display:flex;align-items:center;gap:5px;">🤖 Pour Claude <span id="claudeTaskCount" style="font-weight:400;color:var(--ink-softer);"></span></div>
+              <div id="claudeTasksList"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -3748,6 +3752,7 @@
     <div class="add-milestone-row">
       <input type="text" id="newMilestoneInput" placeholder="Nom du jalon…" style="flex:1;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;" onkeydown="if(event.key==='Enter')addMilestone()" />
       <input type="number" id="newMilestoneWeight" min="0" max="100" step="1" placeholder="%" title="Poids de ce jalon (ex: 30 pour 30%)" style="width:68px;flex-shrink:0;padding:7px 8px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;text-align:center;" />
+      <label title="À transmettre à Claude" style="display:flex;align-items:center;gap:3px;font-size:14px;flex-shrink:0;cursor:pointer;"><input type="checkbox" id="newMilestoneClaude" style="cursor:pointer;width:15px;height:15px;" />🤖</label>
       <button onclick="addMilestone()">+ Ajouter</button>
     </div>
     <div class="actions" style="margin-top:16px;">
@@ -6034,7 +6039,50 @@ function renderTasks() {
       </div>`;
   }).join("");
   renderDeadlineCalendar();
+  renderClaudeTasks();
   updateWorkTabBadges();
+}
+// Section « 🤖 Pour Claude » : liste les jalons cochés « Pour Claude » et non faits, toutes tâches confondues
+function renderClaudeTasks() {
+  const el = document.getElementById("claudeTasksList");
+  if (!el) return;
+  const tasks = (state.work && state.work.postdocTasks) || [];
+  const items = [];
+  tasks.forEach(t => {
+    (t.milestones || []).forEach((m, i) => {
+      if (m.forClaude && !m.done) items.push({ taskId: t.id, taskTitle: t.name || "Tâche", i, name: m.name || "Jalon" });
+    });
+  });
+  const countEl = document.getElementById("claudeTaskCount");
+  if (countEl) countEl.textContent = items.length ? `(${items.length})` : "";
+  if (!items.length) {
+    el.innerHTML = `<div style="font-size:11px;color:var(--ink-softer);line-height:1.4;">Coche 🤖 sur un jalon (dans le détail d'une tâche) pour qu'il apparaisse ici.</div>`;
+    return;
+  }
+  el.innerHTML = items.map(it => `
+    <div style="display:flex;align-items:flex-start;gap:6px;padding:6px 0;border-bottom:1px solid var(--line);">
+      <input type="checkbox" onclick="completeClaudeMilestone('${it.taskId}',${it.i})" title="Marquer comme fait" style="margin-top:2px;cursor:pointer;flex-shrink:0;width:15px;height:15px;" />
+      <div style="min-width:0;flex:1;">
+        <div style="font-size:12px;color:var(--ink);line-height:1.3;">${escapeHtml(it.name)}</div>
+        <div style="font-size:10px;color:var(--ink-softer);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(it.taskTitle)}</div>
+      </div>
+      <button onclick="unflagClaudeMilestone('${it.taskId}',${it.i})" title="Retirer de la liste" style="background:none;border:none;cursor:pointer;color:var(--ink-softer);font-size:12px;flex-shrink:0;padding:0 2px;">✕</button>
+    </div>`).join("");
+}
+function completeClaudeMilestone(taskId, i) {
+  const t = (state.work && state.work.postdocTasks || []).find(x => x.id === taskId);
+  if (!t || !t.milestones || !t.milestones[i]) return;
+  t.milestones[i].done = true;
+  t.milestones[i].doneAt = todayKey(); // compte aussi pour la dopamine
+  saveState();
+  renderTasks();
+}
+function unflagClaudeMilestone(taskId, i) {
+  const t = (state.work && state.work.postdocTasks || []).find(x => x.id === taskId);
+  if (!t || !t.milestones || !t.milestones[i]) return;
+  t.milestones[i].forClaude = false;
+  saveState();
+  renderClaudeTasks();
 }
 const PRIO_DOT_COLORS = { urgent: "#dc2626", high: "#ea580c", medium: "#f59e0b", low: "#94a3b8" };
 function renderDeadlineCalendar() {
@@ -6315,6 +6363,7 @@ function renderMilestones(milestones) {
         placeholder="%"
         title="Poids de ce jalon"
         onchange="updateMilestoneWeight(${i}, this.value)" />
+      <button class="milestone-del" style="flex-shrink:0;${m.forClaude ? "opacity:1;" : "opacity:0.3;"}" title="${m.forClaude ? "Retirer de « Pour Claude »" : "Marquer « Pour Claude »"}" onclick="toggleMilestoneClaude(${i})">🤖</button>
       <button class="milestone-del" style="flex-shrink:0;" onclick="deleteMilestone(${i})">✕</button>
     </div>`).join("");
   const totalHtml = hasAnyWeight
@@ -6377,6 +6426,13 @@ function toggleMilestone(i) {
   renderMilestones(t.milestones);
   saveState();
 }
+function toggleMilestoneClaude(i) {
+  const t = _getCurrentEditTask(); if (!t || !t.milestones || !t.milestones[i]) return;
+  t.milestones[i].forClaude = !t.milestones[i].forClaude;
+  renderMilestones(t.milestones);
+  saveState();
+  renderClaudeTasks();
+}
 function deleteMilestone(i) {
   const t = _getCurrentEditTask(); if (!t) return;
   t.milestones.splice(i, 1);
@@ -6395,9 +6451,12 @@ function addMilestone() {
   if (!t.milestones) t.milestones = [];
   const rawW = wInput ? wInput.value.trim() : "";
   const weight = rawW !== "" ? Math.min(100, Math.max(0, parseInt(rawW) || 0)) : null;
-  t.milestones.push({ name, done: false, weight });
+  const claudeEl = document.getElementById("newMilestoneClaude");
+  const forClaude = !!(claudeEl && claudeEl.checked);
+  t.milestones.push({ name, done: false, weight, forClaude });
   input.value = "";
   if (wInput) wInput.value = "";
+  if (claudeEl) claudeEl.checked = false;
   const pct = taskProgress(t);
   document.getElementById("taskEditProgress").value = pct;
   updateModalPreview(pct);
