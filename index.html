@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v399</title>
+<title>Mon Tableau de Vie 🌿 · v400</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -2064,7 +2064,11 @@
       </div>
       <div class="grid-two-eq" style="margin-bottom:18px;">
         <div class="card">
-          <h2>📊 Cette semaine</h2>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <button class="day-nav-btn" onclick="timeWeekNav(-1)" title="Semaine précédente">◀</button>
+            <h2 id="timeWeekTitle" style="margin:0;flex:1;text-align:center;">📊 Cette semaine</h2>
+            <button class="day-nav-btn" id="timeWeekNext" onclick="timeWeekNav(1)" title="Semaine suivante" disabled>▶</button>
+          </div>
           <div id="timeWeekStats"></div>
         </div>
         <div class="card">
@@ -11724,12 +11728,21 @@ function _sumWorkTime(dates) {
   }
   return totals;
 }
-function _currentWeekDates() {
+let _timeWeekOffset = 0; // 0 = semaine en cours, -1 = semaine précédente, etc.
+function _currentWeekDates(offset) {
+  offset = offset || 0;
   const now = new Date(); now.setHours(0, 0, 0, 0);
-  const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); // lundi de cette semaine
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + offset * 7); // lundi de la semaine ciblée
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  const last = offset === 0 ? now : sunday; // semaine courante : jusqu'à aujourd'hui ; passée : semaine complète
   const dates = [];
-  for (let d = new Date(monday); d <= now; d.setDate(d.getDate() + 1)) dates.push(new Date(d));
+  for (let d = new Date(monday); d <= last; d.setDate(d.getDate() + 1)) dates.push(new Date(d));
   return dates;
+}
+function timeWeekNav(delta) {
+  _timeWeekOffset = Math.min(0, _timeWeekOffset + delta); // pas de semaine future
+  renderTimeStatsWeek();
 }
 function _currentMonthDates() {
   const now = new Date(); now.setHours(0, 0, 0, 0);
@@ -11763,8 +11776,19 @@ function _renderTimeStats(target, datesOrDays, periodLabel) {
   target.innerHTML = html;
 }
 function renderTimeStatsWeek() {
+  const dates = _currentWeekDates(_timeWeekOffset);
   const t = document.getElementById("timeWeekStats");
-  if (t) _renderTimeStats(t, _currentWeekDates(), "cette semaine");
+  if (t) _renderTimeStats(t, dates, _timeWeekOffset === 0 ? "cette semaine" : "cette période");
+  const title = document.getElementById("timeWeekTitle");
+  if (title) {
+    if (_timeWeekOffset === 0) title.textContent = "📊 Cette semaine";
+    else {
+      const fmt = d => d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+      title.textContent = `📊 ${fmt(dates[0])} – ${fmt(dates[dates.length - 1])}`;
+    }
+  }
+  const nextBtn = document.getElementById("timeWeekNext");
+  if (nextBtn) nextBtn.disabled = _timeWeekOffset >= 0; // pas de futur
 }
 function renderTimeStatsMonth() {
   const t = document.getElementById("timeMonthStats");
