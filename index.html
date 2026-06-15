@@ -13,7 +13,7 @@
     location.replace(location.href + (location.search ? '&' : '?') + '_cb=' + Date.now());
   }
 </script>
-<title>Mon Tableau de Vie 🌿 · v406</title>
+<title>Mon Tableau de Vie 🌿 · v407</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11865,7 +11865,7 @@ function _renderTimeStats(target, datesOrDays, periodLabel, totalNote) {
     target.innerHTML = `<p style="color:var(--ink-soft);font-size:14px;text-align:center;padding:20px;">Aucune heure saisie sur les ${periodLabel}.</p>`;
     return;
   }
-  const noteHtml = totalNote ? `<span style="font-size:11px;color:var(--ink-softer);font-weight:600;white-space:nowrap;">${totalNote}</span>` : "";
+  const noteHtml = totalNote ? `<span style="font-size:15px;color:var(--ink);font-weight:700;white-space:nowrap;">${totalNote}</span>` : "";
   let html = `<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;"><span style="color:var(--ink-soft);font-size:13px;">Total</span><span style="display:flex;align-items:baseline;gap:8px;">${noteHtml}<strong style="font-size:18px;">${grandTotal.toFixed(1).replace(".", ",")} h</strong></span></div>`;
   for (const c of TIME_CATS) {
     const v = totals[c.key];
